@@ -95,6 +95,46 @@ func buildConversationWindow(systemPrompt string, history []session.SessionMessa
 	return conversation
 }
 
+// buildLLMToolsFromRegistry 动态从 Registry 中提取所有已注册插件算子声明，并转换为大模型工具契约格式
+// 保证新增算子“即注册即生效”，彻底替代硬编码 DefaultWorkspaceTools()
+func (a *App) buildLLMToolsFromRegistry(ctx context.Context) []llm.ToolDef {
+	tools := make([]llm.ToolDef, 0)
+
+	if a.registry != nil {
+		defs := a.registry.ListTools()
+		for _, d := range defs {
+			var params map[string]any
+			if len(d.Parameters) > 0 {
+				_ = json.Unmarshal(d.Parameters, &params)
+			}
+			if params == nil {
+				params = map[string]any{
+					"type":       "object",
+					"properties": map[string]any{},
+				}
+			}
+
+			tools = append(tools, llm.ToolDef{
+				Type: "function",
+				Function: llm.ToolFunctionDef{
+					Name:        d.Name,
+					Description: d.Description,
+					Parameters:  params,
+				},
+			})
+		}
+	}
+
+	// 合并外部激活的 MCP 协议算子
+	if a.mcpManager != nil {
+		if mcpTools, err := a.mcpManager.GetAllTools(ctx); err == nil && len(mcpTools) > 0 {
+			tools = append(tools, mcpTools...)
+		}
+	}
+
+	return tools
+}
+
 func normalizeWindowsPath(p string) string {
 	vol := filepath.VolumeName(p)
 	if len(vol) > 0 {
@@ -1133,13 +1173,8 @@ func (a *App) SendMessage(req ChatRequest) error {
 		var lastToolExec *session.ToolExecution
 		allToolExecs := make([]session.ToolExecution, 0)
 
-		// 5. 准备工作区内置沙箱算子与外部已激活 MCP 协议算子
-		workspaceTools := llm.DefaultWorkspaceTools()
-		if a.mcpManager != nil {
-			if mcpTools, err := a.mcpManager.GetAllTools(agentCtx); err == nil && len(mcpTools) > 0 {
-				workspaceTools = append(workspaceTools, mcpTools...)
-			}
-		}
+		// 5. 动态收集 Registry 所有插件算子与已激活的 MCP 算子声明 (真正热插拔，新增算子零改动生效)
+		workspaceTools := a.buildLLMToolsFromRegistry(agentCtx)
 
 		// 6. 通用多轮自主自愈状态机 (以大模型不再调用工具或目标达成作为核心自然收敛依据)
 		const maxWatchdogTurns = 12
@@ -1255,8 +1290,8 @@ func (a *App) SendMessage(req ChatRequest) error {
 
 				if railBlocked {
 					output = fmt.Sprintf("[安全拦截] 工具 [%s] 被 Rail 阻断: %s", toolName, railBlockReason)
-				} else if tool, ok := a.registry.GetTool(toolName); ok {
-					// 统一路由：Registry 内置 Tool
+				} else if tool, ok := a.registry.GetToolByName(toolName); ok {
+					// 统一路由：Registry 内置 Tool (支持按 ID 或 Definition.Name 智能匹配)
 					res, err := tool.Execute(agentCtx, rawToolArgs)
 					if err != nil {
 						output = fmt.Sprintf("工具 [%s] 执行失败: %v", toolName, err)
@@ -1265,14 +1300,20 @@ func (a *App) SendMessage(req ChatRequest) error {
 					} else {
 						toolResultForRail = res
 						output = trimToolOutput(res.Content, 3000)
-						// write_file 成功后触发 LSP 诊断与文件变更通知
-						if toolName == "write_file" && !res.IsError {
-							var argsObj struct {
-								RelPath  string `json:"rel_path"`
-								Path     string `json:"path"`
-								FilePath string `json:"file_path"`
-							}
-							_ = json.Unmarshal(rawToolArgs, &argsObj)
+						// write_file 或 fs_control(action=write) 成功后触发 LSP 诊断与文件变更通知
+						isWriteAction := toolName == "write_file"
+						var argsObj struct {
+							Action   string `json:"action"`
+							RelPath  string `json:"rel_path"`
+							Path     string `json:"path"`
+							FilePath string `json:"file_path"`
+						}
+						_ = json.Unmarshal(rawToolArgs, &argsObj)
+						if strings.ToLower(argsObj.Action) == "write" {
+							isWriteAction = true
+						}
+
+						if isWriteAction && !res.IsError {
 							targetPath := argsObj.RelPath
 							if targetPath == "" {
 								targetPath = argsObj.Path

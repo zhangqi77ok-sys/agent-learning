@@ -183,6 +183,25 @@ func (r *Registry) GetTool(id string) (v1.ToolPlugin, bool) {
 	return t, ok
 }
 
+// GetToolByName 根据算子 Definition.Name 查找算子插件 (支持大模型下发算子名调度)
+func (r *Registry) GetToolByName(name string) (v1.ToolPlugin, bool) {
+	r.toolMu.RLock()
+	defer r.toolMu.RUnlock()
+
+	// 1. 优先按 ID 匹配
+	if t, ok := r.tools[name]; ok {
+		return t, true
+	}
+
+	// 2. 遍历匹配 Definition().Name
+	for _, t := range r.tools {
+		if t.Definition().Name == name {
+			return t, true
+		}
+	}
+	return nil, false
+}
+
 // ListRails 获取已排好序的执行拦截器列表快照
 func (r *Registry) ListRails() []v1.RailPlugin {
 	r.railMu.RLock()

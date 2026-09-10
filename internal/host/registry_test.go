@@ -105,3 +105,20 @@ func TestRegistry_RegisterOrReplace(t *testing.T) {
 		t.Errorf("expected replaced tool desc 'Workspace 2 Git', got '%s'", retrieved.Definition().Description)
 	}
 }
+
+func TestRegistry_GetToolByName(t *testing.T) {
+	reg := NewRegistry()
+	tool := &mockTool{id: "tool.fs", desc: "FS description"}
+	_ = reg.Register(tool)
+
+	// 1. 按 ID 命中
+	if t1, ok := reg.GetToolByName("tool.fs"); !ok || t1 == nil {
+		t.Errorf("expected to find tool by ID 'tool.fs'")
+	}
+
+	// 2. 查无此工具
+	if _, ok := reg.GetToolByName("non_existent"); ok {
+		t.Errorf("expected not found for non-existent tool")
+	}
+}
+

@@ -15,17 +15,47 @@ import (
 )
 
 var (
+	// sharedTransport 生产级 HTTP 连接池与安全 TLS 传输层
+	// 默认开启标准根证书链校验，彻底防御公网中间人嗅探与凭据泄漏
 	sharedTransport = &http.Transport{
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: false,
+		},
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 20,
 		IdleConnTimeout:     90 * time.Second,
 	}
+
+	// localInsecureTransport 仅针对 localhost / 127.0.0.1 等本地开发网关放行
+	localInsecureTransport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+		MaxIdleConns:        50,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     60 * time.Second,
+	}
+
 	sharedLLMClient = &http.Client{
 		Timeout:   180 * time.Second,
 		Transport: sharedTransport,
 	}
+
+	localLLMClient = &http.Client{
+		Timeout:   180 * time.Second,
+		Transport: localInsecureTransport,
+	}
 )
+
+// getHTTPClient 根据目标端点自适应选取传输客户端 (本地开发服务放行，外部公网强制严格 TLS 校验)
+func getHTTPClient(endpoint string) *http.Client {
+	lower := strings.ToLower(endpoint)
+	if strings.Contains(lower, "localhost") || strings.Contains(lower, "127.0.0.1") || strings.Contains(lower, "::1") {
+		return localLLMClient
+	}
+	return sharedLLMClient
+}
+
 
 // StreamHandlers 流式回调处理器
 type StreamHandlers struct {
@@ -178,7 +208,8 @@ func StreamChat(ctx context.Context, req Request, handlers StreamHandlers) ([]To
 	httpReq.Header.Set("Originator", "codex_cli_rs")
 	httpReq.Header.Set("Version", "0.101.0")
 
-	resp, err := sharedLLMClient.Do(httpReq)
+	httpClient := getHTTPClient(req.Endpoint)
+	resp, err := httpClient.Do(httpReq)
 	if err != nil {
 		if handlers.OnError != nil {
 			handlers.OnError(err)
@@ -189,7 +220,19 @@ func StreamChat(ctx context.Context, req Request, handlers StreamHandlers) ([]To
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		err := fmt.Errorf("upstream API error [%d]: %s", resp.StatusCode, string(body))
+		var userFriendlyMsg string
+		switch resp.StatusCode {
+		case http.StatusUnauthorized:
+			userFriendlyMsg = fmt.Sprintf("上游模型网关身份校验失败 [401 Unauthorized]: 请检查渠道配置中的 API Key 是否有效或过期。原始响应: %s", string(body))
+		case http.StatusTooManyRequests:
+			userFriendlyMsg = fmt.Sprintf("上游模型网关已触发频控或配额耗尽 [429 Too Many Requests]: 请稍后重试或切换模型渠道。原始响应: %s", string(body))
+		case http.StatusBadRequest:
+			userFriendlyMsg = fmt.Sprintf("模型请求参数或上下文超限 [400 Bad Request]: %s", string(body))
+		default:
+			userFriendlyMsg = fmt.Sprintf("上游 API 异常响应 [%d]: %s", resp.StatusCode, string(body))
+		}
+
+		err := fmt.Errorf("%s", userFriendlyMsg)
 		if handlers.OnError != nil {
 			handlers.OnError(err)
 		}
