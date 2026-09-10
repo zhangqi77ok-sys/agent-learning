@@ -31,3 +31,11 @@ You must strictly abide by all rules defined in `AGENTS.md` and this document at
    - 严禁原生 `alert()` / `confirm()`；所有弹窗居中、暖色风格、Esc关闭、右上角有 `[X]`。
    - 打开/选择项目文件夹必须调用系统原生资源管理器（Rust `rfd` 原生对话框）。
    - 能用图标展示的操作一律用图标，并必须配置 Tooltip（title 属性）。
+
+6. **插件热插拔架构约束 (Iron Rule 7) — 每次动手前必读**:
+   - **工具路由唯一路径**：`registry.GetTool(name).Execute(ctx, args)`，禁止持有具体 Tool 字段，禁止 switch/case toolName；
+   - **新增工具流程**：`plugins/tool/<name>/` 实现 `v1.ToolPlugin` 接口 → `NewApp()` 注册 → 自动生效，无需改 SendMessage；
+   - **Rail 钩子**：工具执行前后必须调用 `OnBeforeAct` / `OnAfterAct`；
+   - **依赖方向**：`plugins/ → pkg/plugin/v1 ← internal/ ← app.go`（单向，禁止反转）；
+   - **提交前**：运行 `powershell -File scripts/arch_check.ps1` 确认 6 条规则全部通过；
+   - 违反以上任一条 = 严重架构违规，打回重构。

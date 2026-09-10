@@ -113,3 +113,66 @@
    - **④ 避坑指南与最佳实践 (Troubleshooting & Best Practices)**：总结防患于未然的经验与工程规范。
 3. **全局目录索引同步更新**：
    - 每次新增或更新知识点文档时，必须同步在 `docs/knowledge/README.md` 中更新索引导航与分类标签，确保项目团队任何人均可按图索骥快速查阅。
+
+---
+
+### 【铁律 7: 插件热插拔架构强制执行（Plugin Hotplug Architecture Iron Rule）】
+
+**背景**：Tcode 从第一天起的核心架构就是微内核 + 热插拔插件体系。任何破坏此架构的代码都是
+技术债务，必须被打回重构。守卫脚本 `scripts/arch_check.ps1` 在每次提交时自动执行。
+
+**强制规则（违反即打回重构，且 arch_check.ps1 会自动阻断提交）**：
+
+1. **工具调用唯一路径**：
+   - 所有工具执行必须通过 `registry.GetTool(name).Execute(ctx, args)` 调用；
+   - 严禁在 `App` 结构体或任何业务层直接持有和调用具体 Tool 实例（如 `*gittool.Tool`）；
+   - 若需调用插件专有方法（如 `StageFile`），通过 `registry.GetTool(name)` 获取后做类型断言，禁止字段持有。
+
+2. **禁止 switch hardcode 路由**：
+   - 严禁出现 `switch toolName { case "exec_command": ... }` 模式；
+   - 工具路由由 Registry 自动完成，新增工具无需修改任何路由代码。
+
+3. **新增工具的唯一合法方式**：
+   ```go
+   // Step 1: 在 plugins/tool/<name>/ 创建新目录
+   // Step 2: 实现 pkg/plugin/v1.ToolPlugin 接口（ID/Name/Version/Type/Init/Start/Stop/Health/Definition/Execute）
+   // Step 3: 在 NewApp() 中注册
+   _ = reg.Register(mytool.NewTool(...))
+   // Step 4: 完成。不需要也不允许修改 SendMessage 或任何业务代码
+   ```
+
+4. **Rail 拦截链必须生效**：
+   - 工具执行前必须调用 `rail.OnBeforeAct()`，执行后调用 `rail.OnAfterAct()`；
+   - 跳过 Rail 的工具调用视为安全漏洞。
+
+5. **依赖方向约束（单向，禁止反转）**：
+   ```
+   plugins/ → pkg/plugin/v1 ← internal/ ← app.go
+   ```
+   - `internal/core/` 层禁止直接 import `plugins/tool/` 具体包；
+   - `plugins/` 禁止 import `app` 或 `main` 包；
+   - 违反依赖方向 = 严重架构违规。
+
+**正确写法参考**：
+```go
+// ✅ 正确：通过 registry 统一调度
+tool, ok := a.registry.GetTool(toolName)
+if !ok {
+    output = fmt.Sprintf("[未知工具] %s 未在 Registry 或 MCP 中注册", toolName)
+} else {
+    res, err := tool.Execute(ctx, rawArgs)
+}
+
+// ✅ 正确：需要专有方法时类型断言（仅限 transport/ 层）
+gt, ok := s.registry.GetTool("tool.git")
+if impl, ok2 := gt.(*gittool.Tool); ok2 {
+    impl.StageFile(path)
+}
+
+// ❌ 错误：直接持有字段并调用
+type App struct { termTool *terminaltool.Tool }  // 禁止
+a.termTool.Execute(ctx, rawArgs)                  // 禁止
+switch toolName { case "exec_command": ... }       // 禁止
+```
+
+**验证**：每次提交前运行 `powershell -File scripts/arch_check.ps1`，6 条规则全通过才允许推送。

@@ -20,25 +20,35 @@ import (
 )
 
 // Server 本地开发网关服务端
+// ARCHITECTURE CONTRACT: Server 通过 registry.GetTool() 访问工具，禁止直接持有具体 Tool 字段
 type Server struct {
 	addr        string
 	registry    *host.Registry
 	httpSrv     *http.Server
-	gitTool     *gitTool.Tool
 	snapshotMgr *sandbox.SnapshotManager
 	sandbox     *sandbox.Sandbox
 	engine      *loop.ExecutionEngine
 }
 
+// gitTool 通过 registry 获取 git 工具实例（带类型断言）
+func (s *Server) getGitTool() (*gitTool.Tool, bool) {
+	tool, ok := s.registry.GetTool("tool.git")
+	if !ok {
+		return nil, false
+	}
+	gt, ok := tool.(*gitTool.Tool)
+	return gt, ok
+}
+
 // NewServer 构造本地服务端
-func NewServer(addr string, reg *host.Registry, gt *gitTool.Tool, sm *sandbox.SnapshotManager, sb *sandbox.Sandbox) *Server {
+// 注意：不接受具体 Tool 实例参数，工具通过 registry.GetTool() 访问
+func NewServer(addr string, reg *host.Registry, sm *sandbox.SnapshotManager, sb *sandbox.Sandbox) *Server {
 	if addr == "" {
 		addr = "127.0.0.1:8765"
 	}
 	s := &Server{
 		addr:        addr,
 		registry:    reg,
-		gitTool:     gt,
 		snapshotMgr: sm,
 		sandbox:     sb,
 		engine:      loop.NewExecutionEngine(reg),
@@ -195,12 +205,13 @@ func (s *Server) handleChatStream(w http.ResponseWriter, r *http.Request) {
 
 // handleGitStatus 获取物理 Git 状态
 func (s *Server) handleGitStatus(w http.ResponseWriter, r *http.Request) {
-	if s.gitTool == nil {
+	gt, ok := s.getGitTool()
+	if !ok {
 		http.Error(w, `{"error":"git tool not configured"}`, http.StatusInternalServerError)
 		return
 	}
 
-	report, err := s.gitTool.GetStatus()
+	report, err := gt.GetStatus()
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
 		return
@@ -217,7 +228,8 @@ func (s *Server) handleGitStage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.gitTool == nil {
+	gt, ok := s.getGitTool()
+	if !ok {
 		http.Error(w, `{"error":"git tool not configured"}`, http.StatusInternalServerError)
 		return
 	}
@@ -230,7 +242,7 @@ func (s *Server) handleGitStage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.gitTool.StageFile(req.Path); err != nil {
+	if err := gt.StageFile(req.Path); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
 		return
 	}
@@ -246,7 +258,8 @@ func (s *Server) handleGitUnstage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.gitTool == nil {
+	gt, ok := s.getGitTool()
+	if !ok {
 		http.Error(w, `{"error":"git tool not configured"}`, http.StatusInternalServerError)
 		return
 	}
@@ -259,7 +272,7 @@ func (s *Server) handleGitUnstage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.gitTool.UnstageFile(req.Path); err != nil {
+	if err := gt.UnstageFile(req.Path); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
 		return
 	}
@@ -275,7 +288,8 @@ func (s *Server) handleGitRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.gitTool == nil {
+	gt, ok := s.getGitTool()
+	if !ok {
 		http.Error(w, `{"error":"git tool not configured"}`, http.StatusInternalServerError)
 		return
 	}
@@ -288,7 +302,7 @@ func (s *Server) handleGitRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.gitTool.RestoreFile(req.Path); err != nil {
+	if err := gt.RestoreFile(req.Path); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
 		return
 	}

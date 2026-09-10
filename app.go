@@ -31,11 +31,25 @@ import (
 	"tcode/internal/llm"
 	"tcode/internal/network"
 	"tcode/internal/session"
+	v1 "tcode/pkg/plugin/v1"
 	"tcode/plugins/provider/openai"
 	fstool "tcode/plugins/tool/fs"
 	gittool "tcode/plugins/tool/git"
 	terminaltool "tcode/plugins/tool/terminal"
 )
+
+// trimToolOutput 限制工具输出长度，保留头尾各半，避免击穿 Token 预算
+// maxChars 建议值：3000（约 1000 token）
+func trimToolOutput(output string, maxChars int) string {
+	runes := []rune(output)
+	if len(runes) <= maxChars {
+		return output
+	}
+	half := maxChars / 2
+	head := string(runes[:half])
+	tail := string(runes[len(runes)-half:])
+	return head + fmt.Sprintf("\n\n...[输出过长，中间 %d 字符已截断]...\n\n", len(runes)-maxChars) + tail
+}
 
 func normalizeWindowsPath(p string) string {
 	vol := filepath.VolumeName(p)
@@ -53,16 +67,30 @@ type FileNode struct {
 	Children []FileNode `json:"children,omitempty"`
 }
 
+/*
+ * ARCHITECTURE CONTRACT (AI-READABLE)
+ * =====================================
+ * App 是 Wails 宿主层，不是工具执行层。严格遵守以下约定：
+ *
+ * ✅ 合法：a.registry.GetTool(name).Execute(ctx, args)
+ * ❌ 非法：直接持有 *gittool.Tool / *fstool.Tool / *terminaltool.Tool 字段并调用
+ *
+ * 新增工具唯一合法流程：
+ *   1. 在 plugins/tool/<name>/ 实现 pkg/plugin/v1.ToolPlugin 接口
+ *   2. 在 NewApp() 中 reg.Register(newtool.NewTool(...))
+ *   3. 不需要也不允许修改 SendMessage 或任何业务代码
+ *
+ * Rail 约定：工具执行前必须调用 Rail.OnBeforeAct()，执行后调用 Rail.OnAfterAct()
+ * 违反以上约定将被 scripts/arch_check.sh 阻断提交。
+ */
+
 // App Wails Go 原生桌面宿主结构体
 type App struct {
 	ctx          context.Context
 	workspace    string
 	sandbox      *sandbox.Sandbox
 	snapshotMgr  *sandbox.SnapshotManager
-	registry     *host.Registry
-	gitTool      *gittool.Tool
-	fsTool       *fstool.Tool
-	termTool     *terminaltool.Tool
+	registry     *host.Registry // 唯一的工具访问入口，禁止绕过
 	engine       *loop.ExecutionEngine
 	channelStore *config.ChannelStore
 	extraStore   *config.ExtraStore
@@ -78,23 +106,17 @@ type App struct {
 }
 
 // NewApp 构造生产级 Wails 宿主
+// 注意：工具实例注册进 registry 后不保留字段引用，所有调用必须通过 registry.GetTool()
 func NewApp() *App {
 	wd, _ := os.Getwd()
 	sb, _ := sandbox.NewSandbox(wd)
 	sm := sandbox.NewSnapshotManager(wd)
 	reg := host.NewRegistry()
 
-	prov := openai.NewProvider()
-	_ = reg.Register(prov)
-
-	gt := gittool.NewTool(wd)
-	_ = reg.Register(gt)
-
-	fs := fstool.NewTool(sb, sm)
-	_ = reg.Register(fs)
-
-	term := terminaltool.NewTool(wd)
-	_ = reg.Register(term)
+	_ = reg.Register(openai.NewProvider())
+	_ = reg.Register(gittool.NewTool(wd))
+	_ = reg.Register(fstool.NewTool(sb, sm))
+	_ = reg.Register(terminaltool.NewTool(wd))
 
 	chStore, _ := config.NewChannelStore()
 	exStore, _ := config.NewExtraStore()
@@ -107,9 +129,6 @@ func NewApp() *App {
 		sandbox:      sb,
 		snapshotMgr:  sm,
 		registry:     reg,
-		gitTool:      gt,
-		fsTool:       fs,
-		termTool:     term,
 		engine:       loop.NewExecutionEngine(reg),
 		channelStore: chStore,
 		extraStore:   exStore,
@@ -236,22 +255,10 @@ func (a *App) SetWorkspace(dir string) error {
 	a.sandbox = sb
 	a.snapshotMgr = sandbox.NewSnapshotManager(absDir)
 
-	gt := gittool.NewTool(absDir)
-	a.gitTool = gt
 	if a.registry != nil {
-		_ = a.registry.RegisterOrReplace(gt)
-	}
-
-	fs := fstool.NewTool(sb, a.snapshotMgr)
-	a.fsTool = fs
-	if a.registry != nil {
-		_ = a.registry.RegisterOrReplace(fs)
-	}
-
-	term := terminaltool.NewTool(absDir)
-	a.termTool = term
-	if a.registry != nil {
-		_ = a.registry.RegisterOrReplace(term)
+		_ = a.registry.RegisterOrReplace(gittool.NewTool(absDir))
+		_ = a.registry.RegisterOrReplace(fstool.NewTool(sb, a.snapshotMgr))
+		_ = a.registry.RegisterOrReplace(terminaltool.NewTool(absDir))
 	}
 
 	// 重新初始化智能体自主执行引擎，绑定新工作区的插件执行链
@@ -565,19 +572,21 @@ func (a *App) GetProjectASTGraph() ([]ast.GraphNode, error) {
 }
 
 func (a *App) GetGitStatus() (map[string]any, error) {
-	if a.gitTool == nil {
-		return map[string]any{"error": "git tool not initialized"}, nil
+	gitTool, ok := a.registry.GetTool("tool.git")
+	if !ok {
+		return map[string]any{"error": "git tool not registered"}, nil
 	}
-	report, err := a.gitTool.GetStatus()
+	rawArgs, _ := json.Marshal(map[string]any{})
+	res, err := gitTool.Execute(a.ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{
-		"branch":    report.Branch,
-		"staged":    report.Staged,
-		"working":   report.Working,
-		"untracked": report.Untracked,
-	}, nil
+	// git_status tool 返回 JSON 格式的状态报告，直接解析
+	var report map[string]any
+	if jsonErr := json.Unmarshal([]byte(res.Content), &report); jsonErr != nil {
+		return map[string]any{"raw": res.Content}, nil
+	}
+	return report, nil
 }
 
 func (a *App) GetFileTree(dir string) ([]FileNode, error) {
@@ -681,11 +690,12 @@ func (a *App) WriteFile(relPath string, content string) error {
 }
 
 func (a *App) ExecCommand(command string) (string, error) {
-	if a.termTool == nil {
-		return "", fmt.Errorf("terminal tool not initialized")
+	termTool, ok := a.registry.GetTool("tool.terminal")
+	if !ok {
+		return "", fmt.Errorf("terminal tool not registered in registry")
 	}
 	rawArgs, _ := json.Marshal(map[string]string{"command": command})
-	res, err := a.termTool.Execute(a.ctx, rawArgs)
+	res, err := termTool.Execute(a.ctx, rawArgs)
 	if err != nil {
 		return "", err
 	}
@@ -701,8 +711,13 @@ func (a *App) ExecTerminalStream(command string) error {
 	if a.ctx == nil {
 		return fmt.Errorf("context not initialized")
 	}
-	if a.termTool == nil {
-		return fmt.Errorf("terminal tool not initialized")
+	termPlugin, ok := a.registry.GetTool("tool.terminal")
+	if !ok {
+		return fmt.Errorf("terminal tool not registered in registry")
+	}
+	termTool, ok := termPlugin.(*terminaltool.Tool)
+	if !ok {
+		return fmt.Errorf("terminal tool type assertion failed")
 	}
 
 	a.terminalMu.Lock()
@@ -722,7 +737,7 @@ func (a *App) ExecTerminalStream(command string) error {
 			"start_time": startTime.UnixMilli(),
 		})
 
-		exitCode, err := a.termTool.ExecuteStream(ctx, trimmed, func(chunk string) {
+		exitCode, err := termTool.ExecuteStream(ctx, trimmed, func(chunk string) {
 			runtime.EventsEmit(a.ctx, "terminal:data", chunk)
 		})
 
@@ -1186,124 +1201,96 @@ func (a *App) SendMessage(req ChatRequest) error {
 					"turn":       turn,
 				})
 
-				var output string
-				switch toolName {
-				case "exec_command":
-					if a.termTool == nil {
-						output = "执行失败: 终端工具未初始化"
-						break
-					}
-					res, err := a.termTool.Execute(agentCtx, []byte(toolArgs))
-					if err != nil {
-						output = fmt.Sprintf("执行失败: %v", err)
-					} else {
-						output = res.Content
-					}
+				rawToolArgs := json.RawMessage(toolArgs)
 
-				case "write_file":
-					if a.sandbox == nil {
-						output = "写入文件失败: 沙箱环境未初始化"
-						break
-					}
-					var argsObj struct {
-						RelPath  string `json:"rel_path"`
-						Path     string `json:"path"`
-						FilePath string `json:"file_path"`
-						Content  string `json:"content"`
-					}
-					_ = json.Unmarshal([]byte(toolArgs), &argsObj)
-					targetRelPath := argsObj.RelPath
-					if targetRelPath == "" {
-						if argsObj.Path != "" {
-							targetRelPath = argsObj.Path
+				// Rail: 工具执行前置安全审查（危险命令拦截、预算检查）
+				rails := a.registry.ListRails()
+				var railBlocked bool
+				var railBlockReason string
+				for _, rail := range rails {
+					decision, railErr := rail.OnBeforeAct(agentCtx, req.SessionID, toolName, rawToolArgs)
+					if railErr != nil || (decision != nil && !decision.Allow) {
+						railBlocked = true
+						if decision != nil {
+							railBlockReason = decision.Reason
 						} else {
-							targetRelPath = argsObj.FilePath
+							railBlockReason = fmt.Sprintf("rail check error: %v", railErr)
 						}
-					}
-					if a.snapshotMgr != nil {
-						_, _ = a.snapshotMgr.CreateSnapshot(fmt.Sprintf("agent auto write before %s", targetRelPath))
-					}
-					err := a.sandbox.AtomicWriteFile(targetRelPath, []byte(argsObj.Content))
-					if err != nil {
-						output = fmt.Sprintf("写入文件失败: %v", err)
-					} else {
-						output = fmt.Sprintf("✓ 成功原子写入文件: %s (%d 字节)", targetRelPath, len(argsObj.Content))
-						runtime.EventsEmit(a.ctx, "agent:files_changed", map[string]any{
-							"session_id": req.SessionID,
-							"file":       targetRelPath,
-						})
-
-						// 触发毫秒级轻量 LSP 编译器语法诊断自愈守卫
-						if diagReport, err := lsp.DiagnoseFile(a.workspace, targetRelPath); err == nil && diagReport != nil && diagReport.HasErrors {
-							feedback := lsp.FormatDiagnosticFeedback(diagReport)
-							output += feedback
-							runtime.EventsEmit(a.ctx, "lsp:diagnostic", map[string]any{
-								"session_id": req.SessionID,
-								"file":       targetRelPath,
-								"has_errors": true,
-								"errors":     diagReport.Errors,
-							})
-						}
-					}
-
-				case "read_file":
-					if a.sandbox == nil {
-						output = "读取文件失败: 沙箱环境未初始化"
 						break
-					}
-					var argsObj struct {
-						RelPath  string `json:"rel_path"`
-						Path     string `json:"path"`
-						FilePath string `json:"file_path"`
-					}
-					_ = json.Unmarshal([]byte(toolArgs), &argsObj)
-					targetRelPath := argsObj.RelPath
-					if targetRelPath == "" {
-						if argsObj.Path != "" {
-							targetRelPath = argsObj.Path
-						} else {
-							targetRelPath = argsObj.FilePath
-						}
-					}
-					data, err := a.sandbox.SafeReadFile(targetRelPath)
-					if err != nil {
-						output = fmt.Sprintf("读取文件失败: %v", err)
-					} else {
-						output = string(data)
-					}
-
-				case "git_status":
-					if a.gitTool == nil {
-						output = "查询 Git 失败: Git 工具未初始化"
-						break
-					}
-					status, err := a.gitTool.GetStatus()
-					if err != nil {
-						output = fmt.Sprintf("查询 Git 失败: %v", err)
-					} else {
-						b, _ := json.MarshalIndent(status, "", "  ")
-						output = string(b)
-					}
-				default:
-					if a.mcpManager != nil {
-						var mcpArgs map[string]any
-						if len(toolArgs) > 0 {
-							_ = json.Unmarshal([]byte(toolArgs), &mcpArgs)
-						}
-						if mcpArgs == nil {
-							mcpArgs = make(map[string]any)
-						}
-						mcpRes, err := a.mcpManager.CallTool(agentCtx, toolName, mcpArgs)
-						if err != nil {
-							output = fmt.Sprintf("MCP 算子 [%s] 执行失败: %v", toolName, err)
-						} else {
-							output = mcpRes
-						}
-					} else {
-						output = fmt.Sprintf("未知算子: %s", toolName)
 					}
 				}
 
+				var output string
+				var toolResultForRail *v1.ToolResult
+
+				if railBlocked {
+					output = fmt.Sprintf("[安全拦截] 工具 [%s] 被 Rail 阻断: %s", toolName, railBlockReason)
+				} else if tool, ok := a.registry.GetTool(toolName); ok {
+					// 统一路由：Registry 内置 Tool
+					res, err := tool.Execute(agentCtx, rawToolArgs)
+					if err != nil {
+						output = fmt.Sprintf("工具 [%s] 执行失败: %v", toolName, err)
+					} else if res == nil {
+						output = fmt.Sprintf("工具 [%s] 返回空结果", toolName)
+					} else {
+						toolResultForRail = res
+						output = trimToolOutput(res.Content, 3000)
+						// write_file 成功后触发 LSP 诊断与文件变更通知
+						if toolName == "write_file" && !res.IsError {
+							var argsObj struct {
+								RelPath  string `json:"rel_path"`
+								Path     string `json:"path"`
+								FilePath string `json:"file_path"`
+							}
+							_ = json.Unmarshal(rawToolArgs, &argsObj)
+							targetPath := argsObj.RelPath
+							if targetPath == "" {
+								targetPath = argsObj.Path
+							}
+							if targetPath == "" {
+								targetPath = argsObj.FilePath
+							}
+							runtime.EventsEmit(a.ctx, "agent:files_changed", map[string]any{
+								"session_id": req.SessionID,
+								"file":       targetPath,
+							})
+							if diagReport, diagErr := lsp.DiagnoseFile(a.workspace, targetPath); diagErr == nil && diagReport != nil && diagReport.HasErrors {
+								output += lsp.FormatDiagnosticFeedback(diagReport)
+								runtime.EventsEmit(a.ctx, "lsp:diagnostic", map[string]any{
+									"session_id": req.SessionID,
+									"file":       targetPath,
+									"has_errors": true,
+									"errors":     diagReport.Errors,
+								})
+							}
+						}
+					}
+				} else if a.mcpManager != nil {
+					// MCP 外部工具路由
+					var mcpArgs map[string]any
+					if len(toolArgs) > 0 {
+						_ = json.Unmarshal(rawToolArgs, &mcpArgs)
+					}
+					if mcpArgs == nil {
+						mcpArgs = make(map[string]any)
+					}
+					mcpRes, err := a.mcpManager.CallTool(agentCtx, toolName, mcpArgs)
+					if err != nil {
+						output = fmt.Sprintf("MCP 算子 [%s] 执行失败: %v", toolName, err)
+					} else {
+						output = trimToolOutput(mcpRes, 3000)
+					}
+				} else {
+					output = fmt.Sprintf("[未知工具] %s 未在 Registry 或 MCP 中注册", toolName)
+				}
+
+				// Rail: 工具执行后审计钩子
+				if !railBlocked && toolResultForRail != nil {
+					for _, rail := range rails {
+						_ = rail.OnAfterAct(agentCtx, req.SessionID, toolName, toolResultForRail)
+					}
+				}
+	
 				tExec := session.ToolExecution{
 					Name:   toolName,
 					Args:   toolArgs,
