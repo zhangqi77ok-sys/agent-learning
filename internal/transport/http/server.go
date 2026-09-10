@@ -32,6 +32,9 @@ type Server struct {
 
 // gitTool 通过 registry 获取 git 工具实例（带类型断言）
 func (s *Server) getGitTool() (*gitTool.Tool, bool) {
+	if s == nil || s.registry == nil {
+		return nil, false
+	}
 	tool, ok := s.registry.GetTool("tool.git")
 	if !ok {
 		return nil, false

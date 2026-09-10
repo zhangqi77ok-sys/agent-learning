@@ -8,7 +8,7 @@ import (
 )
 
 func TestServer_NilGitToolHandlers(t *testing.T) {
-	srv := NewServer("127.0.0.1:0", nil, nil, nil, nil)
+	srv := NewServer("127.0.0.1:0", nil, nil, nil)
 
 	// 1. handleGitStage
 	body := bytes.NewBufferString(`{"path":"foo.txt"}`)
@@ -54,7 +54,7 @@ func TestServer_NilGitToolHandlers(t *testing.T) {
 }
 
 func TestServer_NilEngineChatStream(t *testing.T) {
-	srv := NewServer("127.0.0.1:0", nil, nil, nil, nil)
+	srv := NewServer("127.0.0.1:0", nil, nil, nil)
 	srv.engine = nil
 
 	body := bytes.NewBufferString(`{"prompt":"hello"}`)

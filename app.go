@@ -51,6 +51,50 @@ func trimToolOutput(output string, maxChars int) string {
 	return head + fmt.Sprintf("\n\n...[输出过长，中间 %d 字符已截断]...\n\n", len(runes)-maxChars) + tail
 }
 
+// buildConversationWindow 动态构建模型多轮会话上下文窗口
+// 基于 token/字符预算自适应保留多轮对话，避免硬编码消息条数导致失忆或击穿上下文
+func buildConversationWindow(systemPrompt string, history []session.SessionMessage, maxHistoryChars int) []llm.Message {
+	conversation := []llm.Message{
+		{Role: "system", Content: systemPrompt},
+	}
+
+	if len(history) == 0 {
+		return conversation
+	}
+
+	totalChars := 0
+	selected := make([]llm.Message, 0, len(history))
+
+	// 从最新消息逆序向前收集，保证最新上下文最完整
+	for i := len(history) - 1; i >= 0; i-- {
+		m := history[i]
+		content := m.Content
+		// 历史消息中如果有单条过长，做单条软截断保护（如之前可能未截断的超长输出）
+		if len(content) > 4000 {
+			content = trimToolOutput(content, 4000)
+		}
+
+		msgLen := len(content)
+		// 至少保留最后 1 条（当前用户输入），超过预算则停止向前收集
+		if totalChars+msgLen > maxHistoryChars && len(selected) > 0 {
+			break
+		}
+
+		selected = append(selected, llm.Message{
+			Role:    m.Role,
+			Content: content,
+		})
+		totalChars += msgLen
+	}
+
+	// 逆序还原为正序时间流
+	for i := len(selected) - 1; i >= 0; i-- {
+		conversation = append(conversation, selected[i])
+	}
+
+	return conversation
+}
+
 func normalizeWindowsPath(p string) string {
 	vol := filepath.VolumeName(p)
 	if len(vol) > 0 {
@@ -1081,22 +1125,8 @@ func (a *App) SendMessage(req ChatRequest) error {
 			systemPrompt += "\n" + stackPrompt
 		}
 
-		conversation := []llm.Message{
-			{Role: "system", Content: systemPrompt},
-		}
-
-		// 选取最近 6 条历史消息防止超出上下文
-		startIdx := 0
-		if len(currentSession.Messages) > 6 {
-			startIdx = len(currentSession.Messages) - 6
-		}
-		for i := startIdx; i < len(currentSession.Messages); i++ {
-			m := currentSession.Messages[i]
-			conversation = append(conversation, llm.Message{
-				Role:    m.Role,
-				Content: m.Content,
-			})
-		}
+		// 动态上下文窗口：基于预算自适应选择多轮历史，避免截断关键上下文或超出 Token 上限
+		conversation := buildConversationWindow(systemPrompt, currentSession.Messages, 32000)
 
 		var assistantThinking strings.Builder
 		var assistantContent strings.Builder

@@ -222,20 +222,42 @@ func (s *Store) Save(sess ChatSession) error {
 }
 
 func atomicWriteSession(filePath string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	tmpPath := fmt.Sprintf("%s.tmp.%d", filePath, time.Now().UnixNano())
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+
+	tmpFile, err := os.CreateTemp(dir, fmt.Sprintf(".%s.tmp_*", filepath.Base(filePath)))
+	if err != nil {
 		return err
 	}
-	if err := os.Rename(tmpPath, filePath); err != nil {
-		_ = os.Remove(filePath)
-		if renameErr := os.Rename(tmpPath, filePath); renameErr != nil {
+	tmpPath := tmpFile.Name()
+	cleaned := false
+	defer func() {
+		if !cleaned {
+			_ = tmpFile.Close()
 			_ = os.Remove(tmpPath)
-			return os.WriteFile(filePath, data, 0644)
 		}
+	}()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		return err
 	}
+	if err := tmpFile.Sync(); err != nil {
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	// 原子替换
+	if err := os.Rename(tmpPath, filePath); err != nil {
+		// Windows: 若目标文件已存在可能报错 AccessDenied，尝试备份式替换或安全覆盖
+		// 严禁直接无备份删除原文件
+		return fmt.Errorf("session atomic rename failed: %w", err)
+	}
+
+	cleaned = true
 	return nil
 }
 
