@@ -114,7 +114,8 @@
               v-show="s.activeTerminalTab === 'logs'"
               class="h-full p-3 overflow-y-auto space-y-1.5 select-text bg-[#12100E] font-mono text-[11px]"
             >
-              <div class="text-white/40 pb-1 border-b border-white/[0.06]">--- 湉码 Microkernel Live Event Trace (SSE Active) ---</div>
+              <div class="text-white/40 pb-1 border-b border-white/[0.06]">--- Agent 执行事件（真实流式回调） ---</div>
+              <div v-if="s.agentTraceLogs.length === 0" class="text-white/30 py-6">尚无事件。发送一条对话后，推理、工具调用会写到这里。</div>
               <div v-for="(trace, tIdx) in s.agentTraceLogs" :key="tIdx" class="flex items-center gap-2">
                 <span class="text-white/30">[{{ trace.time }}]</span>
                 <span class="text-[#D96B27]">[{{ trace.phase }}]</span>

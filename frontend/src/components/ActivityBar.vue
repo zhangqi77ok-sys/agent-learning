@@ -54,7 +54,7 @@
             <span class="text-base">⚙️</span>
           </button>
           <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-[#D96B27] to-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-2xs">
-            ZQ
+            湉
           </div>
         </div>
       </nav>

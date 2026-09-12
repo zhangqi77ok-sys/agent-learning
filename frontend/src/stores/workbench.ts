@@ -26,8 +26,10 @@ const isMcpModalOpen = ref(false)
 const isSkillModalOpen = ref(false)
 const isRuleModalOpen = ref(false)
 const activeSettingsTab = ref('models')
-const isFullAuto = ref(false)
 const isStreaming = ref(false)
+const isCommandPaletteOpen = ref(false)
+const commandPaletteQuery = ref('')
+const commandPaletteIndex = ref(0)
 
 const isGraphLoading = ref(false)
 const isFileTreeLoading = ref(false)
@@ -41,7 +43,7 @@ function showToast(msg: string) {
   }, 2500)
 }
 
-// 2. 真实会话管理 (读写 ~/.tcode/sessions/)
+// 2. 真实会话管理 (读写 ~/.tiancode/sessions/)
 const sessions = ref<SessionMeta[]>([])
 const projects = ref<{ path: string; name: string; opened_at: number }[]>([])
 const sessionSearch = ref('')
@@ -272,6 +274,10 @@ async function chooseWorkspace() {
 const fileTree = ref<FileNode[]>([])
 const expandedFolders = reactive<Record<string, boolean>>({ 'frontend': true })
 const gitStatus = ref<any>({ branch: '', working: [], staged: [], untracked: [] })
+const gitBranchLabel = computed(() => {
+  const b = (gitStatus.value?.branch || '').trim()
+  return b || '无 Git'
+})
 const commitMessage = ref('')
 
 const stagedTreeFiles = computed(() => {
@@ -556,12 +562,13 @@ async function handleSend() {
         session_id: currentSessionId.value,
         prompt: fullPrompt,
         model: selectedModel.value,
-        is_full_auto: isFullAuto.value
+        is_full_auto: false
       },
       {
         onThinking(thinking) {
           const target = currentSession.value.messages.find(m => m.id === asstMsgId)
           if (target) target.thinking = (target.thinking || '') + thinking
+          pushAgentTrace('thinking', thinking.slice(0, 80))
           if (messagesContainerRef.value) messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
         },
         onChunk(delta) {
@@ -570,6 +577,7 @@ async function handleSend() {
           if (messagesContainerRef.value) messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
         },
         onToolStart(tool, args, tcId) {
+          pushAgentTrace('tool', `start ${tool}`)
           const target = currentSession.value.messages.find(m => m.id === asstMsgId)
           let parsedArgs = args
           if (typeof args === 'string') {
@@ -587,6 +595,7 @@ async function handleSend() {
           }
         },
         onToolEnd(tool, output, tcId) {
+          pushAgentTrace('tool', `end ${tool}`)
           const target = currentSession.value.messages.find(m => m.id === asstMsgId)
           if (target) {
             if (target.tool && target.tool.name === tool) {
@@ -599,6 +608,7 @@ async function handleSend() {
           }
         },
         onDone() {
+          pushAgentTrace('done', 'stream complete')
           isStreaming.value = false
           currentSession.value.workspace = workspacePath.value
           wailsBridge.saveSession(currentSession.value)
@@ -661,9 +671,14 @@ async function executePing(id: string) {
   try {
     const latency = await wailsBridge.pingChannel(id)
     const target = channels.value.find(c => c.id === id)
-    if (target) target.latency = latency
+    if (target) {
+      target.latency = latency
+      target.status = 'online'
+    }
     showToast(`✓ 渠道真实网络往返延迟: ${latency}`)
   } catch (err) {
+    const target = channels.value.find(c => c.id === id)
+    if (target) target.status = 'offline'
     showToast('测速失败: ' + err)
   } finally {
     pingLoadingMap[id] = false
@@ -726,7 +741,7 @@ async function saveChannelAction() {
     id: 'ch_' + Date.now(),
     name: channelForm.name,
     primary: false,
-    status: 'online',
+    status: 'standby',
     auth_type: 'bearer_token',
     endpoint: channelForm.endpoint,
     api_key: channelForm.api_key,
@@ -736,7 +751,7 @@ async function saveChannelAction() {
   })
   isChannelModalOpen.value = false
   await loadSettingsData()
-  showToast('✓ 渠道配置已真实保存至 ~/.tcode/channels.json')
+  showToast('✓ 渠道配置已保存至 ~/.tiancode/channels.json')
 }
 
 async function toggleMcp(mcp: MCPServerConfig) {
@@ -766,7 +781,7 @@ const skillForm = reactive({
 })
 
 const ruleForm = reactive({
-  name: '',
+  title: '',
   content: ''
 })
 
@@ -821,19 +836,20 @@ async function deleteSkillAction(id: string) {
 }
 
 async function saveRuleAction() {
-  if (!ruleForm.name.trim() || !ruleForm.content.trim()) {
+  if (!ruleForm.title.trim() || !ruleForm.content.trim()) {
     showToast('请完整填写规则名称与规则内容')
     return
   }
   await wailsBridge.saveRule({
     id: 'rule_' + Date.now(),
-    name: ruleForm.name.trim(),
+    title: ruleForm.title.trim(),
     content: ruleForm.content.trim(),
+    scope: 'workspace',
     enabled: true,
     updated_at: Date.now()
   })
   isRuleModalOpen.value = false
-  ruleForm.name = ''
+  ruleForm.title = ''
   ruleForm.content = ''
   await loadSettingsData()
   showToast('✓ 工程规约已成功添加')
@@ -901,6 +917,77 @@ const historyIndex = ref(-1)
 const terminalScrollRef = ref<HTMLDivElement | null>(null)
 
 const agentTraceLogs = ref<{ time: string; phase: string; message: string }[]>([])
+
+function pushAgentTrace(phase: string, message: string) {
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  agentTraceLogs.value.push({ time, phase, message })
+  if (agentTraceLogs.value.length > 200) {
+    agentTraceLogs.value.splice(0, agentTraceLogs.value.length - 200)
+  }
+}
+
+type PaletteItem = { id: string; kind: string; label: string; hint: string; run: () => void }
+
+function flattenFiles(nodes: FileNode[], acc: FileNode[] = []): FileNode[] {
+  for (const n of nodes) {
+    if (!n.is_dir) acc.push(n)
+    if (n.children?.length) flattenFiles(n.children, acc)
+  }
+  return acc
+}
+
+const commandPaletteItems = computed(() => {
+  const q = commandPaletteQuery.value.trim().toLowerCase()
+  const items: PaletteItem[] = [
+    { id: 'settings', kind: '设置', label: '打开设置', hint: '渠道 / MCP / 技能', run: () => { isSettingsOpen.value = true } },
+    { id: 'terminal', kind: '终端', label: '打开终端', hint: 'Ctrl+`', run: () => toggleTerminalDrawer(true) },
+    { id: 'graph', kind: '图谱', label: '打开知识图谱', hint: 'Go AST 扫描', run: () => { isKnowledgeGraphOpen.value = true } },
+    { id: 'git', kind: 'Git', label: '源代码管理', hint: gitBranchLabel.value, run: () => switchToGitActivity() },
+    { id: 'project', kind: '项目', label: '打开项目文件夹', hint: workspaceName.value, run: () => { void openProjectFolder() } }
+  ]
+  for (const sess of sessions.value.slice(0, 30)) {
+    items.push({
+      id: 's-' + sess.id,
+      kind: '会话',
+      label: sess.title || sess.id,
+      hint: sess.workspace || '',
+      run: () => { void selectSession(sess.id) }
+    })
+  }
+  for (const f of flattenFiles(fileTree.value).slice(0, 50)) {
+    items.push({
+      id: 'f-' + f.path,
+      kind: '文件',
+      label: f.name,
+      hint: f.path,
+      run: () => handleFileClick(f)
+    })
+  }
+  if (!q) return items
+  return items.filter((i) => `${i.kind} ${i.label} ${i.hint}`.toLowerCase().includes(q))
+})
+
+function openCommandPalette() {
+  commandPaletteQuery.value = ''
+  commandPaletteIndex.value = 0
+  isCommandPaletteOpen.value = true
+}
+
+function moveCommandPalette(delta: number) {
+  const n = commandPaletteItems.value.length
+  if (n === 0) return
+  commandPaletteIndex.value = (commandPaletteIndex.value + delta + n) % n
+}
+
+function runCommandPaletteItem(item: PaletteItem) {
+  isCommandPaletteOpen.value = false
+  item.run()
+}
+
+function confirmCommandPalette() {
+  const item = commandPaletteItems.value[commandPaletteIndex.value]
+  if (item) runCommandPaletteItem(item)
+}
 
 function toggleTerminalDrawer(forceState?: boolean) {
   isTerminalOpen.value = forceState !== undefined ? forceState : !isTerminalOpen.value
@@ -996,7 +1083,15 @@ async function cancelTerminalAction() {
 }
 
 function handleGlobalKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    if (isCommandPaletteOpen.value) isCommandPaletteOpen.value = false
+    else openCommandPalette()
+    return
+  }
+
   if (e.key === 'Escape') {
+    if (isCommandPaletteOpen.value) { isCommandPaletteOpen.value = false; return }
     if (isMcpModalOpen.value) { isMcpModalOpen.value = false; return }
     if (isSkillModalOpen.value) { isSkillModalOpen.value = false; return }
     if (isRuleModalOpen.value) { isRuleModalOpen.value = false; return }
@@ -1038,6 +1133,10 @@ function initWorkbench() {
     activeTerminalTab,
     agentTraceLogs,
     activateSession,
+    commandPaletteIndex,
+    commandPaletteItems,
+    commandPaletteQuery,
+    confirmCommandPalette,
     applyHunkAction,
     astNodes,
     attachedFiles,
@@ -1068,6 +1167,7 @@ function initWorkbench() {
     fetchModelsAction,
     fileTree,
     filteredSessions,
+    gitBranchLabel,
     gitStatus,
     handleFileClick,
     handleGitCommit,
@@ -1080,9 +1180,9 @@ function initWorkbench() {
     injectNodeToPrompt,
     inputPrompt,
     isChannelModalOpen,
+    isCommandPaletteOpen,
     isDiffOpen,
     isFileTreeLoading,
-    isFullAuto,
     isGitLoading,
     isGraphLoading,
     isKnowledgeGraphOpen,
@@ -1099,6 +1199,7 @@ function initWorkbench() {
     loadGitStatus,
     loadSessionsList,
     loadSettingsData,
+    moveCommandPalette,
     mcpArgsInput,
     mcpForm,
     mcps,
@@ -1115,6 +1216,7 @@ function initWorkbench() {
     projectTree,
     renderMarkdown,
     revertFileAction,
+    runCommandPaletteItem,
     ruleForm,
     rules,
     saveChannelAction,

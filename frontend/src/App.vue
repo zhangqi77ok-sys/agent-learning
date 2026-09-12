@@ -13,7 +13,7 @@
         >
           <span class="text-[#D96B27]">📁</span>
           <span class="group-hover:text-[#D96B27] max-w-[160px] truncate">{{ s.workspaceName }}</span>
-          <span class="text-[10px] text-[#71717A] bg-black/[0.04] px-1.5 py-0.2 rounded-full font-mono">{{ s.gitStatus.branch || 'main' }}</span>
+          <span class="text-[10px] text-[#71717A] bg-black/[0.04] px-1.5 py-0.2 rounded-full font-mono">{{ s.gitBranchLabel }}</span>
         </button>
         <div class="h-3 w-[1px] bg-black/[0.08] mx-1"></div>
         <div class="flex items-center gap-1.5 text-[11px] text-[#10A37F] font-medium bg-[#10A37F]/10 px-2 py-0.5 rounded-full">
@@ -161,7 +161,7 @@
               <div class="flex items-center justify-between">
                 <div>
                   <h3 class="text-xs font-bold text-[#18181B]">Model Context Protocol (MCP) 本地服务</h3>
-                  <p class="text-[11px] text-[#71717A]">已读写 ~/.tcode/mcp_servers.json</p>
+                  <p class="text-[11px] text-[#71717A]">已读写 ~/.tiancode/mcp_servers.json</p>
                 </div>
                 <button @click="s.isMcpModalOpen = true" class="px-3 py-1.5 rounded-xl bg-[#D96B27] text-white text-xs font-bold shadow-xs hover:bg-[#B8551B] cursor-pointer">
                   ➕ 导入 MCP 服务
@@ -258,11 +258,28 @@
               </div>
             </div>
 
-            <!-- 外观、安全、关于 -->
-            <div v-else class="space-y-3">
-              <h3 class="text-xs font-bold text-[#18181B]">{{ s.activeSettingsTab.toUpperCase() }} 配置</h3>
-              <div class="p-3 rounded-xl bg-[#FAF8F5] border border-black/[0.06] text-xs text-[#52525B] leading-relaxed">
-                当前系统全部由 Wails v2 原生微内核与本地磁盘全权托管，运行环境处于安全沙箱保护中。
+            <div v-else-if="s.activeSettingsTab === 'theme'" class="space-y-3">
+              <h3 class="text-xs font-bold text-[#18181B]">外观与工作区</h3>
+              <div class="p-3 rounded-xl bg-[#FAF8F5] border border-black/[0.06] text-xs text-[#52525B] leading-relaxed space-y-2">
+                <p>当前发货主题是陶土暖橙：底色 <span class="font-mono">#FAF8F5</span>，强调色 <span class="font-mono">#D96B27</span>。没有第二套可切换皮肤，因此这里不提供假开关。</p>
+                <p>工作区路径：<span class="font-mono text-[#18181B]">{{ s.workspacePath || '尚未打开项目' }}</span></p>
+                <p>用户数据目录：<span class="font-mono text-[#18181B]">~/.tiancode</span>（渠道、会话、MCP、技能、规则均落盘于此）。</p>
+              </div>
+            </div>
+            <div v-else-if="s.activeSettingsTab === 'sandbox'" class="space-y-3">
+              <h3 class="text-xs font-bold text-[#18181B]">安全沙箱与防线</h3>
+              <div class="p-3 rounded-xl bg-[#FAF8F5] border border-black/[0.06] text-xs text-[#52525B] leading-relaxed space-y-2">
+                <p>Agent 工具调用走 Go 微内核 <span class="font-mono">SafetyRail</span>：写文件、执行命令、Git 操作在内核侧校验，而不是前端开关。</p>
+                <p>对话里「需人工审核 / 全自动」尚未接到内核策略，因此已从输入栏移除，避免假装能免审核。</p>
+                <p>API Key 在 Windows 上用 DPAPI 加密写入 <span class="font-mono">~/.tiancode/channels.json</span>。</p>
+              </div>
+            </div>
+            <div v-else-if="s.activeSettingsTab === 'about'" class="space-y-3">
+              <h3 class="text-xs font-bold text-[#18181B]">关于 湉码</h3>
+              <div class="p-3 rounded-xl bg-[#FAF8F5] border border-black/[0.06] text-xs text-[#52525B] leading-relaxed space-y-2">
+                <p><strong class="text-[#18181B]">湉码 / tiancode</strong> · Wails v2 + Go 微内核 + Vue 3。</p>
+                <p>仓库：<span class="font-mono">github.com/zhangqi77ok-sys/tiancode</span></p>
+                <p>本页只陈述真实能力：流式对话、会话树、Git、终端、MCP stdio、技能/规则注入、Go AST 扫描。未接线的按钮不会出现在这里。</p>
               </div>
             </div>
           </main>
@@ -492,7 +509,7 @@
         <div class="space-y-3 text-xs">
           <div>
             <label class="block font-medium text-[#71717A] mb-1">规则名称</label>
-            <input v-model="s.ruleForm.name" placeholder="如 铁律 0.5 严禁假数据" type="text" class="w-full px-2.5 py-1.5 rounded-lg border border-black/[0.1] focus:outline-none focus:border-[#D96B27]">
+            <input v-model="s.ruleForm.title" placeholder="如 铁律 0.5 严禁假数据" type="text" class="w-full px-2.5 py-1.5 rounded-lg border border-black/[0.1] focus:outline-none focus:border-[#D96B27]">
           </div>
           <div>
             <label class="block font-medium text-[#71717A] mb-1">规则内容</label>
@@ -502,6 +519,38 @@
         <div class="flex justify-end gap-2 pt-2 border-t border-black/[0.06]">
           <button @click="s.isRuleModalOpen = false" class="px-3 py-1 rounded-lg border border-black/[0.1] text-xs cursor-pointer">取消</button>
           <button @click="s.saveRuleAction" class="px-4 py-1 rounded-lg bg-[#D96B27] text-white text-xs font-semibold hover:bg-[#B8551B] cursor-pointer">保存规则</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="s.isCommandPaletteOpen"
+      class="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-[12vh]"
+      @click.self="s.isCommandPaletteOpen = false"
+    >
+      <div class="w-[min(640px,90vw)] bg-white rounded-2xl shadow-2xl border border-black/[0.1] overflow-hidden">
+        <input
+          v-model="s.commandPaletteQuery"
+          type="text"
+          autofocus
+          placeholder="检索会话、文件、设置、终端…"
+          class="w-full px-4 py-3 text-sm border-b border-black/[0.08] focus:outline-none"
+          @keydown.down.prevent="s.moveCommandPalette(1)"
+          @keydown.up.prevent="s.moveCommandPalette(-1)"
+          @keydown.enter.prevent="s.confirmCommandPalette()"
+        />
+        <div class="max-h-[50vh] overflow-y-auto py-1">
+          <div v-if="s.commandPaletteItems.length === 0" class="px-4 py-6 text-xs text-[#71717A]">没有匹配项</div>
+          <button
+            v-for="(item, idx) in s.commandPaletteItems"
+            :key="item.id"
+            class="w-full text-left px-4 py-2 text-xs flex items-center justify-between cursor-pointer"
+            :class="idx === s.commandPaletteIndex ? 'bg-[#D96B27]/10 text-[#18181B]' : 'hover:bg-black/[0.03]'"
+            @click="s.runCommandPaletteItem(item)"
+          >
+            <span class="font-medium truncate">{{ item.label }}</span>
+            <span class="text-[10px] text-[#A1A1AA] ml-3 shrink-0">{{ item.kind }}{{ item.hint ? ' · ' + item.hint : '' }}</span>
+          </button>
         </div>
       </div>
     </div>

@@ -211,7 +211,7 @@ export const wailsBridge = {
     throw new Error('microkernel not connected: SetWorkspace unavailable')
   },
 
-  // 2. 会话历史管理 (真实读写 ~/.tcode/sessions/)
+  // 2. 会话历史管理 (真实读写 ~/.tiancode/sessions/)
   async listSessions(): Promise<SessionMeta[]> {
     const app = getApp()
     if (app?.ListAllSessions) {

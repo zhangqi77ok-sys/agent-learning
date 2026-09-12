@@ -154,22 +154,9 @@
                 </button>
                 <div class="h-3.5 w-px bg-black/[0.1] mx-1"></div>
 
-                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D96B27]/10 text-[#D96B27] text-xs font-semibold select-none">
-                  <span>⚡</span><span>Act 极速双环</span>
+                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D96B27]/10 text-[#D96B27] text-xs font-semibold select-none" title="Inner/Outer Loop 由 Go ExecutionEngine 执行">
+                  <span>⚡</span><span>双环执行</span>
                 </div>
-
-                <button
-                  @click="s.isFullAuto = !s.isFullAuto"
-                  :class="[
-                    'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer shadow-2xs',
-                    s.isFullAuto
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300 ring-2 ring-emerald-400/20'
-                      : 'bg-white text-[#52525B] border-black/[0.08] hover:border-black/[0.18]'
-                  ]"
-                >
-                  <span :class="['w-2 h-2 rounded-full', s.isFullAuto ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500']"></span>
-                  <span>{{ s.isFullAuto ? '⚡ 全自动执行 (免审核)' : '需人工审核' }}</span>
-                </button>
               </div>
 
               <div class="flex items-center gap-2">

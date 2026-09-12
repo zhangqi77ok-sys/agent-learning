@@ -158,7 +158,7 @@
               <span>🌿</span><span>源代码管理 (Git)</span>
             </span>
             <span class="text-[10px] font-mono text-[#10A37F] bg-[#10A37F]/10 px-1.5 py-0.2 rounded font-bold">
-              {{ s.gitStatus.branch || 'main' }}
+              {{ s.gitBranchLabel }}
             </span>
           </div>
 
