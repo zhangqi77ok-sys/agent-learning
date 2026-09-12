@@ -14,6 +14,21 @@
           </div>
 
           <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              @click="s.editorView = 'edit'"
+              :class="['px-2 py-0.5 rounded-md text-[10px] cursor-pointer', s.editorView === 'edit' ? 'bg-[#18181B] text-white' : 'bg-white border border-black/[0.08]']"
+            >编辑</button>
+            <button
+              @click="s.editorView = 'diff'"
+              :class="['px-2 py-0.5 rounded-md text-[10px] cursor-pointer', s.editorView === 'diff' ? 'bg-[#18181B] text-white' : 'bg-white border border-black/[0.08]']"
+            >Diff</button>
+            <button
+              v-if="s.editorView === 'edit'"
+              @click="s.saveEditor"
+              :disabled="!s.editorDirty"
+              class="px-2 py-0.5 rounded-md bg-[#D96B27] text-white text-[10px] font-semibold disabled:opacity-40 cursor-pointer"
+              title="写入磁盘 (Ctrl+S)"
+            >保存</button>
             <button @click="s.loadDiff" class="p-1 rounded-md text-[#71717A] hover:bg-black/[0.04] cursor-pointer" title="刷新代码差异">🔄</button>
             <button
               @click="s.revertFileAction"
@@ -33,8 +48,18 @@
           </div>
         </header>
 
+        <div v-if="s.editorView === 'edit'" class="flex-1 min-h-0 bg-[#1e1e1e]">
+          <MonacoEditor
+            v-if="s.activeDiffFile"
+            v-model="s.editorContent"
+            :language="s.activeDiffFile"
+            @update:modelValue="s.markEditorDirty"
+          />
+          <div v-else class="h-full flex items-center justify-center text-xs text-[#A1A1AA]">从左侧文件树打开文件即可编辑</div>
+        </div>
+
         <!-- 真实物理行级 Diff (Red / Green) -->
-        <div class="flex-1 overflow-y-auto bg-[#18181B] text-[#F4F4F5] font-mono text-[11px] p-2 space-y-2 select-text flex flex-col">
+        <div v-else class="flex-1 overflow-y-auto bg-[#18181B] text-[#F4F4F5] font-mono text-[11px] p-2 space-y-2 select-text flex flex-col">
           <div v-if="!s.activeDiffFile || !s.diffReport?.lines || s.diffReport.lines.length === 0" class="flex-1 flex flex-col items-center justify-center p-8 text-center text-[#71717A] my-auto">
             <span class="text-3xl mb-3">📄</span>
             <p class="text-xs font-semibold text-[#A1A1AA]">暂无代码差异对比</p>
@@ -121,6 +146,7 @@
 
 <script setup lang="ts">
 import { useWorkbenchStore } from '../stores/workbench'
+import MonacoEditor from './MonacoEditor.vue'
 const s = useWorkbenchStore()
 </script>
 

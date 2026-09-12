@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path bin, cmd/installer/assets | Out-Null
+          go build -tags "desktop,production" -ldflags="-H windowsgui -s -w" -o bin/tiancode.exe .
+          go build -ldflags="-H windowsgui -s -w" -o bin/uninstall.exe ./cmd/uninstaller
+          Copy-Item bin/tiancode.exe cmd/installer/assets/tiancode.exe -Force
+          Copy-Item bin/uninstall.exe cmd/installer/assets/uninstall.exe -Force
+          go build -ldflags="-H windowsgui -s -w" -o bin/Tiancode_Setup_v2.0.0.exe ./cmd/installer
+      - name: Upload GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bin/tiancode.exe
+            bin/Tiancode_Setup_v2.0.0.exe
+          generate_release_notes: true

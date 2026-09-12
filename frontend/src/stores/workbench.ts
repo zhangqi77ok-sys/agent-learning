@@ -212,6 +212,7 @@ async function selectSession(id: string) {
     if (sess) {
       currentSession.value = sess
       if (sess.model) selectedModel.value = sess.model
+      ensureSessionTab(sess.id, sess.title)
     }
     showToast(`✓ 已载入会话: ${currentSession.value.title}`)
   } catch (err) {
@@ -430,7 +431,8 @@ function handleFileClick(node: FileNode) {
   if (node.is_dir) {
     expandedFolders[node.path] = !expandedFolders[node.path]
   } else {
-    openFileDiff(node.path)
+    editorView.value = 'edit'
+    void openFileDiff(node.path)
   }
 }
 
@@ -449,10 +451,147 @@ async function handleGitCommit() {
 // 4. 真实物理代码 Diff
 const diffReport = ref<DiffReport | null>(null)
 
+const editorView = ref<'edit' | 'diff'>('edit')
+const editorContent = ref('')
+const editorDirty = ref(false)
+const sessionTabs = ref<{ id: string; title: string }[]>([])
+const tabContextMenu = ref<{ x: number; y: number; id: string } | null>(null)
+
+function markEditorDirty() {
+  editorDirty.value = true
+}
+
+async function loadEditor() {
+  if (!activeDiffFile.value) {
+    editorContent.value = ''
+    editorDirty.value = false
+    return
+  }
+  try {
+    editorContent.value = await wailsBridge.readFile(activeDiffFile.value)
+    editorDirty.value = false
+  } catch (err) {
+    editorContent.value = ''
+    showToast('读取文件失败: ' + err)
+  }
+}
+
+async function saveEditor() {
+  if (!activeDiffFile.value) return
+  try {
+    await wailsBridge.writeFile(activeDiffFile.value, editorContent.value)
+    editorDirty.value = false
+    await loadDiff()
+    await loadGitStatus()
+    showToast('✓ 已写入 ' + activeDiffFile.value)
+  } catch (err) {
+    showToast('保存失败: ' + err)
+  }
+}
+
 async function openFileDiff(filePath: string) {
   activeDiffFile.value = filePath
   isDiffOpen.value = true
-  await loadDiff()
+  editorView.value = 'edit'
+  await Promise.all([loadDiff(), loadEditor()])
+}
+
+function ensureSessionTab(id: string, title: string) {
+  if (!id) return
+  if (!sessionTabs.value.find((t) => t.id === id)) {
+    sessionTabs.value.push({ id, title: title || id })
+  } else {
+    const t = sessionTabs.value.find((x) => x.id === id)
+    if (t && title) t.title = title
+  }
+}
+
+function closeSessionTab(id: string) {
+  tabContextMenu.value = null
+  sessionTabs.value = sessionTabs.value.filter((t) => t.id !== id)
+  if (currentSessionId.value === id) {
+    const next = sessionTabs.value[sessionTabs.value.length - 1]
+    if (next) void selectSession(next.id)
+    else void createNewSession()
+  }
+}
+
+function closeOtherTabs(id: string) {
+  tabContextMenu.value = null
+  sessionTabs.value = sessionTabs.value.filter((t) => t.id === id)
+  if (currentSessionId.value !== id) void selectSession(id)
+}
+
+function closeAllTabs() {
+  tabContextMenu.value = null
+  sessionTabs.value = []
+  void createNewSession()
+}
+
+function onTabDragStart(e: DragEvent, id: string) {
+  e.dataTransfer?.setData('text/tab-id', id)
+}
+
+function onTabDrop(e: DragEvent, targetId: string) {
+  const id = e.dataTransfer?.getData('text/tab-id')
+  if (!id || id === targetId) return
+  const list = [...sessionTabs.value]
+  const from = list.findIndex((t) => t.id === id)
+  const to = list.findIndex((t) => t.id === targetId)
+  if (from < 0 || to < 0) return
+  const [item] = list.splice(from, 1)
+  list.splice(to, 0, item)
+  sessionTabs.value = list
+}
+
+function openTabMenu(e: MouseEvent, id: string) {
+  e.preventDefault()
+  tabContextMenu.value = { x: e.clientX, y: e.clientY, id }
+}
+
+async function stagePath(filePath: string, event?: MouseEvent) {
+  if (event) event.stopPropagation()
+  if (!filePath) return
+  try {
+    await wailsBridge.gitStage(filePath)
+    await loadGitStatus()
+    if (activeDiffFile.value === filePath) await loadDiff()
+    showToast('✓ 已暂存 ' + filePath)
+  } catch (err) {
+    showToast('暂存失败: ' + err)
+  }
+}
+
+async function revertPath(filePath: string, event?: MouseEvent) {
+  if (event) event.stopPropagation()
+  if (!filePath) return
+  try {
+    await wailsBridge.revertFile(filePath)
+    await loadGitStatus()
+    if (activeDiffFile.value === filePath) {
+      await loadDiff()
+      await loadEditor()
+    }
+    showToast('✓ 已还原 ' + filePath)
+  } catch (err) {
+    showToast('还原失败: ' + err)
+  }
+}
+
+async function stageAllWorking() {
+  for (const f of workingTreeFiles.value) {
+    if (f.path) await wailsBridge.gitStage(f.path)
+  }
+  await loadGitStatus()
+  showToast('✓ 已暂存全部工作区改动')
+}
+
+async function revertAllWorking() {
+  for (const f of workingTreeFiles.value) {
+    if (f.path) await wailsBridge.revertFile(f.path)
+  }
+  await loadGitStatus()
+  showToast('✓ 已还原全部工作区改动')
 }
 
 async function loadDiff() {
@@ -826,6 +965,7 @@ async function handleSend() {
           currentSession.value.workspace = workspacePath.value
           wailsBridge.saveSession(currentSession.value)
           void loadSessionsList()
+          ensureSessionTab(currentSessionId.value, currentSession.value.title)
         }
       }
     )
@@ -1099,6 +1239,47 @@ async function scanASTGraph() {
   }
 }
 
+const astGraph = computed(() => {
+  const nodes = astNodes.value.slice(0, 80)
+  const byId = new Map(nodes.map((n, i) => [n.id, i]))
+  const pos = nodes.map((n, i) => ({
+    id: n.id,
+    name: n.name,
+    type: n.type,
+    x: 70 + (i % 7) * 110,
+    y: 50 + Math.floor(i / 7) * 80
+  }))
+  for (let k = 0; k < 24; k++) {
+    for (const n of nodes) {
+      for (const cid of n.children || []) {
+        const ai = byId.get(n.id)
+        const bi = byId.get(cid)
+        if (ai == null || bi == null) continue
+        const a = pos[ai]
+        const b = pos[bi]
+        const dx = b.x - a.x - 90
+        const dy = b.y - a.y
+        b.x -= dx * 0.12
+        b.y -= dy * 0.12
+        a.x += dx * 0.04
+      }
+    }
+  }
+  const edges: { x1: number; y1: number; x2: number; y2: number }[] = []
+  for (const n of nodes) {
+    const ai = byId.get(n.id)
+    if (ai == null) continue
+    for (const cid of n.children || []) {
+      const bi = byId.get(cid)
+      if (bi == null) continue
+      edges.push({ x1: pos[ai].x, y1: pos[ai].y, x2: pos[bi].x, y2: pos[bi].y })
+    }
+  }
+  const maxX = Math.max(400, ...pos.map((p) => p.x + 80))
+  const maxY = Math.max(240, ...pos.map((p) => p.y + 40))
+  return { pos, edges, maxX, maxY }
+})
+
 function injectNodeToPrompt() {
   if (!selectedAstNode.value) return
   const node = selectedAstNode.value
@@ -1305,6 +1486,7 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 
   if (e.key === 'Escape') {
+    if (tabContextMenu.value) { tabContextMenu.value = null; return }
     if (mentionOpen.value) { mentionOpen.value = false; return }
     if (isCommandPaletteOpen.value) { isCommandPaletteOpen.value = false; return }
     if (isMcpModalOpen.value) { isMcpModalOpen.value = false; return }
@@ -1318,6 +1500,11 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   if (e.ctrlKey && (e.key === '`' || e.key === '~')) {
     e.preventDefault()
     toggleTerminalDrawer()
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    void saveEditor()
   }
 }
 
@@ -1355,6 +1542,7 @@ function initWorkbench() {
     confirmCommandPalette,
     applyHunkAction,
     applyMention,
+    astGraph,
     astNodes,
     attachedFiles,
     availableModels,
@@ -1364,6 +1552,9 @@ function initWorkbench() {
     channels,
     checkoutBranch,
     chooseWorkspace,
+    closeAllTabs,
+    closeOtherTabs,
+    closeSessionTab,
     clearTerminalLogs,
     commandHistory,
     collapsedProjects,
@@ -1382,6 +1573,9 @@ function initWorkbench() {
     deleteSkillAction,
     diffReport,
     discardHunkAction,
+    editorContent,
+    editorDirty,
+    editorView,
     editChannel,
     executePing,
     expandedFolders,
@@ -1422,7 +1616,9 @@ function initWorkbench() {
     loadDiff,
     loadFileTree,
     loadGitStatus,
+    loadEditor,
     loadGitExtras,
+    markEditorDirty,
     loadSessionsList,
     loadSettingsData,
     moveCommandPalette,
@@ -1438,6 +1634,9 @@ function initWorkbench() {
     navigateCommandHistory,
     newBranchName,
     onChatDrop,
+    onTabDragStart,
+    onTabDrop,
+    openTabMenu,
     openAddChannelModal,
     openFileDiff,
     openKnowledgeGraphModal,
@@ -1450,16 +1649,20 @@ function initWorkbench() {
     projectTree,
     renderMarkdown,
     restoreSnapshotAction,
+    revertAllWorking,
     revertFileAction,
+    revertPath,
     runCommandPaletteItem,
     ruleForm,
     rules,
+    saveEditor,
     saveChannelAction,
     saveMcpAction,
     saveRuleAction,
     saveSkillAction,
     scanASTGraph,
     scrollToBottomTerminal,
+    sessionTabs,
     sessionSearch,
     selectSession,
     selectedAstNode,
@@ -1469,10 +1672,13 @@ function initWorkbench() {
     showToast,
     skillForm,
     skills,
+    stageAllWorking,
     stageFileAction,
+    stagePath,
     stagedTreeFiles,
     stopGenerationAction,
     submitTerminalCommand,
+    tabContextMenu,
     switchToFileActivity,
     switchToGitActivity,
     terminalHeight,

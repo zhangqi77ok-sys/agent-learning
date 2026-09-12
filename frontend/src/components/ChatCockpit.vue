@@ -1,9 +1,26 @@
 <template>
 <main class="flex-1 bg-[#FAF8F5] flex flex-col justify-between overflow-hidden relative font-sans" @dragover.prevent @drop.prevent="s.onChatDrop($event)">
         <!-- 顶栏: 场景标签、多模型切换器与收起代码按钮 -->
-        <header class="h-10 min-h-[40px] bg-[#FAF8F5] border-b border-black/[0.08] px-3 flex items-center justify-between text-xs select-none z-10 shrink-0">
-          <div class="flex items-center gap-2">
-            <span class="font-bold text-[#18181B]">{{ s.currentSession.title }}</span>
+        <header class="h-10 min-h-[40px] bg-[#FAF8F5] border-b border-black/[0.08] px-2 flex items-center justify-between text-xs select-none z-10 shrink-0 gap-2">
+          <div class="flex items-center gap-1 min-w-0 flex-1 overflow-x-auto no-scrollbar">
+            <button
+              v-for="tab in s.sessionTabs"
+              :key="tab.id"
+              draggable="true"
+              @dragstart="s.onTabDragStart($event, tab.id)"
+              @dragover.prevent
+              @drop="s.onTabDrop($event, tab.id)"
+              @contextmenu="s.openTabMenu($event, tab.id)"
+              @click="s.selectSession(tab.id)"
+              :class="[
+                'flex items-center gap-1 px-2 py-1 rounded-md shrink-0 max-w-[160px] cursor-pointer',
+                s.currentSessionId === tab.id ? 'bg-white border border-black/[0.1] font-semibold text-[#18181B]' : 'text-[#71717A] hover:bg-black/[0.04]'
+              ]"
+            >
+              <span class="truncate">{{ tab.title }}</span>
+              <span class="text-[#A1A1AA] hover:text-red-500" @click.stop="s.closeSessionTab(tab.id)">✕</span>
+            </button>
+            <span v-if="s.sessionTabs.length === 0" class="font-bold text-[#18181B] px-1 truncate">{{ s.currentSession.title }}</span>
             <span class="text-[10px] text-[#71717A] bg-black/[0.04] px-1.5 py-0.2 rounded font-mono">{{ s.selectedModel || '未配置渠道' }}</span>
 
             <select

@@ -634,6 +634,21 @@ export const wailsBridge = {
     return []
   },
 
+  async readFile(relPath: string): Promise<string> {
+    const app = getApp()
+    if (app?.ReadFile) return await app.ReadFile(relPath)
+    throw new Error('microkernel not connected: ReadFile unavailable')
+  },
+
+  async writeFile(relPath: string, content: string): Promise<void> {
+    const app = getApp()
+    if (app?.WriteFile) {
+      await app.WriteFile(relPath, content)
+      return
+    }
+    throw new Error('microkernel not connected: WriteFile unavailable')
+  },
+
   // 5. 真实流式对话调用与事件订阅
   async sendMessage(
     req: { session_id: string; prompt: string; model: string; is_full_auto: boolean },

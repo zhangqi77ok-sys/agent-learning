@@ -225,7 +225,13 @@
 
               <!-- 工作区变更 -->
               <div>
-                <div class="text-[10px] font-bold text-[#71717A] uppercase mb-1">变更文件 (WORKING TREE)</div>
+                <div class="text-[10px] font-bold text-[#71717A] uppercase mb-1 flex items-center justify-between">
+                  <span>变更文件 (WORKING TREE)</span>
+                  <span class="flex gap-1 normal-case">
+                    <button v-if="s.workingTreeFiles.length" @click="s.stageAllWorking" class="text-[#10A37F] cursor-pointer">全部暂存</button>
+                    <button v-if="s.workingTreeFiles.length" @click="s.revertAllWorking" class="text-red-500 cursor-pointer">全部还原</button>
+                  </span>
+                </div>
                 <div v-if="s.workingTreeFiles.length === 0" class="p-3 text-center text-[#A1A1AA] text-xs bg-black/[0.02] rounded-lg">
                   ✓ 工作区干净，无未暂存改动
                 </div>
@@ -234,10 +240,14 @@
                     v-for="file in s.workingTreeFiles"
                     :key="file.path"
                     @click="s.openFileDiff(file.path)"
-                    class="p-1.5 rounded hover:bg-black/[0.04] cursor-pointer flex items-center justify-between font-mono text-[11px]"
+                    class="p-1.5 rounded hover:bg-black/[0.04] cursor-pointer flex items-center justify-between font-mono text-[11px] group"
                   >
                     <span class="truncate">{{ file.path }}</span>
-                    <span :class="file.color" class="font-bold">{{ file.type }}</span>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span :class="file.color" class="font-bold">{{ file.type }}</span>
+                      <button @click="s.stagePath(file.path, $event)" class="opacity-0 group-hover:opacity-100 text-[#10A37F] cursor-pointer" title="暂存此文件">+</button>
+                      <button @click="s.revertPath(file.path, $event)" class="opacity-0 group-hover:opacity-100 text-red-500 cursor-pointer" title="还原此文件">↶</button>
+                    </div>
                   </div>
                 </div>
               </div>

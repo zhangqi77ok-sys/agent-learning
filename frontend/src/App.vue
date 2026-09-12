@@ -333,7 +333,26 @@
               <p class="text-[11px] text-[#A1A1AA]">点击右上角【代码扫描与图谱重建】即可扫描当前工作区</p>
             </div>
             <div v-else>
-              <div class="text-xs font-bold text-[#71717A] uppercase mb-2">已解析提取的代码拓扑实体 ({{ s.astNodes.length }} 个节点)</div>
+              <div class="text-xs font-bold text-[#71717A] uppercase mb-2">AST 拓扑 ({{ s.astNodes.length }} 节点，图中最多 80)</div>
+              <div class="mb-3 overflow-auto rounded-xl border border-black/[0.08] bg-[#18181B] max-h-[48vh]">
+                <svg :width="s.astGraph.maxX" :height="s.astGraph.maxY">
+                  <line
+                    v-for="(e, i) in s.astGraph.edges"
+                    :key="'e'+i"
+                    :x1="e.x1" :y1="e.y1" :x2="e.x2" :y2="e.y2"
+                    stroke="#D96B27" stroke-opacity="0.45"
+                  />
+                  <g
+                    v-for="p in s.astGraph.pos"
+                    :key="p.id"
+                    @click="s.selectedAstNode = s.astNodes.find(n => n.id === p.id) || s.selectedAstNode"
+                    class="cursor-pointer"
+                  >
+                    <circle :cx="p.x" :cy="p.y" r="10" :fill="s.selectedAstNode?.id === p.id ? '#D96B27' : '#FAF8F5'" />
+                    <text :x="p.x + 14" :y="p.y + 4" fill="#F4F4F5" font-size="10">{{ p.name }}</text>
+                  </g>
+                </svg>
+              </div>
               <div class="grid grid-cols-2 gap-3">
                 <div
                   v-for="node in s.astNodes"
@@ -559,6 +578,17 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <div
+      v-if="s.tabContextMenu"
+      class="fixed z-[70] bg-white border border-black/[0.1] rounded-lg shadow-lg text-xs py-1 min-w-[140px]"
+      :style="{ left: s.tabContextMenu.x + 'px', top: s.tabContextMenu.y + 'px' }"
+      @click.self="s.tabContextMenu = null"
+    >
+      <button class="w-full text-left px-3 py-1.5 hover:bg-black/[0.04] cursor-pointer" @click="s.closeSessionTab(s.tabContextMenu.id)">关闭</button>
+      <button class="w-full text-left px-3 py-1.5 hover:bg-black/[0.04] cursor-pointer" @click="s.closeOtherTabs(s.tabContextMenu.id)">关闭其他</button>
+      <button class="w-full text-left px-3 py-1.5 hover:bg-black/[0.04] cursor-pointer" @click="s.closeAllTabs()">关闭全部</button>
     </div>
 
     <!-- 全局 Toast 提示 -->
