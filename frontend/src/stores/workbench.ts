@@ -1405,6 +1405,17 @@ async function handleSend() {
   if (slash === '/test' || slash === '/tdd') {
     inputPrompt.value = ''
     showToast('正在运行工作区真实测试…')
+    
+    // Ensure session ID is initialized
+    if (!currentSessionId.value) {
+      const newId = 'sess_' + Date.now()
+      currentSessionId.value = newId
+      currentSession.value.id = newId
+      currentSession.value.workspace = workspacePath.value
+      currentSession.value.model = selectedModel.value
+      currentSession.value.title = 'TDD 自动化验证'
+    }
+    
     try {
       const report = await wailsBridge.runTDDValidation()
       const snippet = (report.output || '').slice(0, 120)
@@ -1416,8 +1427,26 @@ async function handleSend() {
           : (report.output || '').slice(0, 100)
         showToast(`❌ TDD 验证未通过 (${report.failed} failed) · ${failSummary}`)
       }
+      
+      const tddMsgId = 'msg_tdd_' + Date.now()
+      currentSession.value.messages.push({
+        id: tddMsgId,
+        role: 'system',
+        content: `**[系统工具 TDD 自动化验证]**\n\n状态：${report.status === 'PASS' ? '✅ 通过 (PASS)' : '❌ 失败 (FAIL)'}\n耗时：${report.duration}\n\n\`\`\`text\n${report.output || '无输出'}\n\`\`\``,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      })
+      await wailsBridge.saveSession(currentSession.value)
+      scrollChatToLatest()
     } catch (err) {
       showToast('TDD 无法执行: ' + err)
+      currentSession.value.messages.push({
+        id: 'msg_tdd_err_' + Date.now(),
+        role: 'system',
+        content: `**[系统工具 TDD 自动化验证]**\n\n❌ 执行异常\n\n\`\`\`text\n${err}\n\`\`\``,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      })
+      await wailsBridge.saveSession(currentSession.value)
+      scrollChatToLatest()
     }
     return
   }

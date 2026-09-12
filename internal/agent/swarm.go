@@ -86,31 +86,46 @@ func findNpmExe() (string, error) {
 	return npmExe, err
 }
 
-func findNpmTestDir(workspace string) (string, bool) {
-	if checkHasNpmTest(filepath.Join(workspace, "package.json")) {
-		return workspace, true
+func findNpmTestDir(workspace string) (string, bool, string) {
+	pkgPath1 := filepath.Join(workspace, "package.json")
+	if exists, hasTest := checkHasNpmTest(pkgPath1); exists {
+		if hasTest {
+			return workspace, true, ""
+		}
+		return workspace, false, "未配置 npm test，已跳过"
 	}
+	
 	frontendDir := filepath.Join(workspace, "frontend")
-	if checkHasNpmTest(filepath.Join(frontendDir, "package.json")) {
-		return frontendDir, true
+	pkgPath2 := filepath.Join(frontendDir, "package.json")
+	if exists, hasTest := checkHasNpmTest(pkgPath2); exists {
+		if hasTest {
+			return frontendDir, true, ""
+		}
+		return frontendDir, false, "未配置 npm test，已跳过"
 	}
-	return "", false
+	
+	return "", false, ""
 }
 
-func checkHasNpmTest(pkgJsonPath string) bool {
+func checkHasNpmTest(pkgJsonPath string) (exists bool, hasTest bool) {
 	if fi, err := os.Stat(pkgJsonPath); err == nil && !fi.IsDir() {
+		exists = true
 		if data, err := os.ReadFile(pkgJsonPath); err == nil {
 			var pkg struct {
 				Scripts map[string]string `json:"scripts"`
 			}
 			if json.Unmarshal(data, &pkg) == nil && pkg.Scripts != nil {
 				if testScript, ok := pkg.Scripts["test"]; ok && strings.TrimSpace(testScript) != "" {
-					return true
+					hasTest = true
+					// 如果遇到那种默认的无用测试命令
+					if strings.Contains(testScript, "echo \\\"Error: no test specified\\\"") {
+						hasTest = false
+					}
 				}
 			}
 		}
 	}
-	return false
+	return
 }
 
 // RunTDDValidation 运行自动化 TDD 测试驱动红绿灯验证 (支持 Go 原生 go test 与 Node npm test 双栈级联验证，带 60s 硬超时与零黑框)
@@ -122,20 +137,24 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 		hasGoMod = true
 	}
 
-	npmDir, hasNpmTest := findNpmTestDir(workspace)
+	npmDir, hasNpmTest, npmSkipReason := findNpmTestDir(workspace)
 
 	if !hasGoMod && !hasNpmTest {
+		output := "当前工作区未检测到可执行的自动化测试套件 (既未找到 go.mod，亦未找到配置了 test 脚本的 package.json)。TDD 模式严禁无测试直接通过。"
+		if npmSkipReason != "" {
+			output = "=== [Npm Test 套件] ===\n" + npmSkipReason + "\n\n" + output
+		}
 		return TestReport{
 			Status:    "FAIL",
 			Passed:    0,
 			Failed:    1,
 			Duration:  "0ms",
-			Output:    "当前工作区未检测到可执行的自动化测试套件 (既未找到 go.mod，亦未找到配置了 test 脚本的 package.json)。TDD 模式严禁无测试直接通过。",
+			Output:    output,
 			Timestamp: time.Now().Unix(),
 		}, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	totalPassed := 0
@@ -215,17 +234,19 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 				outputs = append(outputs, npmOut)
 			}
 		}
+	} else if npmSkipReason != "" {
+		outputs = append(outputs, fmt.Sprintf("=== [Npm Test 套件] ===\n%s", npmSkipReason))
 	}
 
 	duration := time.Since(start).Round(time.Millisecond).String()
 	outputStr := strings.Join(outputs, "\n\n")
-	if ctx.Err() == context.DeadlineExceeded {
-		outputStr += "\n[超时警告] 测试执行超过 120s 硬超时上限，已被安全中断"
-	}
-
 	status := "PASS"
 	if totalFailed > 0 {
 		status = "FAIL"
+	}
+	if ctx.Err() == context.DeadlineExceeded {
+		outputStr += "\n[超时警告] 测试超时已中断 (60s)"
+		status = "tdd_failed"
 	}
 
 	failedTests := ExtractFailedTests(goRawOut, npmRawOut)
