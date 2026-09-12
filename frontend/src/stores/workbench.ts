@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, reactive, computed, nextTick } from 'vue'
+import { ref, reactive, computed, nextTick, watch } from 'vue'
 import {
   wailsBridge,
   type SessionMeta,
@@ -345,6 +345,75 @@ async function loadGitStatus() {
     console.error(err)
     gitStatus.value = { branch: '', working: [], staged: [], untracked: [] }
   }
+  void loadGitExtras()
+}
+
+const gitBranches = ref<string[]>([])
+const gitCurrentBranch = ref('')
+const gitSnapshots = ref<{ id: string; branch: string; message: string; time: string }[]>([])
+const newBranchName = ref('')
+
+async function loadGitExtras() {
+  try {
+    const b = await wailsBridge.getGitBranches()
+    gitBranches.value = b.branches || []
+    gitCurrentBranch.value = b.current || (gitStatus.value?.branch || '')
+  } catch {
+    gitBranches.value = []
+    gitCurrentBranch.value = gitStatus.value?.branch || ''
+  }
+  try {
+    gitSnapshots.value = await wailsBridge.gitListSnapshots()
+  } catch {
+    gitSnapshots.value = []
+  }
+}
+
+async function checkoutBranch(name: string) {
+  if (!name) return
+  try {
+    await wailsBridge.gitCheckoutBranch(name)
+    await loadGitStatus()
+    showToast('✓ 已切换到分支 ' + name)
+  } catch (err) {
+    showToast('切换分支失败: ' + err)
+  }
+}
+
+async function createBranchAction() {
+  const n = newBranchName.value.trim()
+  if (!n) {
+    showToast('请填写新分支名')
+    return
+  }
+  try {
+    await wailsBridge.gitCreateBranch(n)
+    newBranchName.value = ''
+    await loadGitStatus()
+    showToast('✓ 已创建并检出 ' + n)
+  } catch (err) {
+    showToast('创建分支失败: ' + err)
+  }
+}
+
+async function createSnapshotAction() {
+  try {
+    await wailsBridge.gitCreateSnapshot('checkpoint')
+    await loadGitExtras()
+    showToast('✓ 已创建工作区快照')
+  } catch (err) {
+    showToast('创建快照失败: ' + err)
+  }
+}
+
+async function restoreSnapshotAction(id: string) {
+  try {
+    await wailsBridge.gitRestoreSnapshot(id)
+    await loadGitStatus()
+    showToast('✓ 已还原快照')
+  } catch (err) {
+    showToast('还原快照失败: ' + err)
+  }
 }
 
 function switchToFileActivity() {
@@ -466,6 +535,134 @@ async function discardHunkAction(hunkIndex: number) {
 const inputPrompt = ref('')
 const attachedFiles = ref<string[]>([])
 const messagesContainerRef = ref<HTMLDivElement | null>(null)
+const mentionOpen = ref(false)
+const mentionKind = ref<'at' | 'slash' | ''>('')
+const mentionQuery = ref('')
+const mentionIndex = ref(0)
+
+type MentionItem = { id: string; kind: string; label: string; insert: string }
+
+const mentionItems = computed(() => {
+  const q = mentionQuery.value.toLowerCase()
+  const items: MentionItem[] = []
+  if (mentionKind.value === 'slash') {
+    items.push(
+      { id: '/tdd', kind: '指令', label: '/tdd 运行工作区测试', insert: '/tdd' },
+      { id: '/diff', kind: '指令', label: '/diff 打开 Git 状态', insert: '/diff' },
+      { id: '/audit', kind: '指令', label: '/audit 安全审查', insert: '/audit' },
+      { id: '/term', kind: '指令', label: '/term 打开终端', insert: '/term' }
+    )
+    for (const mcp of mcps.value.filter((m) => m.enabled)) {
+      items.push({ id: 'mcp-' + mcp.id, kind: 'MCP', label: mcp.name, insert: '/' + mcp.name })
+    }
+  } else if (mentionKind.value === 'at') {
+    for (const sk of skills.value.filter((s) => s.enabled)) {
+      items.push({ id: 'sk-' + sk.id, kind: '技能', label: sk.name, insert: '@' + sk.name })
+    }
+    for (const sess of sessions.value.slice(0, 20)) {
+      items.push({ id: 'se-' + sess.id, kind: '会话', label: sess.title, insert: '@' + (sess.title || sess.id) })
+    }
+    for (const f of flattenFiles(fileTree.value).slice(0, 40)) {
+      items.push({ id: 'fl-' + f.path, kind: '文件', label: f.name, insert: '@' + f.path })
+    }
+  }
+  if (!q) return items
+  return items.filter((i) => `${i.kind} ${i.label} ${i.insert}`.toLowerCase().includes(q))
+})
+
+watch(inputPrompt, (v) => {
+  const sl = v.match(/(^|\s)\/([^\s]*)$/)
+  const at = v.match(/(^|\s)@([^\s]*)$/)
+  if (sl) {
+    mentionKind.value = 'slash'
+    mentionQuery.value = sl[2] || ''
+    mentionOpen.value = true
+    mentionIndex.value = 0
+  } else if (at) {
+    mentionKind.value = 'at'
+    mentionQuery.value = at[2] || ''
+    mentionOpen.value = true
+    mentionIndex.value = 0
+  } else {
+    mentionOpen.value = false
+    mentionKind.value = ''
+  }
+})
+
+function applyMention(item: MentionItem) {
+  inputPrompt.value = inputPrompt.value.replace(/(^|\s)([@/][^\s]*)$/, (_, sp) => sp + item.insert + ' ')
+  mentionOpen.value = false
+}
+
+function handleComposerKeydown(e: KeyboardEvent) {
+  if (mentionOpen.value && mentionItems.value.length > 0) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      mentionIndex.value = (mentionIndex.value + 1) % mentionItems.value.length
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      mentionIndex.value = (mentionIndex.value - 1 + mentionItems.value.length) % mentionItems.value.length
+      return
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault()
+      const item = mentionItems.value[mentionIndex.value]
+      if (item) applyMention(item)
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      mentionOpen.value = false
+      return
+    }
+  }
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    void handleSend()
+  }
+}
+
+async function copyMessage(content: string) {
+  try {
+    await navigator.clipboard.writeText(content || '')
+    showToast('✓ 已复制到剪贴板')
+  } catch (err) {
+    showToast('复制失败: ' + err)
+  }
+}
+
+async function regenerateLast() {
+  const msgs = currentSession.value.messages || []
+  const lastUser = [...msgs].reverse().find((m) => m.role === 'user')
+  if (!lastUser?.content) {
+    showToast('没有可重新生成的用户消息')
+    return
+  }
+  inputPrompt.value = lastUser.content
+  await handleSend()
+}
+
+function onChatDrop(e: DragEvent) {
+  const files = e.dataTransfer?.files
+  if (!files?.length) return
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i] as File & { path?: string }
+    const p = f.path || f.name
+    if (p && !attachedFiles.value.includes(p)) attachedFiles.value.push(p)
+  }
+}
+
+const usageMetrics = ref({ total_tokens: 0, total_calls: 0, estimated_cost: '$0', active_sessions: 0, last_updated_time: '' })
+
+async function loadUsageMetrics() {
+  try {
+    usageMetrics.value = await wailsBridge.getUsageMetrics()
+  } catch {
+    usageMetrics.value = { total_tokens: 0, total_calls: 0, estimated_cost: '$0', active_sessions: 0, last_updated_time: '' }
+  }
+}
 
 async function triggerUpload() {
   try {
@@ -506,6 +703,22 @@ async function handleSend() {
     await loadGitStatus()
     isDiffOpen.value = true
     showToast('已打开真实 Git 状态（无改动则为空）')
+    return
+  }
+  if (slash === '/audit') {
+    inputPrompt.value = ''
+    showToast('正在运行工作区安全审查…')
+    try {
+      const report = await wailsBridge.runSecurityAudit()
+      showToast('审查完成: ' + (report.status || JSON.stringify(report).slice(0, 80)))
+    } catch (err) {
+      showToast('安全审查无法执行: ' + err)
+    }
+    return
+  }
+  if (slash === '/term' || slash === '/terminal') {
+    inputPrompt.value = ''
+    toggleTerminalDrawer(true)
     return
   }
 
@@ -664,6 +877,7 @@ async function loadSettingsData() {
 function openSettingsTab(tab: string) {
   activeSettingsTab.value = tab
   isSettingsOpen.value = true
+  if (tab === 'about') void loadUsageMetrics()
 }
 
 async function executePing(id: string) {
@@ -1091,6 +1305,7 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 
   if (e.key === 'Escape') {
+    if (mentionOpen.value) { mentionOpen.value = false; return }
     if (isCommandPaletteOpen.value) { isCommandPaletteOpen.value = false; return }
     if (isMcpModalOpen.value) { isMcpModalOpen.value = false; return }
     if (isSkillModalOpen.value) { isSkillModalOpen.value = false; return }
@@ -1111,6 +1326,7 @@ function initWorkbench() {
   void loadSessionsList()
   void loadSettingsData()
   void loadProjects()
+  void loadUsageMetrics()
   void wailsBridge.getWorkspace().then(async (ws) => {
     if (!ws) return
     workspacePath.value = ws
@@ -1138,6 +1354,7 @@ function initWorkbench() {
     commandPaletteQuery,
     confirmCommandPalette,
     applyHunkAction,
+    applyMention,
     astNodes,
     attachedFiles,
     availableModels,
@@ -1145,13 +1362,17 @@ function initWorkbench() {
     cancelTerminalAction,
     channelForm,
     channels,
+    checkoutBranch,
     chooseWorkspace,
     clearTerminalLogs,
     commandHistory,
     collapsedProjects,
     commitMessage,
+    copyMessage,
+    createBranchAction,
     createNewSession,
     createSessionInProject,
+    createSnapshotAction,
     currentSession,
     currentSessionId,
     currentTerminalBuffer,
@@ -1168,7 +1389,11 @@ function initWorkbench() {
     fileTree,
     filteredSessions,
     gitBranchLabel,
+    gitBranches,
+    gitCurrentBranch,
+    gitSnapshots,
     gitStatus,
+    handleComposerKeydown,
     handleFileClick,
     handleGitCommit,
     handleGlobalKeydown,
@@ -1197,14 +1422,22 @@ function initWorkbench() {
     loadDiff,
     loadFileTree,
     loadGitStatus,
+    loadGitExtras,
     loadSessionsList,
     loadSettingsData,
     moveCommandPalette,
     mcpArgsInput,
     mcpForm,
     mcps,
+    mentionIndex,
+    mentionItems,
+    mentionKind,
+    mentionOpen,
+    mentionQuery,
     messagesContainerRef,
     navigateCommandHistory,
+    newBranchName,
+    onChatDrop,
     openAddChannelModal,
     openFileDiff,
     openKnowledgeGraphModal,
@@ -1213,8 +1446,10 @@ function initWorkbench() {
     pingAllChannels,
     pingLoadingMap,
     projects,
+    regenerateLast,
     projectTree,
     renderMarkdown,
+    restoreSnapshotAction,
     revertFileAction,
     runCommandPaletteItem,
     ruleForm,
@@ -1253,6 +1488,7 @@ function initWorkbench() {
     triggerUpload,
     unpinProject,
     unstageFileAction,
+    usageMetrics,
     visibleMessages,
     upstreamFetchedModels,
     workingTreeFiles,

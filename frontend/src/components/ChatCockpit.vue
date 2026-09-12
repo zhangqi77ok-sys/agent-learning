@@ -1,5 +1,5 @@
 <template>
-<main class="flex-1 bg-[#FAF8F5] flex flex-col justify-between overflow-hidden relative font-sans">
+<main class="flex-1 bg-[#FAF8F5] flex flex-col justify-between overflow-hidden relative font-sans" @dragover.prevent @drop.prevent="s.onChatDrop($event)">
         <!-- 顶栏: 场景标签、多模型切换器与收起代码按钮 -->
         <header class="h-10 min-h-[40px] bg-[#FAF8F5] border-b border-black/[0.08] px-3 flex items-center justify-between text-xs select-none z-10 shrink-0">
           <div class="flex items-center gap-2">
@@ -108,6 +108,10 @@
                 class="markdown-body text-xs text-[#27272A] leading-relaxed space-y-2 bg-white/70 p-3.5 rounded-xl border border-black/[0.04] w-full"
                 v-html="s.renderMarkdown(msg.content)"
               ></div>
+              <div class="flex items-center gap-2 text-[10px] text-[#A1A1AA]">
+                <button class="hover:text-[#18181B] cursor-pointer" @click="s.copyMessage(msg.content)">复制</button>
+                <button class="hover:text-[#18181B] cursor-pointer" @click="s.regenerateLast">重新生成</button>
+              </div>
             </div>
           </template>
 
@@ -138,10 +142,25 @@
             <textarea
               v-model="s.inputPrompt"
               rows="2"
-              placeholder="给 湉码 Agent 发送指令 (支持拖拽文件，输入 @ 引用工程，/ 调起算子)..."
+              placeholder="给 湉码 Agent 发送指令（@ 引用会话/技能/文件，/ 调起指令，Shift+Enter 换行，拖入文件作为附件）"
               class="w-full text-xs text-[#18181B] placeholder-[#A1A1AA] bg-transparent focus:outline-none resize-none leading-relaxed"
-              @keydown.enter.prevent="s.handleSend"
+              @keydown="s.handleComposerKeydown"
             ></textarea>
+            <div
+              v-if="s.mentionOpen && s.mentionItems.length > 0"
+              class="absolute left-4 right-4 bottom-[7.5rem] z-20 bg-white border border-black/[0.1] rounded-xl shadow-lg max-h-48 overflow-y-auto"
+            >
+              <button
+                v-for="(item, idx) in s.mentionItems"
+                :key="item.id"
+                class="w-full text-left px-3 py-1.5 text-xs flex justify-between cursor-pointer"
+                :class="idx === s.mentionIndex ? 'bg-[#D96B27]/10' : 'hover:bg-black/[0.03]'"
+                @mousedown.prevent="s.applyMention(item)"
+              >
+                <span>{{ item.label }}</span>
+                <span class="text-[10px] text-[#A1A1AA]">{{ item.kind }}</span>
+              </button>
+            </div>
 
             <div class="flex items-center justify-between border-t border-black/[0.04] pt-2 text-xs">
               <div class="flex items-center gap-1">

@@ -158,11 +158,38 @@
               <span>🌿</span><span>源代码管理 (Git)</span>
             </span>
             <span class="text-[10px] font-mono text-[#10A37F] bg-[#10A37F]/10 px-1.5 py-0.2 rounded font-bold">
-              {{ s.gitBranchLabel }}
+              {{ s.gitCurrentBranch || s.gitBranchLabel }}
             </span>
           </div>
 
           <div class="flex-1 overflow-y-auto p-3 space-y-3 text-xs">
+            <div class="space-y-1.5">
+              <div class="text-[10px] font-bold text-[#71717A] uppercase">分支</div>
+              <select
+                v-if="s.gitBranches.length > 0"
+                class="w-full px-2 py-1.5 rounded-lg border border-black/[0.1] text-xs bg-white"
+                :value="s.gitCurrentBranch"
+                @change="s.checkoutBranch(($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="b in s.gitBranches" :key="b" :value="b">{{ b }}</option>
+              </select>
+              <div v-else class="text-[10px] text-[#A1A1AA]">当前工作区没有 Git 仓库</div>
+              <div class="flex gap-1">
+                <input v-model="s.newBranchName" type="text" placeholder="新分支名" class="flex-1 px-2 py-1 rounded-lg border border-black/[0.1] text-xs">
+                <button @click="s.createBranchAction" class="px-2 py-1 rounded-lg bg-white border border-black/[0.08] text-[10px] cursor-pointer">创建</button>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-[#71717A] uppercase">快照 (stash)</span>
+                <button @click="s.createSnapshotAction" class="text-[10px] text-[#D96B27] cursor-pointer">＋ 保存</button>
+              </div>
+              <div v-if="s.gitSnapshots.length === 0" class="text-[10px] text-[#A1A1AA]">没有快照</div>
+              <div v-for="snap in s.gitSnapshots" :key="snap.id" class="flex items-center justify-between p-1.5 rounded bg-black/[0.02]">
+                <span class="truncate font-mono text-[10px]">{{ snap.message || snap.id }} · {{ snap.time }}</span>
+                <button @click="s.restoreSnapshotAction(snap.id)" class="text-[10px] text-[#D96B27] cursor-pointer shrink-0">还原</button>
+              </div>
+            </div>
             <div v-if="s.isGitLoading" class="p-6 text-center text-[#A1A1AA] text-xs flex flex-col items-center justify-center gap-2">
               <span class="animate-spin text-lg">⏳</span>
               <span>正在获取 Git 状态...</span>
@@ -219,7 +246,7 @@
             <div class="pt-2 border-t border-black/[0.06] space-y-2">
               <input v-model="s.commitMessage" @keyup.enter="s.handleGitCommit" type="text" placeholder="提交信息 (Commit message)..." class="w-full px-2.5 py-1.5 rounded-lg border border-black/[0.1] text-xs focus:outline-none focus:border-[#D96B27]">
               <button @click="s.handleGitCommit" class="w-full py-1.5 rounded-lg bg-[#D96B27] text-white text-xs font-semibold shadow-xs hover:bg-[#B8551B] cursor-pointer">
-                ✓ 提交变更 (Commit & Push)
+                ✓ 提交到本地仓库 (Commit)
               </button>
             </div>
           </div>

@@ -48,12 +48,12 @@ func ListBranches(workspace string) ([]string, string, error) {
 	cmd := gitCmd(workspace, "branch", "--list")
 	out, err := cmd.Output()
 	if err != nil {
-		return []string{"main"}, "main", nil
+		return []string{}, "", nil
 	}
 
 	lines := strings.Split(string(out), "\n")
 	branches := make([]string, 0, len(lines))
-	current := "main"
+	current := ""
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -67,10 +67,6 @@ func ListBranches(workspace string) ([]string, string, error) {
 		} else {
 			branches = append(branches, trimmed)
 		}
-	}
-
-	if len(branches) == 0 {
-		branches = append(branches, "main")
 	}
 
 	return branches, current, nil

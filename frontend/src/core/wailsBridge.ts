@@ -406,6 +406,85 @@ export const wailsBridge = {
     throw new Error('microkernel not connected: GitUnstage unavailable')
   },
 
+  async getGitBranches(): Promise<{ branches: string[]; current: string }> {
+    const app = getApp()
+    if (app?.GetGitBranches) {
+      const r = await app.GetGitBranches()
+      return {
+        branches: Array.isArray(r?.branches) ? r.branches : [],
+        current: r?.current || ''
+      }
+    }
+    if (app?.GitListBranches) {
+      const r = await app.GitListBranches()
+      if (Array.isArray(r)) return { branches: r, current: '' }
+    }
+    return { branches: [], current: '' }
+  },
+
+  async gitCheckoutBranch(name: string): Promise<void> {
+    const app = getApp()
+    if (app?.GitCheckoutBranch) {
+      await app.GitCheckoutBranch(name)
+      return
+    }
+    throw new Error('microkernel not connected: GitCheckoutBranch unavailable')
+  },
+
+  async gitCreateBranch(name: string): Promise<void> {
+    const app = getApp()
+    if (app?.GitCreateBranch) {
+      await app.GitCreateBranch(name)
+      return
+    }
+    throw new Error('microkernel not connected: GitCreateBranch unavailable')
+  },
+
+  async gitListSnapshots(): Promise<{ id: string; branch: string; message: string; time: string }[]> {
+    const app = getApp()
+    if (app?.GitListSnapshots) {
+      const r = await app.GitListSnapshots()
+      return Array.isArray(r) ? r : []
+    }
+    return []
+  },
+
+  async gitCreateSnapshot(msg: string): Promise<void> {
+    const app = getApp()
+    if (app?.GitCreateSnapshot) {
+      await app.GitCreateSnapshot(msg)
+      return
+    }
+    throw new Error('microkernel not connected: GitCreateSnapshot unavailable')
+  },
+
+  async gitRestoreSnapshot(id: string): Promise<void> {
+    const app = getApp()
+    if (app?.GitRestoreSnapshot) {
+      await app.GitRestoreSnapshot(id)
+      return
+    }
+    throw new Error('microkernel not connected: GitRestoreSnapshot unavailable')
+  },
+
+  async runSecurityAudit(): Promise<{ status?: string; output?: string; issues?: any[] }> {
+    const app = getApp()
+    if (app?.RunSecurityAudit) return await app.RunSecurityAudit()
+    throw new Error('microkernel not connected: RunSecurityAudit unavailable')
+  },
+
+  async getUsageMetrics(): Promise<{
+    total_tokens: number
+    total_calls: number
+    estimated_cost: string
+    active_sessions: number
+    last_updated_time: string
+  }> {
+    const app = getApp()
+    if (app?.GetUsageMetrics) return await app.GetUsageMetrics()
+    return { total_tokens: 0, total_calls: 0, estimated_cost: '$0', active_sessions: 0, last_updated_time: '' }
+  },
+
   // 4. 渠道与设置管理
   async listChannels(): Promise<ChannelConfig[]> {
     const app = getApp()

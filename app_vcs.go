@@ -211,6 +211,18 @@ func (a *App) GitListBranches() ([]string, string, error) {
 	return gitops.ListBranches(a.workspace)
 }
 
+// GetGitBranches 给前端一个可 JSON 的分支清单（Wails 多返回值只会露出第一项）
+func (a *App) GetGitBranches() (map[string]any, error) {
+	branches, current, err := gitops.ListBranches(a.workspace)
+	if err != nil {
+		return map[string]any{"branches": []string{}, "current": ""}, nil
+	}
+	if branches == nil {
+		branches = []string{}
+	}
+	return map[string]any{"branches": branches, "current": current}, nil
+}
+
 // GitCheckoutBranch 切换检出分支
 func (a *App) GitCheckoutBranch(name string) error {
 	return gitops.CheckoutBranch(a.workspace, name)

@@ -279,7 +279,14 @@
               <div class="p-3 rounded-xl bg-[#FAF8F5] border border-black/[0.06] text-xs text-[#52525B] leading-relaxed space-y-2">
                 <p><strong class="text-[#18181B]">湉码 / tiancode</strong> · Wails v2 + Go 微内核 + Vue 3。</p>
                 <p>仓库：<span class="font-mono">github.com/zhangqi77ok-sys/tiancode</span></p>
-                <p>本页只陈述真实能力：流式对话、会话树、Git、终端、MCP stdio、技能/规则注入、Go AST 扫描。未接线的按钮不会出现在这里。</p>
+                <p>本页只陈述真实能力：流式对话、会话树、Git 分支/快照、终端、MCP stdio、技能/规则注入、Go AST 扫描。</p>
+                <div class="pt-2 border-t border-black/[0.06] font-mono text-[11px] space-y-1">
+                  <p>Token 累计：{{ s.usageMetrics.total_tokens }}</p>
+                  <p>调用次数：{{ s.usageMetrics.total_calls }}</p>
+                  <p>估算费用：{{ s.usageMetrics.estimated_cost }}</p>
+                  <p>活跃会话计数：{{ s.usageMetrics.active_sessions }}</p>
+                  <p>更新时间：{{ s.usageMetrics.last_updated_time || '尚无记录' }}</p>
+                </div>
               </div>
             </div>
           </main>
@@ -437,8 +444,7 @@
           <div>
             <label class="block font-medium text-[#71717A] mb-1">通信类型</label>
             <select v-model="s.mcpForm.type" class="w-full px-2.5 py-1.5 rounded-lg border border-black/[0.1] focus:outline-none focus:border-[#D96B27]">
-              <option value="stdio">stdio (标准子进程管道)</option>
-              <option value="sse">sse (HTTP Server-Sent Events)</option>
+              <option value="stdio">stdio（当前内核已实现）</option>
             </select>
           </div>
           <div>
