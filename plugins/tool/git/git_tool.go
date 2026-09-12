@@ -89,16 +89,20 @@ func (t *Tool) execGit(args ...string) (string, error) {
 
 // GetStatus 获取精准的双层暂存状态
 func (t *Tool) GetStatus() (*GitStatusReport, error) {
-	branch, _ := t.execGit("branch", "--show-current")
-	if branch == "" {
-		branch = "main"
+	empty := &GitStatusReport{
+		Branch:    "",
+		Staged:    make([]GitFileStatus, 0),
+		Working:   make([]GitFileStatus, 0),
+		Untracked: make([]string, 0),
 	}
-
+	if _, err := os.Stat(filepath.Join(t.rootDir, ".git")); err != nil {
+		return empty, nil
+	}
+	branch, _ := t.execGit("branch", "--show-current")
 	rawStatus, err := t.execGit("status", "--porcelain=v2")
 	if err != nil {
-		return nil, err
+		return empty, nil
 	}
-
 	return parsePorcelainV2(rawStatus, branch), nil
 }
 

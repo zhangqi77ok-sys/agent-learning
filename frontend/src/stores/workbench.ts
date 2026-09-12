@@ -195,7 +195,7 @@ async function chooseWorkspace() {
 
 const fileTree = ref<FileNode[]>([])
 const expandedFolders = reactive<Record<string, boolean>>({ 'frontend': true })
-const gitStatus = ref<any>({ branch: 'main', working: [], staged: [] })
+const gitStatus = ref<any>({ branch: '', working: [], staged: [], untracked: [] })
 const commitMessage = ref('')
 
 const stagedTreeFiles = computed(() => {
@@ -245,11 +245,24 @@ const workingTreeFiles = computed(() => {
 })
 
 async function loadFileTree() {
-  fileTree.value = await wailsBridge.getFileTree()
+  try {
+    fileTree.value = await wailsBridge.getFileTree()
+  } catch (err) {
+    console.error(err)
+    fileTree.value = []
+  }
 }
 
 async function loadGitStatus() {
-  gitStatus.value = await wailsBridge.getGitStatus()
+  try {
+    const st = await wailsBridge.getGitStatus()
+    gitStatus.value = st && typeof st === 'object'
+      ? st
+      : { branch: '', working: [], staged: [], untracked: [] }
+  } catch (err) {
+    console.error(err)
+    gitStatus.value = { branch: '', working: [], staged: [], untracked: [] }
+  }
 }
 
 function switchToFileActivity() {
@@ -259,12 +272,8 @@ function switchToFileActivity() {
 
 function switchToGitActivity() {
   activeActivity.value = 'git'
-  loadGitStatus()
+  void loadGitStatus()
 }
-
-watch(() => store.gitVersion, () => {
-  loadGitStatus()
-})
 
 function handleFileClick(node: FileNode) {
   if (node.is_dir) {
@@ -550,14 +559,17 @@ const channelForm = reactive({
 })
 
 async function loadSettingsData() {
-  channels.value = await wailsBridge.listChannels()
-  mcps.value = await wailsBridge.listMCPs()
-  skills.value = await wailsBridge.listSkills()
-  rules.value = await wailsBridge.listRules()
-
-  const primary = channels.value.find(c => c.primary)
-  if (primary && primary.model) {
-    selectedModel.value = primary.model
+  try {
+    channels.value = await wailsBridge.listChannels()
+    mcps.value = await wailsBridge.listMCPs()
+    skills.value = await wailsBridge.listSkills()
+    rules.value = await wailsBridge.listRules()
+    const primary = channels.value.find(c => c.primary)
+    if (primary && primary.model) {
+      selectedModel.value = primary.model
+    }
+  } catch (err) {
+    console.error(err)
   }
 }
 
@@ -923,15 +935,13 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 
 function initWorkbench() {
   window.addEventListener('keydown', handleGlobalKeydown)
-  loadSessionsList()
-  loadSettingsData()
-  wailsBridge.getWorkspace().then(ws => {
-    if (ws) {
-      workspacePath.value = ws
-      loadFileTree()
-      loadGitStatus()
-    }
-  })
+  void loadSessionsList()
+  void loadSettingsData()
+  void wailsBridge.getWorkspace().then(async (ws) => {
+    if (!ws) return
+    workspacePath.value = ws
+    await Promise.all([loadFileTree(), loadGitStatus()])
+  }).catch((err) => console.error(err))
   return () => window.removeEventListener('keydown', handleGlobalKeydown)
 }
 

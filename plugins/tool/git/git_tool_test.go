@@ -39,6 +39,21 @@ func TestGitTool_GetStatus(t *testing.T) {
 	}
 }
 
+func TestGitTool_GetStatus_NotARepo(t *testing.T) {
+	dir := t.TempDir()
+	tool := NewTool(dir)
+	status, err := tool.GetStatus()
+	if err != nil {
+		t.Fatalf("non-git dir should not error: %v", err)
+	}
+	if status == nil {
+		t.Fatal("nil status")
+	}
+	if status.Branch != "" || len(status.Staged) != 0 {
+		t.Fatalf("expected empty report, got %+v", status)
+	}
+}
+
 func TestGitTool_ParsePorcelainWithSpaces(t *testing.T) {
 	rawOutput := `1 .M N... 100644 100644 100644 a1b2c3d e4f5a6b my space file.txt
 ? untracked with space.md

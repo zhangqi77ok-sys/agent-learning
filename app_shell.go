@@ -27,7 +27,10 @@ func (a *App) GetGitStatus() (map[string]any, error) {
 	rawArgs, _ := json.Marshal(map[string]any{})
 	res, err := gitTool.Execute(a.ctx, rawArgs)
 	if err != nil {
-		return nil, err
+		return map[string]any{"branch": "", "staged": []any{}, "working": []any{}, "untracked": []any{}, "error": err.Error()}, nil
+	}
+	if res != nil && res.IsError {
+		return map[string]any{"branch": "", "staged": []any{}, "working": []any{}, "untracked": []any{}, "error": res.Content}, nil
 	}
 	// git_status tool 返回 JSON 格式的状态报告，直接解析
 	var report map[string]any
