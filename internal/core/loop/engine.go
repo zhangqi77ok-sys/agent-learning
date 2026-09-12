@@ -61,9 +61,10 @@ type AssembledToolCall struct {
 
 // ExecutionEngine ReAct 双环自主执行引擎
 type ExecutionEngine struct {
-	registry *host.Registry
-	maxSteps int
-	MCPCall  func(ctx context.Context, name string, args map[string]any) (string, error)
+	registry    *host.Registry
+	maxSteps    int
+	maxLLMTurns int
+	MCPCall     func(ctx context.Context, name string, args map[string]any) (string, error)
 	// Verify 在 TDD 策略写盘成功后运行工作区测试，结果会拼进工具输出。
 	Verify func(writtenFile string) (output string, pass bool)
 }
@@ -71,8 +72,9 @@ type ExecutionEngine struct {
 // NewExecutionEngine 构造执行引擎
 func NewExecutionEngine(reg *host.Registry) *ExecutionEngine {
 	return &ExecutionEngine{
-		registry: reg,
-		maxSteps: 15, // 生产硬防死循环上限
+		registry:    reg,
+		maxSteps:    15,
+		maxLLMTurns: 24,
 	}
 }
 

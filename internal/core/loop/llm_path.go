@@ -54,8 +54,12 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		}
 	}
 
-	const maxWatchdogTurns = 12
-	for turn := 1; turn <= maxWatchdogTurns; turn++ {
+	maxTurns := e.maxLLMTurns
+	if maxTurns < 1 {
+		maxTurns = 24
+	}
+	hitCap := false
+	for turn := 1; turn <= maxTurns; turn++ {
 		if ctx.Err() != nil {
 			eventChan <- EngineEvent{Type: EventError, ErrorMessage: "task canceled by client"}
 			return ctx.Err()
@@ -114,6 +118,9 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		if len(toolReassembler) == 0 {
 			break
 		}
+		if turn == maxTurns {
+			hitCap = true
+		}
 
 		tcIndices := make([]int, 0, len(toolReassembler))
 		for idx := range toolReassembler {
@@ -170,6 +177,35 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 				Name:       tc.Function.Name,
 				Content:    toolOutput,
 			})
+		}
+	}
+
+	if hitCap {
+		notice := fmt.Sprintf("\n\n⚠️ 【系统提示】本轮工具调用已达上限（%d 轮），已停止继续调工具。下面根据已有结果汇总；要继续请再发一条「继续」。\n", maxTurns)
+		eventChan <- EngineEvent{Type: EventChunk, DeltaContent: notice}
+		conversation = append(conversation, llm.Message{
+			Role:    "user",
+			Content: "工具轮次已达上限。请不要再调用任何工具，用已经拿到的结果给出当前结论、未完成项和下一步建议。",
+		})
+		msgsBytes, err := json.Marshal(conversation)
+		if err == nil && ctx.Err() == nil {
+			chatReq := &v1.ChatRequest{Model: req.Model, Messages: msgsBytes, Stream: true}
+			chunkChan, err := prov.StreamChat(ctx, chatReq)
+			if err == nil {
+				for chunk := range chunkChan {
+					if chunk.Error != nil {
+						eventChan <- EngineEvent{Type: EventError, ErrorMessage: chunk.Error.Error()}
+						break
+					}
+					if chunk.DeltaContent != "" || chunk.Thinking != "" {
+						eventChan <- EngineEvent{
+							Type:         EventChunk,
+							DeltaContent: chunk.DeltaContent,
+							Thinking:     chunk.Thinking,
+						}
+					}
+				}
+			}
 		}
 	}
 

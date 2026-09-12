@@ -155,6 +155,35 @@ func TestExecutionEngine_MaxStepsCutoff(t *testing.T) {
 	}
 }
 
+func TestExecutionEngine_DirectLLMWatchdogWrapsUp(t *testing.T) {
+	reg := host.NewRegistry()
+	prov := &loopInfiniteProvider{}
+	if err := reg.Register(prov); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	engine := NewExecutionEngine(reg)
+	engine.maxLLMTurns = 2
+	eventChan := make(chan EngineEvent, 80)
+	go func() {
+		_ = engine.Execute(context.Background(), &EngineRequest{
+			Model:    "mock-model",
+			Prompt:   "keep going",
+			APIKey:   "k",
+			Endpoint: "http://127.0.0.1:9",
+		}, eventChan)
+	}()
+	var chunks strings.Builder
+	for ev := range eventChan {
+		if ev.Type == EventChunk {
+			chunks.WriteString(ev.DeltaContent)
+		}
+	}
+	got := chunks.String()
+	if !strings.Contains(got, "上限") {
+		t.Fatalf("direct LLM watchdog must tell the user it stopped, got %q", got)
+	}
+}
+
 func TestExecutionEngine_NilGuards(t *testing.T) {
 	// 1. nil engine
 	var nilEngine *ExecutionEngine
