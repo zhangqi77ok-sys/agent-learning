@@ -88,3 +88,40 @@ func TestDenyByStrategy_BlocksWrite(t *testing.T) {
 		t.Fatal("implement should allow exec")
 	}
 }
+
+func TestApplyStrategy_MapFirstAndTDDCompletionBlock(t *testing.T) {
+	_, sysAnalyze := ApplyStrategy("analyze", "", nil, "base")
+	if !strings.Contains(sysAnalyze, "先地图再下钻") || !strings.Contains(sysAnalyze, "禁止盲目") {
+		t.Errorf("expected map-first review rule in analyze prompt, got: %s", sysAnalyze)
+	}
+
+	_, sysTDD := ApplyStrategy("tdd", "", nil, "base")
+	if !strings.Contains(sysTDD, "测试失败则任务状态绝对不是完成") {
+		t.Errorf("expected TDD completion blockage in prompt, got: %s", sysTDD)
+	}
+}
+
+func TestDenyByStrategy_Turn1MapEnforcement(t *testing.T) {
+	// turn 1: 读根目录文件 (如 go.mod, README.md, a.go) 允许
+	rawRoot, _ := json.Marshal(map[string]string{"action": "read", "path": "go.mod"})
+	deny, _ := DenyByStrategy("analyze", "fs_control", rawRoot, 1)
+	if deny {
+		t.Errorf("turn 1 reading go.mod should be allowed")
+	}
+
+	// turn 1: 读深层业务文件 (如 internal/core/loop/llm_path.go) 应被硬闸阻断，要求先看地图
+	rawDeep, _ := json.Marshal(map[string]string{"action": "read", "path": "internal/core/loop/llm_path.go"})
+	deny, reason := DenyByStrategy("analyze", "fs_control", rawDeep, 1)
+	if !deny {
+		t.Errorf("turn 1 reading deep internal file should be denied by map-first rule")
+	}
+	if !strings.Contains(reason, "先地图后下钻") {
+		t.Errorf("expected map-first reason, got: %s", reason)
+	}
+
+	// turn 2+: 读深层业务文件放行
+	denyTurn2, _ := DenyByStrategy("analyze", "fs_control", rawDeep, 2)
+	if denyTurn2 {
+		t.Errorf("turn 2+ reading deep file should be allowed for drill-down")
+	}
+}

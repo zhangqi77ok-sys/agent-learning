@@ -149,7 +149,7 @@ func (a *App) SendMessage(req ChatRequest) error {
 			"model":      model,
 		})
 
-		// 4. 构建提示词体系 (注入规则 + 工作区技术栈感知 + 最近多轮历史)
+		// 4. 构建提示词体系 (注入规则 + 工作区技术栈感知 + 最近多轮历史 + 任务接续上下文)
 		systemPrompt := "你是 湉码 / tiancode 纯原生桌面智能体。你有权调用工具来审查、读取、修改工程代码及运行测试命令。请优先利用工具解决问题，并在每次调用后解释原因。"
 		if a.extraStore != nil {
 			systemPrompt = appendEnabledPolicies(systemPrompt, a.extraStore.ListSkills(), a.extraStore.ListRules())
@@ -159,6 +159,23 @@ func (a *App) SendMessage(req ChatRequest) error {
 		stackInfo := sandbox.DetectProjectStack(a.workspace)
 		if stackPrompt := sandbox.FormatStackPrompt(stackInfo); stackPrompt != "" {
 			systemPrompt += "\n" + stackPrompt
+		}
+
+		// 检查是否为接续指令（「继续」= 接上一次任务目标，禁止重新勘探）
+		cleanPrompt := session.CleanGoalPrompt(req.Prompt)
+		isContinuation := session.IsContinuationPrompt(req.Prompt)
+		if isContinuation && currentSession.Task != nil && currentSession.Task.Goal != "" {
+			currentSession.Task.Status = session.TaskStatusRunning
+			continuationCtx := session.BuildContinuationContext(currentSession.Task, cleanPrompt)
+			systemPrompt += continuationCtx
+		} else {
+			currentSession.Task = &session.TaskModel{
+				Goal:             cleanPrompt,
+				Status:           session.TaskStatusRunning,
+				ToolBudget:       24,
+				ToolsUsed:        0,
+				PendingDiffFiles: make([]string, 0),
+			}
 		}
 
 		// 动态上下文窗口：基于预算自适应选择多轮历史，避免截断关键上下文或超出 Token 上限
@@ -173,6 +190,9 @@ func (a *App) SendMessage(req ChatRequest) error {
 		workspaceTools, systemPrompt = loop.ApplyStrategy(req.Strategy, req.StrategyNote, workspaceTools, systemPrompt)
 		conversation = buildConversationWindow(systemPrompt, currentSession.Messages, 32000)
 		roundStart := time.Now()
+		var hasHitCap bool
+		var hasError bool
+		var lastTDDPassed *bool
 		eventChan := make(chan loop.EngineEvent, 64)
 		go func() {
 			_ = a.engine.Execute(agentCtx, &loop.EngineRequest{
@@ -214,6 +234,9 @@ func (a *App) SendMessage(req ChatRequest) error {
 					"args":       string(ev.ToolArgs),
 				})
 			case loop.EventToolEnd:
+				if currentSession.Task != nil {
+					currentSession.Task.ToolsUsed++
+				}
 				tExec := session.ToolExecution{Name: ev.ToolName, Args: string(ev.ToolArgs), Output: ev.ToolOutput}
 				allToolExecs = append(allToolExecs, tExec)
 				cp := tExec
@@ -225,6 +248,18 @@ func (a *App) SendMessage(req ChatRequest) error {
 					"output":     ev.ToolOutput,
 				})
 			case loop.EventFilesChanged:
+				if currentSession.Task != nil {
+					already := false
+					for _, f := range currentSession.Task.PendingDiffFiles {
+						if f == ev.ToolName {
+							already = true
+							break
+						}
+					}
+					if !already {
+						currentSession.Task.PendingDiffFiles = append(currentSession.Task.PendingDiffFiles, ev.ToolName)
+					}
+				}
 				runtime.EventsEmit(a.ctx, "agent:files_changed", map[string]any{
 					"session_id": req.SessionID,
 					"file":       ev.ToolName,
@@ -237,8 +272,23 @@ func (a *App) SendMessage(req ChatRequest) error {
 						"errors":     diagReport.Errors,
 					})
 				}
+			case loop.EventHitCap:
+				hasHitCap = true
+			case loop.EventTDDResult:
+				if ev.TDDPassed != nil {
+					lastTDDPassed = ev.TDDPassed
+					if currentSession.Task != nil {
+						currentSession.Task.TDDPassed = lastTDDPassed
+					}
+				}
 			case loop.EventError:
-				errMsg := fmt.Sprintf("\n\n[系统错误: %s]", ev.ErrorMessage)
+				hasError = true
+				errMsg := ev.ErrorMessage
+				if !strings.HasPrefix(strings.TrimSpace(errMsg), "⚠️") && !strings.HasPrefix(strings.TrimSpace(errMsg), "[") {
+					errMsg = fmt.Sprintf("\n\n⚠️ %s", errMsg)
+				} else if !strings.HasPrefix(errMsg, "\n") {
+					errMsg = "\n\n" + errMsg
+				}
 				assistantContent.WriteString(errMsg)
 				runtime.EventsEmit(a.ctx, "agent:chunk", map[string]any{
 					"session_id": req.SessionID,
@@ -255,11 +305,53 @@ func (a *App) SendMessage(req ChatRequest) error {
 		}
 		telemetry.GetTracker().Record(model, promptTok, compTok, roundDuration)
 
-		// 7. 持久化 Assistant 回复至磁盘
+		// 7. 持久化 Assistant 回复至磁盘与终态流转
 		if agentCtx.Err() != nil {
-			// 若已被用户中断且没有任何有效产出，跳过写入空 assistant 消息，避免污染历史
+			if currentSession.Task != nil {
+				currentSession.Task.Status = session.TaskStatusInterrupted
+			}
+			if assistantContent.Len() == 0 {
+				notice := loop.FormatInterruptedNotice()
+				assistantContent.WriteString(notice)
+				runtime.EventsEmit(a.ctx, "agent:chunk", map[string]any{
+					"session_id": req.SessionID,
+					"delta":      notice,
+				})
+			}
+		} else {
 			if assistantContent.Len() == 0 && assistantThinking.Len() == 0 && len(allToolExecs) == 0 {
-				return
+				emptyNotice := loop.FormatEmptyOutputNotice()
+				assistantContent.WriteString(emptyNotice)
+				runtime.EventsEmit(a.ctx, "agent:chunk", map[string]any{
+					"session_id": req.SessionID,
+					"delta":      emptyNotice,
+				})
+			}
+
+			// 依据结构化指标与执行事实流转 Task 终态，杜绝扫描正文猜词
+			if currentSession.Task != nil {
+				if lastTDDPassed != nil {
+					currentSession.Task.TDDPassed = lastTDDPassed
+				}
+				if hasHitCap {
+					currentSession.Task.Status = session.TaskStatusCapped
+				} else if currentSession.Task.TDDPassed != nil && !*currentSession.Task.TDDPassed {
+					currentSession.Task.Status = session.TaskStatusTDDFailed
+				} else if len(currentSession.Task.PendingDiffFiles) > 0 {
+					currentSession.Task.Status = session.TaskStatusPendingDiff
+				} else if hasError {
+					currentSession.Task.Status = session.TaskStatusFailed
+				} else {
+					currentSession.Task.Status = session.TaskStatusCompleted
+				}
+
+				asstStr := assistantContent.String()
+				runes := []rune(strings.TrimSpace(asstStr))
+				if len(runes) > 120 {
+					currentSession.Task.Summary = string(runes[len(runes)-120:])
+				} else {
+					currentSession.Task.Summary = string(runes)
+				}
 			}
 		}
 
@@ -276,9 +368,14 @@ func (a *App) SendMessage(req ChatRequest) error {
 		currentSession.UpdatedAt = time.Now().Unix()
 		_ = a.sessionStore.Save(currentSession)
 
-		if agentCtx.Err() == nil {
-			runtime.EventsEmit(a.ctx, "agent:done", map[string]any{"session_id": req.SessionID})
+		finalStatus := ""
+		if currentSession.Task != nil {
+			finalStatus = string(currentSession.Task.Status)
 		}
+		runtime.EventsEmit(a.ctx, "agent:done", map[string]any{
+			"session_id":  req.SessionID,
+			"task_status": finalStatus,
+		})
 	}()
 
 	return nil

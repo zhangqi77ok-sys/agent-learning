@@ -1,8 +1,8 @@
 # 📐 Tcode SwarmFlow 与统一执行内核架构规范说明书 (PRD)
 
-> **版本**：v2.1.0  
-> **状态**：正式发布 (Approved)  
-> **核心主题**：Inner/Outer Loop 双环内核、Rail 能力插件生命周期、Swarm Flow 算子编排流
+> **文档状态**：⚠️ **【非发货规格 / 远期探索材料】**（日期：2026-08-29 / P2 暂缓项）  
+> **现行发货标准**：以 [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) 与 `frontend/src`、`app.go` 为唯一准则。主旅程稳定前不引入复杂 Swarm 空算子。  
+> **版本**：v2.1.0 (远期规划稿)
 
 ---
 

@@ -31,6 +31,31 @@ type ToolExecution struct {
 	Output string `json:"output"`
 }
 
+// TaskStatus 任务生命周期状态
+type TaskStatus string
+
+const (
+	TaskStatusIdle        TaskStatus = "idle"
+	TaskStatusRunning     TaskStatus = "running"
+	TaskStatusCompleted   TaskStatus = "completed"
+	TaskStatusCapped      TaskStatus = "capped"
+	TaskStatusInterrupted TaskStatus = "interrupted"
+	TaskStatusFailed      TaskStatus = "failed"
+	TaskStatusPendingDiff TaskStatus = "pending_diff"
+	TaskStatusTDDFailed   TaskStatus = "tdd_failed"
+)
+
+// TaskModel 会话挂载的最小任务模型
+type TaskModel struct {
+	Goal             string     `json:"goal"`
+	Status           TaskStatus `json:"status"`
+	ToolBudget       int        `json:"tool_budget"`
+	ToolsUsed        int        `json:"tools_used"`
+	Summary          string     `json:"summary"`
+	TDDPassed        *bool      `json:"tdd_passed,omitempty"`
+	PendingDiffFiles []string   `json:"pending_diff_files,omitempty"`
+}
+
 // ChatSession 会话完整历史实体
 type ChatSession struct {
 	ID        string           `json:"id"`
@@ -41,18 +66,20 @@ type ChatSession struct {
 	CreatedAt int64            `json:"created_at"`
 	UpdatedAt int64            `json:"updated_at"`
 	Messages  []SessionMessage `json:"messages"`
+	Task      *TaskModel       `json:"task,omitempty"`
 }
 
 // SessionMeta 会话轻量摘要信息（供列表渲染）
 type SessionMeta struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Model     string `json:"model"`
-	Tag       string `json:"tag"`
-	Time      string `json:"time"`
-	Desc      string `json:"desc"`
-	UpdatedAt int64  `json:"updated_at"`
-	Workspace string `json:"workspace,omitempty"`
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	Model      string `json:"model"`
+	Tag        string `json:"tag"`
+	Time       string `json:"time"`
+	Desc       string `json:"desc"`
+	UpdatedAt  int64  `json:"updated_at"`
+	Workspace  string `json:"workspace,omitempty"`
+	TaskStatus string `json:"task_status,omitempty"`
 }
 
 // Store 会话本地磁盘管理器
@@ -149,15 +176,20 @@ func (s *Store) List(workspace string) []SessionMeta {
 			if ts > 1e11 {
 				ts = ts / 1000
 			}
+			taskStatus := ""
+			if sess.Task != nil {
+				taskStatus = string(sess.Task.Status)
+			}
 			metas = append(metas, SessionMeta{
-				ID:        sess.ID,
-				Title:     TitleFromFirstMessage(sess),
-				Model:     sess.Model,
-				Tag:       sess.Tag,
-				Time:      formatSessionTime(ts),
-				Desc:      desc,
-				UpdatedAt: sess.UpdatedAt,
-				Workspace: sess.Workspace,
+				ID:         sess.ID,
+				Title:      TitleFromFirstMessage(sess),
+				Model:      sess.Model,
+				Tag:        sess.Tag,
+				Time:       formatSessionTime(ts),
+				Desc:       desc,
+				UpdatedAt:  sess.UpdatedAt,
+				Workspace:  sess.Workspace,
+				TaskStatus: taskStatus,
 			})
 		}
 	}
@@ -168,6 +200,75 @@ func (s *Store) List(workspace string) []SessionMeta {
 	})
 
 	return metas
+}
+
+// CleanGoalPrompt 剥离前端策略前缀与附加约束标签，提取纯净的用户任务目标
+func CleanGoalPrompt(raw string) string {
+	s := strings.TrimSpace(raw)
+	// 循环剥离开头的 [执行策略 ...] 或 [附加约束 ...] 等标签块
+	for strings.HasPrefix(s, "[") {
+		idx := strings.Index(s, "]")
+		if idx == -1 {
+			break
+		}
+		s = strings.TrimSpace(s[idx+1:])
+	}
+	if s == "" {
+		return strings.TrimSpace(raw)
+	}
+	return s
+}
+
+// IsContinuationPrompt 检测用户输入是否为「接续上一次任务」的指令（支持长句与策略前缀剥离）
+func IsContinuationPrompt(prompt string) bool {
+	p := strings.ToLower(CleanGoalPrompt(prompt))
+	p = strings.TrimRight(p, "!?.。！？~～ \r\n\t")
+	if p == "" {
+		return false
+	}
+	// 精确匹配常见接续短词
+	switch p {
+	case "继续", "继续执行", "继续做", "接着做", "接着来", "接着", "接着写", "继续写", "接着改", "继续改", "继续审查", "接着审查",
+		"continue", "go on", "proceed", "next", "keep going", "ok继续", "好的继续", "继续吧", "接着推进", "继续推进":
+		return true
+	}
+	// 前缀匹配（用户常用长句）：如「接着把审查写完」、「继续把刚才的代码改完」、「请继续完成...」、「继续优化 internal/core」
+	prefixes := []string{
+		"继续", "接着", "请继续", "请接着", "继续把", "接着把", "继续对", "接着对",
+		"继续修改", "接着修改", "继续重构", "接着重构", "继续完善", "接着完善",
+		"继续推进", "接着推进", "继续修复", "接着修复", "继续实现", "接着实现",
+		"continue with", "continue to", "keep working on", "go on with",
+	}
+	for _, pre := range prefixes {
+		if strings.HasPrefix(p, pre) {
+			return true
+		}
+	}
+	return false
+}
+
+// BuildContinuationContext 为接续任务构造提示词上下文，防止智能体推翻重来
+func BuildContinuationContext(task *TaskModel, followUpInstruction ...string) string {
+	if task == nil {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("\n\n【接续上一次任务（铁律）】\n")
+	sb.WriteString(fmt.Sprintf("- 既定总目标: %s\n", task.Goal))
+	if len(followUpInstruction) > 0 && followUpInstruction[0] != "" {
+		inst := strings.TrimSpace(followUpInstruction[0])
+		if inst != "继续" && inst != "接着" && inst != "continue" {
+			sb.WriteString(fmt.Sprintf("- 本轮用户追问/细化要求: %s\n", inst))
+		}
+	}
+	if task.Summary != "" {
+		sb.WriteString(fmt.Sprintf("- 上阶段已探明进展与未完成项: %s\n", task.Summary))
+	}
+	if len(task.PendingDiffFiles) > 0 {
+		sb.WriteString(fmt.Sprintf("- 待确认变更文件: %s\n", strings.Join(task.PendingDiffFiles, ", ")))
+	}
+	sb.WriteString("- 执行要求: 请直接基于上一轮已探明的结果和已修改文件的基础上下一步执行，严禁推翻重来或重复进行顶层结构全盘勘探。请聚焦未完成部分直接推进！\n")
+	return sb.String()
 }
 
 func formatSessionTime(unixSec int64) string {

@@ -1,5 +1,8 @@
 # Tcode 智能体模型网关、MCP 服务与 Agent Skill 规范规约 (PRD)
 
+> **文档状态**：⚠️ **【非发货规格 / 历史设计材料】**（日期：2026-08-31）  
+> **现行发货标准**：以 [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) 与 `frontend/src`、`app.go` 为唯一准则。MCP 仅支持标准 stdio。
+
 ## 1. 业务背景与业界标准对齐
 在生产级智能体开发平台（如 sub2api、Claude Desktop、Cursor Rules、OpenDevin、Cline）中：
 1. **模型网关 (Model Gateway)**：

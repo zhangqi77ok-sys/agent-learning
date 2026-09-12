@@ -2,7 +2,7 @@
 
 热插拔插件化 AI Coding 工作台。名字来自 **湉**：水面平静、水流安稳。
 
-基于 **Wails v2 + Go 原生微内核 + Vue 3 + TypeScript**，采用 **Inner/Outer Loop 统一双环执行内核**、**Rail 能力插件体系** 与 **Swarm Flow 算子化多智能体编排流**。模型、工具、记忆、编排都是可装卸的 Rail，对标 DSH 那种「一切皆插件」的 coding agent，但是独立桌面产品，不是 DSH 插件。
+基于 **Wails v2 + Go 原生微内核 + Vue 3 + TypeScript**，采用 **收敛单执行回路内核**、**Rail 能力安全防线** 与 **热插拔工具注册表**。模型、工具、策略与安全防护高度解耦，对标专业级桌面 coding agent，提供透明可控的智能编程交互。
 
 仓库：https://github.com/zhangqi77ok-sys/tiancode
 
@@ -10,24 +10,32 @@
 
 ### 活路径 vs 规划中（避免按错栈施工）
 
-**当前发货栈**：Wails v2 + Go 微内核 + Vue 3（`app.go` / `internal/` / `frontend/src`）。聊天主循环走 `internal/core/loop.ExecutionEngine`，工具经 `host.Registry`，安全闸门是 `plugins/rail/safety`。配置目录 `~/.tiancode`（首次启动会从 `~/.tcode` 迁移）。
+**当前发货栈**：Wails v2 + Go 微内核 + Vue 3（`app.go` / `internal/` / `frontend/src`）。聊天主循环走 `internal/core/loop` 单一执行内核，工具经 `host.Registry`，安全闸门是 `plugins/rail/safety`。配置目录 `~/.tiancode`（首次启动会从 `~/.tcode` 迁移）。
 
-**已落地**：双环工具循环、fs/git/terminal 插件、MCP stdio、渠道（密钥落盘加密）、会话持久化、GitOps、原生 Windows 安装器。
+**已落地核心卖点**：
+1. **任务必须有结尾**：触顶、中断、上游 4xx/5xx 或网络异常全部转为人话交代，杜绝静默消失；
+2. **「继续」无损接续**：Session 挂载 TaskModel，长句自然接续历史任务目标，不推翻重来；
+3. **改文件必须人点接受才算完成**：写盘变更带出 Diff 审查横幅，人工核验确认后闭环；
+4. **策略可拦写盘与伪完成**：analyze 策略物理阻断写盘，TDD 验证未通过阻断宣称完成；
+5. **项目宪法透明可见**：顶栏直观展示活跃规约与技能；
+6. **热插拔插件与 MCP stdio**：fs/git/terminal 插件、MCP stdio 通道、密钥安全加密、原生 Windows 安装包。
 
-**规划中**：Swarm `budget()/parallel()/compact()` 算子流、MemoryRail、磁盘热加载插件。
+**规划中**：MemoryRail、磁盘动态热加载插件、多 Agent 协作流（暂缓待成熟）。
 
 **已归档**（`archive/`，不要当主路径改）：React `prototype/`、Python `src-desktop/`、单文件 `web_prototype.html`、旧 PyInstaller 脚本。视觉稿仍可在 `archive/web_prototype.html` 打开。Windows 安装包：`powershell -File scripts/build-windows.ps1`。
 
 ---
 
-## 🏛️ 一、核心架构设计 (Unified Dual-Loop & SwarmFlow Architecture)
+## 🏛️ 一、核心架构设计 (Single Convergent Microkernel Architecture)
 
-湉码 打破了单体硬编码调度逻辑，将 Agent 的执行循环、能力轨道、多智能体协同编排与表现层彻底解耦：
+湉码 严格遵循单一主轴架构，打破过度封装，将微内核执行引擎、安全防线、工具注册表与表现层状态彻底解耦：
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                              湉码 Frontend (Vue 3 + TypeScript)                      │
-│      [ 单焦点主工作区 (智能对话 / Monaco编辑器 聚合切换) | Diff 对比 | 终端抽屉 | 纯净空状态 ]       │
+│                              湉码 Frontend (Vue 3 + TypeScript + Pinia)               │
+│   [ 单一真实源 Store: workbench.ts (会话、待确认Diff池、项目宪法、终端状态统一调度) ]       │
+│   [ 单焦点主工作区 (智能对话 / Monaco编辑器 聚合切换) | Diff 对比 | 终端抽屉 | 纯净空状态 ]  │
+│   [ 顶栏项目宪法实时指示器 (📜 项目宪法: X项规则·技能) | 待采纳代码变更阻断横幅 ]          │
 └───────────────────────────────────────────┬────────────────────────────────────────────┘
                                             │ Wails v2 原生 IPC / Typed Event Streams
                                             ▼
@@ -35,60 +43,65 @@
 │                          湉码 Go Native Microkernel (Wails v2 Engine)                 │
 │                                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                    Swarm Flow 算子化多智能体编排流 (Swarm Flow Operators)            │  │
-│  │    budget() ➔ parallel() ➔ compact() ➔ pipeline() ➔ agent_session() ➔ human() ➔ 🏆 return │
+│  │                    Session 最小任务模型 (Session Task Model)                      │  │
+│  │    Goal ➔ Status ➔ ToolBudget ➔ ToolsUsed ➔ Summary ➔ TDDPassed ➔ PendingDiffs   │  │
+│  │    支持「继续」指令无损接续历史任务目标，严禁推翻重勘或无序全库遍历                │  │
 │  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
-│                                           │ 驱动所有 Agent 节点运行同一套执行内核       │
+│                                           │                                            │
 │  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
-│  │                      Unified Dual-Loop Engine (统一双环执行内核)                   │  │
-│  │                                                                                  │  │
-│  │    🔄 Outer Loop: 状态评估与多轮收敛 (判断是否再来一轮 / 终止准则 / 预算核销)          │  │
-│  │        │                                                                         │  │
-│  │        ▼                                                                         │  │
-│  │    ⚡ Inner Loop: 单轮四步闭环 (Observe ➔ Reason ➔ Act ➔ Verify)                  │  │
+│  │                 Single Execution Engine (单一收敛直连执行内核)                    │  │
+│  │    • 生产级统一直接调用，删除冗余二套循环，消除「两套上限、两套收尾」隐患          │  │
+│  │    • 四维人话结尾保障：触顶阶段总结、用户手动中止、上游4xx/5xx转人话、空输出兜底   │  │
+│  │    • 审查任务铁律：先看地图（顶层结构+关键入口），再定靶向下钻，禁止盲目全库扫描 │  │
+│  │    • TDD 策略刚性约束：测试未全绿则任务状态绝对不是完成，阻断虚假宣称               │  │
 │  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
-│                                           │ 生命周期固定钩子链式分发                    │
+│                                           │ 拦截链 (Rail.OnBeforeAct / OnAfterAct)     │
 │  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
-│  │                       Rail Plugin Ecosystem (能力即插件，挂载在固定钩子)           │  │
-│  │  ┌───────────────┬───────────────┬───────────────┬───────────────┬──────────────┐ │  │
-│  │  │ 🛡️ SafetyRail │ 🧠 MemoryRail │ 🔌 ToolRail   │ 🗺️ PlanningRail│ 📊 ObsRail   │ │  │
-│  │  │  Priority 100 │  Priority 80  │  Priority 60  │  Priority 40  │  Priority 20 │ │  │
-│  │  │  • on_before_act│ • on_after_obs│ • dispatch    │ • subtasks    │ • live trace │ │  │
-│  │  │  • 越界指令阻断 │ • RepoMap注入 │ • MCP协议通信 │ • DAG拓扑编排 │ • SSE事件流  │ │  │
-│  │  └───────────────┴───────────────┴───────────────┴───────────────┴──────────────┘ │  │
+│  │                       Safety Rail (生产挂钩的物理安全防线)                        │  │
+│  │    • OnBeforeAct: 越界高危命令拦截、只读策略写入阻断、敏感凭据脱敏                │  │
+│  │    • OnAfterAct: 物理执行审计与写后影子 Git 快照记录                              │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │ 通过 host.Registry 统一定位与分发          │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │               Hotplug Plugin & Tool Registry (微内核热插拔算子体系)               │  │
+│  │    • tool.fs (沙箱读写/列表/快照)    • tool.git (真实版本控制)                    │  │
+│  │    • tool.terminal (无窗口静默执行)  • MCP Manager (标准 JSON-RPC 2.0 stdio 协议)  │  │
+│  │    • provider.openai (大模型驱动)                                                 │  │
 │  └──────────────────────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## ⚡ 二、三大核心技术亮点与设计哲学
+## ⚡ 二、六大核心技术亮点与设计哲学
 
-### 1. Inner Loop / Outer Loop：同一套执行内核，覆盖所有场景
-* **统一调度**：不论是独立工作的单个 Agent、被委派处理子任务的 Agent，还是 Swarm 团队里的一名成员，跑的都是同一套执行内核：
-  * **Inner Loop (内层执行闭环)**：负责单轮迭代的 `Observe (观察)` ➔ `Reason (推理)` ➔ `Act (行动)` ➔ `Verify (验证)`；
-  * **Outer Loop (外层循环收敛)**：判断任务是否真正完成、是否满足终止准则、根据验证结论判断“要不要再来一轮（Self-Healing）”。
-* **零重构成本**：开发者不需要为每一种使用场景重新设计一套调度逻辑。
+### 1. 单一执行内核收敛 (Single Execution Engine)
+* **消除双核隐患**：彻底合并清理冗余的第二套循环代码，所有大模型推理与工具调用全部收敛至直连内核；
+* **统一预算与轮次**：统一单轮最大自主调用为 24 轮，彻底根治此前两套上限、两套退出机制引发的「莫名截断」问题。
 
-### 2. Rail 机制：能力即插件，想接就接
-* **能力挂载在生命周期钩子上**：安全策略、记忆管理、任务规划、工具治理、语义理解、可观测事件……全部以 `Rail` 形式挂载在执行生命周期的固定钩子上：
-  * `on_before_observe` / `on_after_observe`
-  * `on_before_reason` / `on_after_reason`
-  * `on_before_act` / `on_after_act`
-  * `on_before_verify` / `on_after_verify`
-  * `on_outer_loop_check`
-* **优先级裁决 (Priority Chain)**：通过 `priority: u32` 决定谁先谁后、谁能覆盖谁（例如 `SafetyRail` 拥有 P-100 最高裁决权，可直接阻断不安全命令）；
-* **极低扩展成本**：想加一条自定义规则、接一个内部工具，完全不用改动执行内核，照着 `RailHandler` 接口实现一个 handler 即可。
+### 2. 四维人话收尾机制 (Human-Readable Endings)
+* **告别「突然没了」**：系统在任何非正常终止或边界场景下，均以通俗易懂的人话呈现结构化说明与下一步建议：
+  * **触顶收敛 (Capped)**：总结当前阶段已探明成果与未完成项，并提示用户发送「继续」即可接续；
+  * **用户中止 (Interrupted)**：保存已产生的所有结果与上下文，输出中止人话提示，前端恢复就绪；
+  * **上游网关报错 (HTTP 400/401/429/500)**：自动解析上游状态码，指出根本原因（上下文击穿/鉴权失效/频率超限/服务宕机）并给出排查建议；
+  * **模型空回复 (Empty)**：捕获 0 内容且无工具调用的异常空包，输出防御说明，指导换模型或重试。
 
-### 3. Swarm Flow：可自由拼装的编排算子流
-多智能体协同不是一套固定的拓扑，而是一组像函数式流水线一样的自由编排算子：
-* **`budget()`**：查询剩余 Token / 成本预算与并发配额，自适应决定 Worker 扇出系数；
-* **`parallel()` (Launch Barrier Synchronization)**：并发派发至 $N$ 个 Worker，执行栅栏同步等待全部分支生成候选完毕；
-* **`compact()` (Filter Empty Results)**：过滤空结果与异常失败分支，保留健康候选集；
-* **`pipeline()` (Streaming Review)**：流式传递结果至复核流水线，独立审查打分；
-* **`agent_session()` (Stateful Arbiter)**：有状态仲裁者智能体，聚合候选方案与审查评分，决选最优方案；
-* **`human()` (Human Fallback)**：当仲裁者置信度不足（$<80\%$）或存在高危操作时，优雅唤起人工兜底介入；
-* **`return` (Final Result)**：交付确认产物，完成端到端闭环。
+### 3. Session 最小任务模型与「继续」接续 (Session Task Model)
+* **结构化状态挂载**：在 `ChatSession` 上挂载 `TaskModel`，承载 `Goal`、`Status`、`ToolBudget`、`ToolsUsed`、`Summary`、`PendingDiffFiles` 与 `TDDPassed`；
+* **「继续」精准接续**：当用户输入「继续」、「continue」、「接着做」时，内核直接读取当前会话的历史既定目标与未完成项注入上下文，禁止推翻重来或重复做顶层勘探。
+
+### 4. 审查任务「先地图后下钻」策略 (Map-First Strategy)
+* **禁止无脑扫全库**：在 `StrategyAnalyze` 与提示词规约中强制注入三步法则：
+  1. **先看地图**：观察顶层结构与关键项目入口（`go.mod`、`package.json`、`Cargo.toml`、`README` 等）；
+  2. **定位靶向**：结合目标定位关键模块与调用拓扑；
+  3. **精准下钻**：仅深入读取相关源码，严禁遍历全库或扫描第三方依赖。
+
+### 5. 文件修改带出 Diff 与人工采纳闭环 (Pending Diff Acceptance)
+* **改文件默认出 Diff**：智能体写入代码时自动触发 `agent:files_changed`，前端自动激活 Monaco Diff 工作区并定位文件；
+* **人点接受才算完成**：修改文件进入 `PendingDiffFiles` 队列，界面出现待采纳提示条，开发者点击「✓ 采纳变更」或「✕ 放弃修改」后，任务才进入完成态。
+
+### 6. 项目宪法顶栏显式可见 (Visible Constitution)
+* **提示词规约与技能透明化**：在对话顶栏常驻展示当前生效的规则规约数与技能数（`📜 项目宪法`），点击随时展开查看全文，杜绝暗箱注入。
 
 ---
 

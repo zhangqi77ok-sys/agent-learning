@@ -36,6 +36,18 @@
               class="text-[10px] text-[#D96B27] underline cursor-pointer"
               @click="s.openSettingsTab('models')"
             >添加渠道</button>
+
+            <!-- 项目宪法 (Constitution) 顶栏徽章 (满足 P1) -->
+            <button
+              type="button"
+              @click="s.isConstitutionModalOpen = true"
+              class="flex items-center gap-1 px-2 py-0.8 rounded-lg bg-white border border-black/[0.1] text-[11px] font-medium text-[#52525B] hover:text-[#D96B27] hover:border-[#D96B27]/40 shadow-2xs transition-all cursor-pointer shrink-0 ml-1"
+              title="查看当前注入生效的项目宪法与规约"
+            >
+              <span>📜 项目宪法:</span>
+              <span class="font-bold text-[#D96B27]">{{ s.activeConstitution.total }} 项</span>
+              <span class="text-[10px] text-[#71717A]">({{ s.activeConstitution.ruleCount }}规·{{ s.activeConstitution.skillCount }}技)</span>
+            </button>
           </div>
 
           <button
@@ -45,6 +57,29 @@
             <span>{{ s.isDiffOpen ? '收起代码面板' : '💻 代码面板' }}</span>
           </button>
         </header>
+
+        <!-- 待采纳代码变更提示条 (改文件默认带出 Diff，人点接受才算完成) -->
+        <div v-if="s.pendingDiffFiles.length > 0" class="bg-[#D96B27]/10 border-b border-[#D96B27]/20 px-3 py-1.5 flex items-center justify-between text-xs shrink-0 select-none">
+          <div class="flex items-center gap-2 text-[#B8551B] min-w-0">
+            <span class="animate-pulse">⚠️</span>
+            <span class="font-semibold">文件已修改待审查（人点接受才算完成）：</span>
+            <span class="font-mono truncate text-[11px]">{{ s.pendingDiffFiles.join(', ') }}</span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button
+              @click="s.openFileDiff(s.pendingDiffFiles[0])"
+              class="px-2 py-0.5 rounded bg-white border border-[#D96B27]/30 text-[11px] font-medium text-[#D96B27] hover:bg-[#D96B27]/10 cursor-pointer"
+            >
+              审查 Diff
+            </button>
+            <button
+              @click="s.stageFileAction"
+              class="px-2 py-0.5 rounded bg-[#10A37F] text-white text-[11px] font-semibold hover:bg-[#0D8C6D] cursor-pointer"
+            >
+              ✓ 采纳变更
+            </button>
+          </div>
+        </div>
 
         <!-- 真实动态对话消息列表：跟最新输出，也可拖拽/滚轮回看 -->
         <div class="flex-1 min-h-0 relative">
@@ -232,6 +267,59 @@
           </div>
         </div>
       </main>
+
+    <!-- 项目宪法弹窗 (符合铁律 5: 暖色极简、严格居中、Esc退出、显式[X]) -->
+    <div
+      v-if="s.isConstitutionModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs font-sans"
+      @keydown.esc="s.isConstitutionModalOpen = false"
+      tabindex="-1"
+    >
+      <div class="w-[90vw] max-w-lg max-h-[80vh] bg-white rounded-2xl shadow-2xl border border-black/[0.1] flex flex-col overflow-hidden">
+        <header class="h-11 bg-[#FAF8F5] border-b border-black/[0.08] px-4 flex items-center justify-between select-none shrink-0">
+          <div class="flex items-center gap-2">
+            <span>📜</span>
+            <h4 class="font-bold text-xs text-[#18181B]">项目宪法 (Active Rules & Skills)</h4>
+            <span class="text-[10px] bg-[#D96B27]/10 text-[#D96B27] px-1.5 py-0.2 rounded font-bold">已全流程注入内核</span>
+          </div>
+          <button @click="s.isConstitutionModalOpen = false" class="p-1 rounded-md text-[#71717A] hover:bg-black/[0.05] cursor-pointer" title="关闭 (Esc)">✕</button>
+        </header>
+
+        <div class="p-4 overflow-y-auto space-y-4 text-xs">
+          <div>
+            <h5 class="font-bold text-[#18181B] mb-2 flex items-center gap-1.5">
+              <span>📋</span><span>生效规约 ({{ s.activeConstitution.ruleCount }})</span>
+            </h5>
+            <div v-if="s.activeConstitution.ruleCount === 0" class="text-[#A1A1AA] italic">当前未开启任何规则规约</div>
+            <div v-else class="space-y-2">
+              <div v-for="r in s.activeConstitution.rules" :key="r.id" class="p-2.5 rounded-xl bg-[#FAF8F5] border border-black/[0.06]">
+                <div class="font-semibold text-[#18181B]">{{ r.title }}</div>
+                <div class="text-[11px] text-[#52525B] mt-1 whitespace-pre-wrap leading-relaxed">{{ r.content }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-black/[0.06] pt-3">
+            <h5 class="font-bold text-[#18181B] mb-2 flex items-center gap-1.5">
+              <span>🛠️</span><span>挂载技能 ({{ s.activeConstitution.skillCount }})</span>
+            </h5>
+            <div v-if="s.activeConstitution.skillCount === 0" class="text-[#A1A1AA] italic">当前未开启任何自定义技能</div>
+            <div v-else class="space-y-2">
+              <div v-for="sk in s.activeConstitution.skills" :key="sk.id" class="p-2.5 rounded-xl bg-[#FAF8F5] border border-black/[0.06]">
+                <div class="font-semibold text-[#18181B]">{{ sk.name }}</div>
+                <div class="text-[10px] text-[#71717A]">{{ sk.description }}</div>
+                <div class="text-[11px] text-[#52525B] mt-1 whitespace-pre-wrap leading-relaxed">{{ sk.prompt }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="h-10 bg-[#FAF8F5] border-t border-black/[0.08] px-4 flex items-center justify-between select-none shrink-0">
+          <button @click="s.isConstitutionModalOpen = false; s.openSettingsTab('rules')" class="text-[11px] text-[#D96B27] hover:underline cursor-pointer">⚙️ 前往设置管理规则与技能</button>
+          <button @click="s.isConstitutionModalOpen = false" class="px-3 py-1 rounded-lg bg-[#18181B] text-white text-xs font-semibold cursor-pointer">关闭</button>
+        </footer>
+      </div>
+    </div>
 </template>
 
 <script setup lang="ts">

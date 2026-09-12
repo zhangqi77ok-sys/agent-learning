@@ -3,46 +3,49 @@ description: 项目级最高前置规则：每次执行任务前必须优先通�
 always_on: true
 ---
 
-# 项目级强制前置规则：三大专业技能优先对齐法则 (Mandatory Prior Skill Consultation)
+# 项目级强制前置规则：三大发货专业技能优先对齐法则 (Mandatory Prior Skill Consultation)
 
-在 Tcode 项目中，任何涉及功能分析、需求设计、交互设计、前端组件重构、状态变更、底层服务与系统调用的任务，**每次都必须在开始行动前优先通读并严格对齐以下三大专业技能（Skills）规约**：
+在 湉码 / tiancode 项目中，现行唯一发货技术栈为 **Wails v2 + Go 微内核 + Vue 3 / Vite**。任何涉及功能分析、需求设计、交互设计、前端组件编写、微内核业务引擎与系统调用的任务，**每次都必须在开始行动前优先通读并严格对齐以下三大发货专业技能（Skills）规约**：
 
 ---
 
 ## 📋 每次开发前必查清单 (Mandatory Pre-Flight Check)
 
 ### 1. 🎨 `ui-ux` (UI/UX 体验与人机工程设计规约)
-- **技能路径**: `.agents/skills/ui-ux/SKILL.md` (或全局 `~/.gemini/skills/ui-ux/SKILL.md`)
+- **技能路径**: `.agents/skills/ui-ux/SKILL.md`
 - **必查要点**:
   - [ ] 是否遵循 Warm Minimalist 暖色极简调色盘：App Base `#FAF8F5`、Surface `#F4EFEA`、主强调色 `#D96B27`、代码底色 `#1E1C1A`？
-  - [ ] 是否符合 16:9 宽屏人机工程学比例（活动栏 42px、会话侧栏 260px、对话 45%、代码 55%、底部抽屉 220px）？
+  - [ ] 是否符合 16:9 宽屏人机工程学比例？
   - [ ] 弹窗是否严禁使用浏览器原生 `alert/confirm/prompt`，并实现屏幕严格居中、Esc 退出、显式 `[X]` 关闭？
   - [ ] 所有纯图标操作是否配置了鼠标悬停 Tooltip / title 提示？
   - [ ] 对话流中思考过程、工具调用卡片与最终回复是否层级清晰、时序紧密对齐？
+  - [ ] 项目宪法是否在对话顶栏常驻展示，改动文件是否带出 Diff 供人工确认？
 
 ---
 
-### 2. ⚛️ `react-web` (React 19 + TypeScript 现代前端架构规约)
-- **技能路径**: `.agents/skills/react-web/SKILL.md` (或全局 `~/.gemini/skills/react-web/SKILL.md`)
+### 2. 🏛️ `tcode-studio-architect` (Wails v2 + Go 微内核架构规约)
+- **技能路径**: `.agents/skills/tcode-studio-architect/SKILL.md`
 - **必查要点**:
-  - [ ] 组件是否坚持积木式单一职责（如 `ChatPanel`、`MessageBubble`、`ThinkingBlock`、`ToolCallCard`、`MarkdownRenderer` 相互解耦）？
-  - [ ] Zustand 状态管理是否划分清晰：持久化业务状态走 `useProjectSessionStore`，瞬态 UI 走局部状态？
-  - [ ] 是否使用精准选择器订阅（`useStore(s => s.field)`），避免全局重渲染雪崩？
-  - [ ] 是否存在任何隐式 `any`？空值守卫（`?.` 与 `??`）是否完备，杜绝 `Cannot read properties of undefined`？
-  - [ ] 消息清洗是否杜绝 `cleanText || rawText` 导致的回退漏洞？
+  - [ ] 是否遵循单一执行内核（Direct LLM + Registry Tools，禁止在 `app.go` 另起第二套循环）？
+  - [ ] 工具调用唯一路径：必须通过 `registry.GetTool(name).Execute(ctx, args)`，严禁直接在业务层持有 Tool 字段？
+  - [ ] Rail 拦截链必须生效：工具执行前必须调用 `rail.OnBeforeAct()`，执行后调用 `rail.OnAfterAct()`？
+  - [ ] 任务生命周期完整收敛：触顶、取消、上游 4xx/5xx 与空输出必须人话收尾，绝无「突然没了」？
+  - [ ] 「继续」指令必须精准接续 Session 挂载的 `TaskModel`，禁止推翻重勘？
 
 ---
 
-### 3. 🦀 `rust` (Rust 原生内核与系统架构规约)
-- **技能路径**: `.agents/skills/rust/SKILL.md` (或全局 `~/.gemini/skills/rust/SKILL.md`)
+### 3. 🧪 `sdd-tdd-workflow` (SDD 规范驱动与 TDD 测试驱动开发规约)
+- **技能路径**: `.agents/skills/sdd-tdd-workflow/SKILL.md`
 - **必查要点**:
-  - [ ] 是否 100% 遵循 Safe Rust 原则，严禁无场景滥用 `unsafe`？
-  - [ ] 生产代码中是否彻底杜绝 `unwrap()` / `expect()`，统一返回 `Result<T, E>` 强类型错误？
-  - [ ] 外部进程与命令调用是否配置 Windows 专属 `CREATE_NO_WINDOW`（`0x08000000`），杜绝黑框弹窗？
-  - [ ] 异步任务是否遵循非阻塞原则，密集型任务是否使用 `tokio::task::spawn_blocking`？
-  - [ ] 文件与目录操作是否执行严格的路径规范化（Canonicalize）与沙箱防御，并在修改前触发影子快照？
+  - [ ] 必须先完成 Spec 接口与数据契约设计，严禁未定义直接编码？
+  - [ ] 必须严格遵循 **红 (Red: 编写前置测试验证失败) ➔ 绿 (Green: 最小实现全绿) ➔ 重构 (Refactor: 双向钢人审查)** 三步节拍？
+  - [ ] TDD 策略下测试未通过时，任务状态绝对不是完成，阻断虚假宣称完成？
+  - [ ] 验证闭环：修改 Go 代码必须执行 `go test ./...`，架构变动执行 `archcheck`，前端改动执行 `npm run build`？
 
 ---
+
+## 🚨 历史技术栈归档说明
+历史基于 `Tauri v2 / Rust Core` 与 `React 19 / Python Daemon` 的技能与原型材料已全部归档至 `archive/`。**严禁以历史栈作为主路径施工依据**。
 
 ## 🚨 违规阻断令
-**严禁绕过上述三大技能规范直接编写代码或提交变更！若发现任何违背上述三大技能准则的设计或实现，一律打回重构。**
+**严禁绕过上述三大发货技能规范直接编写代码或提交变更！若发现任何违背上述三大技能准则的设计或实现，一律打回重构。**

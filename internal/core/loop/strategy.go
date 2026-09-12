@@ -31,7 +31,11 @@ func ApplyStrategy(strategy, note string, tools []llm.ToolDef, system string) ([
 	note = strings.TrimSpace(note)
 	switch s {
 	case StrategyAnalyze:
-		system += "\n[执行策略 analyze] 只允许读取与解释。禁止写入文件、禁止执行会改动工作区的命令、禁止 Git 写操作。"
+		system += "\n[执行策略 analyze (审查与分析)] 只允许读取与解释。禁止写入文件、禁止执行会改动工作区的命令、禁止 Git 写操作。"
+		system += "\n【审查与探索铁律（先地图再下钻）】禁止盲目全库扫描或无节制大面积遍历文件。必须严格按三步执行："
+		system += "\n 1. 先看地图：观察顶层目录结构与关键入口配置（如 go.mod, package.json, Cargo.toml, README 等）；"
+		system += "\n 2. 定位靶向：结合任务目标定位核心模块与关键调用链路，缩小勘探范围；"
+		system += "\n 3. 精准下钻：仅深入读取靶向文件并分析，严禁读取无关目录或第三方依赖（如 node_modules/vendor/bin/dist）。"
 		tools = filterTools(tools, func(name string) bool {
 			n := strings.ToLower(name)
 			if n == "exec_command" || n == "write_file" {
@@ -40,9 +44,10 @@ func ApplyStrategy(strategy, note string, tools []llm.ToolDef, system string) ([
 			return true
 		})
 	case StrategyTDD:
-		system += "\n[执行策略 tdd] 先运行或补齐测试，再改实现，直到测试通过。不要在测试失败时宣称完成。"
+		system += "\n[执行策略 tdd (测试驱动开发)] 先运行或补齐前置测试，再改最小实现，直到测试全绿通过。"
+		system += "\n【TDD 完成判定铁律】测试失败则任务状态绝对不是完成，严禁在测试未通过时宣称任务完成；必须继续分析失败原因并修复代码直至测试全部通过。"
 	default:
-		system += "\n[执行策略 implement] 允许读写文件并执行必要命令完成任务。先说明要改什么，再调用工具。"
+		system += "\n[执行策略 implement (功能实现)] 允许读写文件并执行必要命令完成任务。先说明要改什么，再调用工具。探索代码时同样遵循「先看地图再精准下钻」原则，禁止盲目全库遍历。"
 	}
 	if note != "" {
 		system += "\n[用户附加约束] " + note
@@ -50,8 +55,8 @@ func ApplyStrategy(strategy, note string, tools []llm.ToolDef, system string) ([
 	return tools, system
 }
 
-// DenyByStrategy 在真正执行工具前再拦一层，避免模型无视提示词去写盘。
-func DenyByStrategy(strategy, toolName string, rawArgs json.RawMessage) (deny bool, reason string) {
+// DenyByStrategy 在真正执行工具前再拦一层，避免模型无视提示词去写盘或在首轮盲目扫库。
+func DenyByStrategy(strategy, toolName string, rawArgs json.RawMessage, turn ...int) (deny bool, reason string) {
 	s := NormalizeStrategy(strategy)
 	if s != StrategyAnalyze {
 		return false, ""
@@ -65,14 +70,49 @@ func DenyByStrategy(strategy, toolName string, rawArgs json.RawMessage) (deny bo
 	}
 	if name == "fs_control" {
 		var args struct {
-			Action string `json:"action"`
+			Action   string `json:"action"`
+			Path     string `json:"path"`
+			RelPath  string `json:"rel_path"`
+			FilePath string `json:"file_path"`
 		}
 		_ = json.Unmarshal(rawArgs, &args)
-		if strings.EqualFold(strings.TrimSpace(args.Action), "write") {
+		action := strings.ToLower(strings.TrimSpace(args.Action))
+		if action == "write" {
 			return true, "当前策略为只读分析，已拦截 fs_control write"
+		}
+		// 审查任务首轮（turn == 1）：硬闸约束必须先看地图（list 根目录或读取根清单文件）
+		if len(turn) > 0 && turn[0] == 1 && action == "read" {
+			target := strings.TrimSpace(args.Path)
+			if target == "" {
+				target = strings.TrimSpace(args.RelPath)
+			}
+			if target == "" {
+				target = strings.TrimSpace(args.FilePath)
+			}
+			if !isAllowedAnalyzeFirstTurnFile(target) {
+				return true, "【审查铁律：先地图后下钻】第 1 轮工具调用必须先观察地图（list 根目录或读取根清单文件如 README.md, go.mod, package.json）。请先输出顶层结构地图并定靶，下一轮再精准下钻读取具体业务文件。"
+			}
 		}
 	}
 	return false, ""
+}
+
+func isAllowedAnalyzeFirstTurnFile(p string) bool {
+	p = strings.ReplaceAll(strings.TrimSpace(p), "\\", "/")
+	p = strings.TrimPrefix(p, "./")
+	if p == "" || p == "." {
+		return true
+	}
+	// 根目录直接文件（不含任何斜杠，如 go.mod, package.json, Cargo.toml, README.md, main.go）
+	if !strings.Contains(p, "/") {
+		return true
+	}
+	// 允许根文档目录（如 docs/ 目录下的宏观设计或 readme）
+	lower := strings.ToLower(p)
+	if strings.HasPrefix(lower, "docs/") || strings.HasSuffix(lower, "/readme.md") {
+		return true
+	}
+	return false
 }
 
 // ShouldVerifyAfterWrite TDD 策略在写盘后必须跑工作区测试，其它策略不自动跑。

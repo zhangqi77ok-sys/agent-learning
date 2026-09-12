@@ -20,9 +20,9 @@ func trimToolOutput(output string, maxChars int) string {
 	return head + fmt.Sprintf("\n\n...[输出过长，中间 %d 字符已截断]...\n\n", len(runes)-maxChars) + tail
 }
 
-func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName string, rawArgs json.RawMessage, toolMap map[string]v1.ToolPlugin, strategy string) (output string, isErr bool, written string) {
-	if deny, reason := DenyByStrategy(strategy, toolName, rawArgs); deny {
-		return "[策略拦截] " + reason, true, ""
+func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName string, rawArgs json.RawMessage, toolMap map[string]v1.ToolPlugin, strategy string, turn int) (output string, isErr bool, written string, tddPass *bool) {
+	if deny, reason := DenyByStrategy(strategy, toolName, rawArgs, turn); deny {
+		return "[策略拦截] " + reason, true, "", nil
 	}
 	rails := e.registry.ListRails()
 	for _, rail := range rails {
@@ -32,7 +32,7 @@ func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName strin
 			if decision != nil && decision.Reason != "" {
 				reason = decision.Reason
 			}
-			return fmt.Sprintf("[安全拦截] 工具 [%s] 被 Rail 阻断: %s", toolName, reason), true, ""
+			return fmt.Sprintf("[安全拦截] 工具 [%s] 被 Rail 阻断: %s", toolName, reason), true, "", nil
 		}
 	}
 
@@ -41,10 +41,10 @@ func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName strin
 		if impl, ok := toolMap[toolName]; ok {
 			res, err := impl.Execute(ctx, rawArgs)
 			if err != nil {
-				return fmt.Sprintf("execution failure: %v", err), true, ""
+				return fmt.Sprintf("execution failure: %v", err), true, "", nil
 			}
 			if res == nil {
-				return fmt.Sprintf("tool [%s] returned nil result", toolName), true, ""
+				return fmt.Sprintf("tool [%s] returned nil result", toolName), true, "", nil
 			}
 			result = res
 			output = trimToolOutput(res.Content, 3000)
@@ -55,10 +55,10 @@ func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName strin
 		if tool, ok := e.registry.GetToolByName(toolName); ok {
 			res, err := tool.Execute(ctx, rawArgs)
 			if err != nil {
-				return fmt.Sprintf("工具 [%s] 执行失败: %v", toolName, err), true, ""
+				return fmt.Sprintf("工具 [%s] 执行失败: %v", toolName, err), true, "", nil
 			}
 			if res == nil {
-				return fmt.Sprintf("工具 [%s] 返回空结果", toolName), true, ""
+				return fmt.Sprintf("工具 [%s] 返回空结果", toolName), true, "", nil
 			}
 			result = res
 			output = trimToolOutput(res.Content, 3000)
@@ -73,11 +73,11 @@ func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName strin
 			}
 			mcpRes, err := e.MCPCall(ctx, toolName, mcpArgs)
 			if err != nil {
-				return fmt.Sprintf("MCP 算子 [%s] 执行失败: %v", toolName, err), true, ""
+				return fmt.Sprintf("MCP 算子 [%s] 执行失败: %v", toolName, err), true, "", nil
 			}
 			output = trimToolOutput(mcpRes, 3000)
 		} else {
-			return fmt.Sprintf("[未知工具] %s 未在 Registry 或 MCP 中注册", toolName), true, ""
+			return fmt.Sprintf("[未知工具] %s 未在 Registry 或 MCP 中注册", toolName), true, "", nil
 		}
 	}
 
@@ -108,7 +108,8 @@ func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName strin
 	}
 	if written != "" && !isErr && ShouldVerifyAfterWrite(strategy) && e.Verify != nil {
 		vout, pass := e.Verify(written)
+		tddPass = &pass
 		output = strings.TrimSpace(output) + "\n\n" + FormatVerifyFollowup(written, vout, pass)
 	}
-	return output, isErr, written
+	return output, isErr, written, tddPass
 }

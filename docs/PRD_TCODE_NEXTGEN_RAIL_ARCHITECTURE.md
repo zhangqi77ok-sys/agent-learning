@@ -1,8 +1,8 @@
 # Tcode Next-Gen 架构与产品需求规格说明书 (PRD)
 
-> **版本**：v2.0.0-NextGen  
-> **状态**：Architecture Reset & Specification  
-> **核心定位**：基于 **Tauri v2 + Rust Core Daemon + React 19** 的组合式轨道（Composable Rail-based）智能编程桌面工作台。
+> **文档状态**：⚠️ **【非发货规格 / 历史设计材料】**（日期：2026-08-28）  
+> **现行发货标准**：以 [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) 与 `frontend/src`、`app.go` 为唯一准则。历史上基于 Tauri/Rust/React 的设想已归档废弃。  
+> **版本**：v2.0.0-NextGen (历史阶段稿)
 
 ---
 

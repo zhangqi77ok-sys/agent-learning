@@ -31,6 +31,7 @@ _*/
 *.tsbuildinfo
 build_temp/
 release/
+bin/
 
 
 # Smoke-test install dirs (ephemeral verification targets)

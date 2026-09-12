@@ -47,6 +47,20 @@ const isStreaming = ref(false)
 const isCommandPaletteOpen = ref(false)
 const commandPaletteQuery = ref('')
 const commandPaletteIndex = ref(0)
+const isConstitutionModalOpen = ref(false)
+const pendingDiffFiles = ref<string[]>([])
+
+const activeConstitution = computed(() => {
+  const activeRules = rules.value.filter(r => r.enabled)
+  const activeSkills = skills.value.filter(s => s.enabled)
+  return {
+    ruleCount: activeRules.length,
+    skillCount: activeSkills.length,
+    total: activeRules.length + activeSkills.length,
+    rules: activeRules,
+    skills: activeSkills
+  }
+})
 
 const isGraphLoading = ref(false)
 const isFileTreeLoading = ref(false)
@@ -750,24 +764,47 @@ async function unstageFileAction(filePath: string, event?: MouseEvent) {
 
 async function revertFileAction() {
   if (!activeDiffFile.value) return
+  const target = activeDiffFile.value
   try {
-    await wailsBridge.revertFile(activeDiffFile.value)
+    await wailsBridge.revertFile(target)
+    pendingDiffFiles.value = pendingDiffFiles.value.filter(f => f !== target)
+    if (currentSession.value?.task) {
+      currentSession.value.task.pending_diff_files = [...pendingDiffFiles.value]
+      if (pendingDiffFiles.value.length === 0 && currentSession.value.task.status === 'pending_diff') {
+        currentSession.value.task.status = 'completed'
+      }
+      void wailsBridge.saveSession(currentSession.value)
+    }
     await loadDiff()
     await loadGitStatus()
-    showToast(`✓ 已物理撤回 ${activeDiffFile.value} 磁盘改动 (Git Checkout)`)
+    showToast(`✓ 已物理撤回 ${target} 磁盘改动 (Git Checkout)`)
+    if (pendingDiffFiles.value.length === 0) {
+      isDiffOpen.value = false
+    }
   } catch (err) {
     showToast('撤回异常: ' + err)
   }
 }
 
 async function stageFileAction() {
+  if (!activeDiffFile.value) return
+  const target = activeDiffFile.value
   try {
-    if (!activeDiffFile.value) return
-    await wailsBridge.gitStage(activeDiffFile.value)
-    showToast(`✓ 已成功采纳并暂存变更: ${activeDiffFile.value}`)
+    await wailsBridge.gitStage(target)
+    pendingDiffFiles.value = pendingDiffFiles.value.filter(f => f !== target)
+    if (currentSession.value?.task) {
+      currentSession.value.task.pending_diff_files = [...pendingDiffFiles.value]
+      if (pendingDiffFiles.value.length === 0 && currentSession.value.task.status === 'pending_diff') {
+        currentSession.value.task.status = 'completed'
+      }
+      void wailsBridge.saveSession(currentSession.value)
+    }
+    showToast(`✓ 已成功采纳并暂存变更: ${target}`)
     await loadDiff()
     await loadGitStatus()
-    isDiffOpen.value = false
+    if (pendingDiffFiles.value.length === 0) {
+      isDiffOpen.value = false
+    }
   } catch (err) {
     showToast(`采纳文件变更异常: ${err}`)
   }
@@ -1178,6 +1215,18 @@ async function handleSend() {
           }
           scrollChatToLatest()
         },
+        onFilesChanged(file) {
+          pushAgentTrace('file', `changed: ${file}`)
+          if (!pendingDiffFiles.value.includes(file)) {
+            pendingDiffFiles.value.push(file)
+          }
+          activeDiffFile.value = file
+          isDiffOpen.value = true
+          editorView.value = 'diff'
+          void loadDiff(file)
+          void loadGitStatus()
+          showToast(`Agent 修改了文件 ${file}，已调出代码 Diff 供审查`)
+        },
         onDiagnostic(file, errors) {
           if (!file || file === activeDiffFile.value) {
             editorDiagnostics.value = errors
@@ -1187,6 +1236,10 @@ async function handleSend() {
           pushAgentTrace('done', 'stream complete')
           isStreaming.value = false
           currentSession.value.workspace = workspacePath.value
+          if (pendingDiffFiles.value.length > 0 && currentSession.value.task) {
+            currentSession.value.task.status = 'pending_diff'
+            currentSession.value.task.pending_diff_files = [...pendingDiffFiles.value]
+          }
           wailsBridge.saveSession(currentSession.value)
           void loadSessionsList()
           ensureSessionTab(currentSessionId.value, currentSession.value.title)
@@ -2010,6 +2063,9 @@ function initWorkbench() {
     workspaceView,
     workingTreeFiles,
     workspaceName,
-    workspacePath
+    workspacePath,
+    pendingDiffFiles,
+    activeConstitution,
+    isConstitutionModalOpen
   }
 })

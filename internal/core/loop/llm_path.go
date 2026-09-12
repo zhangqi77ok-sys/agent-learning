@@ -61,13 +61,19 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 	hitCap := false
 	for turn := 1; turn <= maxTurns; turn++ {
 		if ctx.Err() != nil {
+			eventChan <- EngineEvent{
+				Type:         EventChunk,
+				DeltaContent: FormatInterruptedNotice(),
+			}
 			eventChan <- EngineEvent{Type: EventError, ErrorMessage: "task canceled by client"}
 			return ctx.Err()
 		}
 
 		msgsBytes, err := json.Marshal(conversation)
 		if err != nil {
-			eventChan <- EngineEvent{Type: EventError, ErrorMessage: err.Error()}
+			humanErr := FormatUpstreamError(err)
+			eventChan <- EngineEvent{Type: EventChunk, DeltaContent: humanErr}
+			eventChan <- EngineEvent{Type: EventError, ErrorMessage: humanErr}
 			return err
 		}
 		chatReq := &v1.ChatRequest{
@@ -78,7 +84,9 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		}
 		chunkChan, err := prov.StreamChat(ctx, chatReq)
 		if err != nil {
-			eventChan <- EngineEvent{Type: EventError, ErrorMessage: err.Error()}
+			humanErr := FormatUpstreamError(err)
+			eventChan <- EngineEvent{Type: EventChunk, DeltaContent: humanErr}
+			eventChan <- EngineEvent{Type: EventError, ErrorMessage: humanErr}
 			return err
 		}
 
@@ -87,7 +95,9 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		toolReassembler := make(map[int]*AssembledToolCall)
 		for chunk := range chunkChan {
 			if chunk.Error != nil {
-				eventChan <- EngineEvent{Type: EventError, ErrorMessage: chunk.Error.Error()}
+				humanErr := FormatUpstreamError(chunk.Error)
+				eventChan <- EngineEvent{Type: EventChunk, DeltaContent: humanErr}
+				eventChan <- EngineEvent{Type: EventError, ErrorMessage: humanErr}
 				return chunk.Error
 			}
 			if chunk.DeltaContent != "" || chunk.Thinking != "" {
@@ -116,6 +126,12 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		}
 
 		if len(toolReassembler) == 0 {
+			if turn == 1 && asstContent.Len() == 0 && asstThinking.Len() == 0 {
+				eventChan <- EngineEvent{
+					Type:         EventChunk,
+					DeltaContent: FormatEmptyOutputNotice(),
+				}
+			}
 			break
 		}
 		if turn == maxTurns {
@@ -156,13 +172,19 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 				ToolName:   tc.Function.Name,
 				ToolArgs:   rawArgs,
 			}
-			output, isErr, written := e.runTool(ctx, req.SessionID, tc.Function.Name, rawArgs, nil, req.Strategy)
+			output, isErr, written, tddPass := e.runTool(ctx, req.SessionID, tc.Function.Name, rawArgs, nil, req.Strategy, turn)
 			eventChan <- EngineEvent{
 				Type:       EventToolEnd,
 				ToolCallID: tc.ID,
 				ToolName:   tc.Function.Name,
 				ToolOutput: output,
 				IsError:    isErr,
+			}
+			if tddPass != nil {
+				eventChan <- EngineEvent{
+					Type:      EventTDDResult,
+					TDDPassed: tddPass,
+				}
 			}
 			if written != "" {
 				eventChan <- EngineEvent{Type: EventFilesChanged, ToolName: written}
@@ -181,7 +203,8 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 	}
 
 	if hitCap {
-		notice := fmt.Sprintf("\n\n⚠️ 【系统提示】本轮工具调用已达上限（%d 轮），已停止继续调工具。下面根据已有结果汇总；要继续请再发一条「继续」。\n", maxTurns)
+		eventChan <- EngineEvent{Type: EventHitCap}
+		notice := FormatHitCapNotice(maxTurns)
 		eventChan <- EngineEvent{Type: EventChunk, DeltaContent: notice}
 		conversation = append(conversation, llm.Message{
 			Role:    "user",

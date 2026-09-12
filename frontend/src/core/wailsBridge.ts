@@ -89,6 +89,16 @@ export interface FileNode {
   children?: FileNode[]
 }
 
+export interface TaskModel {
+  goal: string
+  status: 'idle' | 'running' | 'completed' | 'capped' | 'interrupted' | 'failed' | 'pending_diff' | 'tdd_failed'
+  tool_budget: number
+  tools_used: number
+  summary: string
+  tdd_passed?: boolean
+  pending_diff_files?: string[]
+}
+
 export interface SessionMeta {
   id: string
   title: string
@@ -98,6 +108,7 @@ export interface SessionMeta {
   desc: string
   updated_at: number
   workspace?: string
+  task_status?: string
 }
 
 export interface SessionMessage {
@@ -128,6 +139,7 @@ export interface ChatSession {
   created_at: number
   updated_at: number
   messages: SessionMessage[]
+  task?: TaskModel
 }
 
 export interface DiffLine {
@@ -753,6 +765,7 @@ export const wailsBridge = {
       onToolEnd?: (tool: string, output: string, tcId?: string, turn?: number) => void
       onDone?: () => void
       onDiagnostic?: (file: string, errors: DiagnosticItem[]) => void
+      onFilesChanged?: (file: string) => void
     }
   ): Promise<void> {
     const runtime = getRuntime()
@@ -809,6 +822,11 @@ export const wailsBridge = {
       runtime.EventsOn('agent:tool_end', (data: any) => {
         if (data.session_id === req.session_id && callbacks.onToolEnd) {
           callbacks.onToolEnd(data.tool, data.output, data.id, data.turn)
+        }
+      })
+      runtime.EventsOn('agent:files_changed', (data: any) => {
+        if (data.session_id === req.session_id && callbacks.onFilesChanged) {
+          callbacks.onFilesChanged(data.file)
         }
       })
       runtime.EventsOn('lsp:diagnostic', (data: any) => {

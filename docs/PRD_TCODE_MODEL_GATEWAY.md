@@ -1,10 +1,10 @@
 # 📘 Tcode Next-Gen AI 模型网关引擎 (AI Model Gateway & Hub)
 ## 产品需求文档与技术契约规约说明书 (PRD)
 
-> **文档版本**：v2.2.0  
-> **编写团队**：Tcode 架构设计组 / 产品体验中心 / 核心引擎研发组  
-> **深度参考标杆**：`D:\weihu\sub2api`（企业级 AI API 聚合与智能调度分发网关架构）  
-> **归档路径**：[`docs/PRD_TCODE_MODEL_GATEWAY.md`](file:///d:/weihu/agent-learning/docs/PRD_TCODE_MODEL_GATEWAY.md)
+> **文档状态**：⚠️ **【非发货规格 / 历史设计材料】**（日期：2026-08-30）  
+> **现行发货标准**：以 [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) 与 `frontend/src`、`app.go` 为唯一准则。  
+> **文档版本**：v2.2.0 (历史阶段稿)  
+> **编写团队**：Tcode 架构设计组 / 产品体验中心 / 核心引擎研发组
 
 ---
 

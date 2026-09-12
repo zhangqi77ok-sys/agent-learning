@@ -1,258 +1,172 @@
-# Tcode 全景架构设计规范 (ARCHITECTURE.md)
+# 湉码 / tiancode 现行架构设计规范 (ARCHITECTURE.md)
 
-> **设计哲学**：单一主轴、高度解耦、积木思想、Harness 治具思想、ReAct 循环思想，拒绝过度封装。  
-> 基于 **Tauri v2 (Rust 原生内核) + React 19 + TypeScript + GatewayBus 积木总线**。  
-> 💡 **Go 插件式微内核专项架构规约**：详见 [ARCHITECTURE_GO_PLUGIN_CORE.md](./ARCHITECTURE_GO_PLUGIN_CORE.md)  
-> 📌 **后端 Go 插件微内核落地实施计划**：详见 [PLAN_GO_BACKEND_IMPLEMENTATION.md](./PLAN_GO_BACKEND_IMPLEMENTATION.md)  
-> 📌 **前端工程落地实施计划**：详见 [PLAN_FRONTEND_IMPLEMENTATION.md](./PLAN_FRONTEND_IMPLEMENTATION.md)
+> **现行唯一发货技术栈**：**Wails v2 + Go 微内核 + Vue 3 / Vite + TypeScript + Pinia**  
+> ⚠️ **历史架构作废与归档声明**：所有涉及 Tauri v2 / Rust Core / React 19 / Python Daemon / HTML 原型的材料已全部归档至 `archive/` 目录，明确标记为历史探索产物，**严禁作为主路径代码或发货基准**。
 
 ---
 
-## 🏛️ 一、分层解耦架构全景图 (Layered Architecture)
+## 🏛️ 一、现行分层解耦微内核全景图 (Current Microkernel Topology)
 
 ```mermaid
 graph TB
-    subgraph UI ["1. 表现层 (Presentation Layer · React 19 + TS)"]
-        Titlebar["Titlebar (无边框原生标题栏 · 项目面包屑 · 状态指示)"]
-        ActivityBar["ActivityBar (42px 极简侧边图标栏)"]
-        LeftPanel["LeftPanel (会话管理 · 标签过滤 · 真实磁盘文件树)"]
-        ChatColumn["ChatColumn (流式推理 · Plan/Act 模式切换 · 上下文工具条)"]
-        EditorWorkspace["EditorWorkspace (多文件原生标签 · Monaco代码预览 · 抽屉式终端)"]
+    subgraph UI ["1. 表现层 (Presentation Layer · Vue 3 + TS + Pinia)"]
+        ActivityBar["ActivityBar (侧边极简导航 · 工作区模式切换)"]
+        LeftDrawer["LeftDrawer (工程文件树 · Git 状态 · 会话列表)"]
+        ChatCockpit["ChatCockpit (智能体驾驶舱 · 顶栏项目宪法 · 流式对话 · 任务目标卡片)"]
+        DiffWorkspace["DiffWorkspace (Monaco 差异审查 · Hunk 细粒度采纳/放弃 · 待确认阻断)"]
+        TerminalDrawer["TerminalDrawer (原生沉浸式终端抽屉)"]
     end
 
-    subgraph Bus ["2. 模型网关总线层 (GatewayBus · 积木式可插拔)"]
-        GatewayBus["GatewayBus (单例调度中枢)"]
-        subgraph Sublines ["独立子线 (IProviderSubline)"]
-            ClaudeLine["ClaudeSubline (Anthropic 原生流)"]
-            OpenCodeLine["OpenCodeSubline (OpenCode 本地引擎)"]
-            CodexLine["CodexSubline (OpenAI 协议族)"]
-            DashScopeLine["DashScopeSubline (阿里百炼)"]
-            OllamaLine["OllamaSubline (本地大模型直连)"]
+    subgraph StoreLayer ["2. 表现层领域状态中枢 (Domain Stores)"]
+        ChatStore["chatStore (多会话管理 · 消息历史 · 最小任务模型 TaskModel · 流式追踪)"]
+        GitStore["gitStore (Git 状态 · 分支 · 差异报告 · PendingDiffFiles 追踪)"]
+        SettingsStore["settingsStore (渠道管理 · 探活测速 · MCP stdio 服务 · 规则与技能库)"]
+        Workbench["workbench.ts (总成调度中枢 · 跨领域事件协调)"]
+    end
+
+    subgraph IPCBridge ["3. Wails v2 原生桥接层 (app.go / app_chat.go / app_shell.go)"]
+        WailsRuntime["Wails Runtime (EventsOn / EventsEmit / WindowControl)"]
+        AppController["App 宿主对象 (会话持久化 · 目录对话框 · 命令中断控制)"]
+    end
+
+    subgraph Kernel ["4. Go 微内核自主调度引擎 (internal/core/loop)"]
+        ExecutionEngine["ExecutionEngine (单一执行内核 · ReAct 双环调度)"]
+        TaskModelEngine["Session Task 模型 (Goal / Status / ToolBudget / Summary)"]
+        HumanEnding["Human Ending 解释器 (触顶收敛 · 用户中止 · 上游4xx/5xx转人话 · 空输出兜底)"]
+        StrategyGuard["Strategy 策略拦截器 (Implement / Analyze 地图先验 / TDD 完成阻断)"]
+    end
+
+    subgraph SafetyRail ["5. 运行时防线 (plugins/rail)"]
+        SafetyRailImpl["Safety Rail (OnBeforeAct 阻断高危命令 / OnAfterAct 审计)"]
+        SecretMasker["Secret Masker (敏感凭据脱敏防泄漏)"]
+    end
+
+    subgraph PluginRegistry ["6. 热插拔插件生态 (pkg/plugin/v1 & host.Registry)"]
+        Registry["host.Registry (插件注册与工具寻址中枢)"]
+        subgraph ToolPlugins ["受控工具插件 (Tool Plugins)"]
+            FSTool["tool.fs (沙箱文件读写/列表 · 写前影子快照)"]
+            GitTool["tool.git (真实 Git 状态/暂存/检出/还原)"]
+            TermTool["tool.terminal (无窗口静默外部进程执行)"]
+            MCPStdio["MCP Manager (标准 JSON-RPC 2.0 Stdio 外部工具集成)"]
         end
-        subgraph Relays ["中转协议适配 (IRelayAdapter)"]
-            DirectRelay["DirectRelay (官方接口直连)"]
-            NewApiRelay["NewApiRelay (NewAPI 格式适配)"]
-            Sub2ApiRelay["Sub2ApiRelay (聚合渠道适配)"]
-        end
-        subgraph Extensions ["扩展支持"]
-            McpSubline["McpSubline (Model Context Protocol)"]
-            AuditSubline["AuditLogSubline (Token 计量与耗时审计)"]
-            TokenMeterHUD["TokenMeterHUD (会话总消耗/KV命中率/窗口水位计/成本估算)"]
+        subgraph Providers ["模型驱动插件 (Provider Plugins)"]
+            OpenAIProvider["provider.openai (OpenAI 兼容协议族 / AgentRouter 穿透)"]
         end
     end
 
-    subgraph NativeIPC ["3. 原生系统交互层 (Tauri v2 · Rust Core)"]
-        NativeBridge["nativeService (TypeScript IPC Bridge)"]
-        RustCore["src-tauri/src/lib.rs (Rust 原生内核)"]
-        DiskIO["真实文件读写 / 递归目录遍历"]
-        SysCmd["execute_system_command (无窗口静默执行)"]
-        GitCheckpoint["Git 影子快照与一键秒级回退"]
-        WebSearchEngine["native_web_search (Rust 原生突破 CORS 结构化检索)"]
-    end
-
-    subgraph DomainBrain ["4. 工程大脑与领域层 (Domain & Memory Mesh)"]
-        ASTParser["astExtractor (抽象语法树抽取 Class / Function / Import)"]
-        GraphRAG["projectKnowledgeGraphService (D3 力导向代码拓扑图谱)"]
-        MemoryMesh["projectMemoryService (短期情景记忆 + 长期决策沉淀)"]
-        DiffEngine["diffService (Unified Diff 逐行解析与原子 Patch)"]
-    end
-
-    subgraph HarnessSuite ["5. 治具与自愈自纠闭环 (Harness & TDD/SDD)"]
-        SpecContract["SpecContract (接口契约与前置规约定义)"]
-        TDDRunner["TDDRunner (测试驱动开发 · 红绿测试套件)"]
-        SelfLoop["SelfCorrectingLoop (Plan → Spec → Test → Code → Fix 循环)"]
-        DualIronMan["DualIronMan (Builder 蓝军建设者 vs Critic 红军质询者)"]
-    end
-
-    subgraph SecuritySubstrate ["6. 权限治理与安全底座 (Permission & Security Substrate)"]
-        PermissionGateway["PermissionPolicy (逐次审核 vs 智能自主决策)"]
-        GitShadow["Git 影子快照引擎 (写前自动快照 · 一键秒级回退)"]
-        OptionsCard["OptionsCard (动态交互选择卡片 · 单选/多选/补充输入)"]
-    end
-
-    UI <--> NativeBridge
-    NativeBridge <--> RustCore
-    RustCore --> DiskIO & SysCmd & GitCheckpoint & WebSearchEngine
-    UI <--> GatewayBus
-    GatewayBus --> Sublines --> Relays
-    Sublines <--> Extensions
-    UI <--> DomainBrain
-    DomainBrain <--> HarnessSuite
-    UI <--> SecuritySubstrate <--> GatewayBus
+    UI --> StoreLayer --> IPCBridge --> Kernel
+    Kernel --> StrategyGuard
+    Kernel --> TaskModelEngine
+    Kernel --> HumanEnding
+    Kernel --> SafetyRailImpl
+    SafetyRailImpl --> Registry
+    Registry --> ToolPlugins
+    Registry --> Providers
 ```
 
 ---
 
-## 🔄 二、ReAct 智能体与自愈闭环数据流 (Dataflow Sequence)
+## 🔄 二、单一执行内核与任务生命周期流转 (Execution Flow & Task Lifecycle)
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Dev as 开发者 (User)
-    participant UI as ChatColumn / EditorWorkspace
-    participant Bus as GatewayBus
-    participant Brain as AST & Memory Mesh
-    participant Harness as TestHarness & Dual Iron-Man
-    participant Rust as Tauri Native Core (Rust)
+    participant UI as Vue 3 前端 (ChatCockpit)
+    participant Bridge as Wails IPC (app_chat.go)
+    participant Kernel as Go 内核 (loop.ExecutionEngine)
+    participant Rail as Safety Rail (安全前置拦截)
+    participant Tool as ToolPlugin / MCP Stdio
+    participant Upstream as 大模型上游网关 (OpenAI / DeepSeek / Claude)
 
-    Dev->>UI: 提出需求 / 提问
-    UI->>Brain: 提取项目 AST 拓扑、短期记忆与 Git 上下文
-    Brain-->>UI: 返回精准工程上下文
-    UI->>Bus: 发起流式推理 (BusStreamRequest)
-    Bus-->>UI: 实时推送 Thought 思考链与 Token Chunks
+    Dev->>UI: 输入任务目标 (或发送「继续」)
+    UI->>Bridge: SendMessage(ChatRequest)
+    Note over Bridge: 检查任务模型：若为「继续」，注入上轮未完成目标与上下文，禁止推翻重勘
+    Bridge->>Kernel: Execute(&EngineRequest)
     
-    alt Plan 模式 (仅规划)
-        Bus-->>UI: 输出结构化任务拆解，严格禁止写盘
-        UI-->>Dev: 展示方案，等待审批
-    else Act 模式 (可执行落地)
-        Bus-->>UI: 输出目标文件变更 [[TOOL_CALL]]
-        UI->>Harness: 触发 SDD 契约校验与 TDD 红绿前检
-        Harness->>Harness: 双向钢人审查 (Builder vs Critic)
-        opt 校验通过并用户批准
-            UI->>Rust: createGitCheckpoint (创建影子快照)
-            UI->>Rust: write_file_content (真实写盘)
-            UI->>Rust: execute_system_command (运行测试验证)
-            Rust-->>UI: 测试通过 100% (Green)
-            UI-->>Dev: 呈现 Diff 比对与完成反馈 (支持一键影子回退)
+    loop 自主推理与工具调用 (最多 24 轮)
+        Kernel->>Upstream: StreamChat(messages, tools)
+        alt 上游报错 (HTTP 400/401/429/500)
+            Kernel->>UI: FormatUpstreamError 转为人话指引入库
+            Note over Bridge: 标记 Task.Status = failed
+        else 模型空输出 (0字符且无工具)
+            Kernel->>UI: FormatEmptyOutputNotice 注入友好提示
+            Note over Bridge: 标记 Task.Status = failed
+        else 正常流式返回
+            Kernel-->>UI: agent:chunk / agent:thinking
+        end
+
+        opt 模型触发工具调用
+            Kernel->>Rail: OnBeforeAct(ctx, tool, args)
+            alt 被安全策略或只读策略阻断
+                Rail-->>Kernel: 阻断原因
+            else 允许调用
+                Kernel->>Tool: Execute(args)
+                Tool-->>Kernel: ToolResult
+                Kernel->>Rail: OnAfterAct(tool, result)
+                opt 文件发生写入 (fs_control write)
+                    Kernel-->>UI: agent:files_changed
+                    Note over UI: 自动调出 Diff 面板，进入 PendingDiff 审查态
+                end
+            end
         end
     end
-```
 
----
-
-## 📐 三、模块解耦规约 (Decoupling Principles)
-
-1. **零循环依赖**：`services/bus/` 绝不反向依赖 UI 组件，仅通过纯接口（`IProviderSubline`, `BusStreamRequest`, `BusStreamCallbacks`）通信；
-2. **单一职责 (SRP)**：每个厂商子线独立文件（`ClaudeSubline.ts`, `OpenCodeSubline.ts` 等），新增厂商只需实现标准子线接口注册至 `GatewayBus`，无需修改任何 UI 代码；
-3. **安全第一 (Safety First)**：所有系统命令与文件写操作均通过 Tauri IPC 约束并在执行前自动触发 Git 影子快照，确保随时可秒级还原。
-
----
-
-## 8. v1.1.9 架构演进与容灾持久化子系统
-
-### 8.1 Dual-Layer Fail-Safe Storage Architecture (双层容灾存储架构)
-
-```
-┌────────────────────────────────────────────────────────┐
-│               前端 React 状态层 (State Layer)           │
-└───────────────┬────────────────────────┬───────────────┘
-                │                        │
-                ▼                        ▼
-     ┌──────────────────────┐ ┌──────────────────────────────────────┐
-     │ Layer 1: WebView2    │ │ Layer 2: 物理磁盘 JSON 引擎           │
-     │ Persistent Profile   │ │ (POST /api/storage)                  │
-     │ (%LOCALAPPDATA%/...) │ │ (%LOCALAPPDATA%/Tcode/storage)│
-     └──────────────────────┘ └──────────────────┬───────────────────┘
-                                                 │
-                                                 ▼
-                                     ┌───────────────────────┐
-                                     │ codemind_sessions.json│
-                                     │ session_messages.json │
-                                     │ codemind_projects.json│
-                                     └───────────────────────┘
-```
-
-### 8.2 Prompt Execution Queue Pipeline (问答调度队列流水线)
-
-```
-[用户 Prompt 提交] ──▶ 是否正在流式生成?
-                             ├── 否 ──▶ 立即启动 SSE 真流式传输 ──▶ 右下角切换为转动红圆圈 (支持随时打断)
-                             └── 是 ──▶ 压入 PromptQueue 调度队列
-                                             │
-                                             ├── 支持 [⚡ 顶替当前] (打断当前 + 抢占执行)
-                                             ├── 支持 [✏️ 编辑] (就地行内修改)
-                                             ├── 支持 [🔼 / 🔽] (调整排队优先级)
-                                             ├── 支持 [🗑️ 撤回] (注销移出队列)
-                                             └── 当前回答完成后自动 FIFO 顺延调用
-```
-
-
----
-
-## 9. Agent Loop Controller：可观察的 Think → Execute → Observe → Continue
-
-`App` 是当前原型的编排器；`ChatColumn` 仅负责承载审批模态框与渲染消息，`MarkdownCard` 是无副作用展示层。解析、授权判定、执行反馈和结果查找收敛在 `src/services/agentLoop.ts`，防止“视觉上是动作而执行器不识别”的双重语义。
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant Controller as App AgentLoop Controller
-    participant Model as LLM SSE
-    participant Approval as Approval Modal
-    participant Host as Host Executor
-    participant View as MarkdownCard
-
-    User->>Controller: Act prompt
-    loop 至无动作或达到 10 轮
-        Controller->>Model: messages + 前轮执行反馈
-        Model-->>Controller: 流式内容
-        Controller->>Controller: parseAgentActions(content)
-        Controller->>View: actionId + pending/executing 状态
-        alt 需要审核
-            Controller->>Approval: Promise<ActionApprovalDecision>
-            Approval-->>Controller: allow / reject / allow-all
-        end
-        Controller->>Host: write / command
-        Host-->>Controller: ActionResult(actionId, status, output)
-        Controller->>View: 按 actionId 更新状态
-        Controller->>Model: [Tcode 执行引擎反馈]
+    alt 达到工具调用上限 (24轮)
+        Kernel->>UI: FormatHitCapNotice 人话收敛总结并提示发「继续」
+        Note over Bridge: 标记 Task.Status = capped
+    else 用户主动点击中止 (Esc / Stop)
+        Bridge->>UI: FormatInterruptedNotice 人话提示已中止
+        Note over Bridge: 标记 Task.Status = interrupted
+    else TDD 策略下测试失败
+        Note over Bridge: 保持 Task.Status = tdd_failed，阻断宣称完成
+    else 存在未采纳的 Diff 文件
+        Note over Bridge: 保持 Task.Status = pending_diff，等待人工采纳
+    else 全部验证通过且变更采纳
+        Note over Bridge: 标记 Task.Status = completed
     end
+    Bridge-->>UI: agent:done (携带 task_status 终态)
 ```
-
-### 9.1 前端契约
-- `AgentAction`：`id`、`type`、`target`、`code`、`isHighRisk`；由围栏块顺序和内容生成确定性标识；
-- `ActionResult`：追加 `actionId`，与动作一对一关联，状态覆盖 `pending | executing | success | failed | rejected`；
-- `shouldRequireActionApproval(policy, action, allowLowRiskInSession)`：唯一权限判定入口；`allow-all` 不绕过高风险审核；
-- `formatExecutionFeedback(actions, results)`：仅输出执行事实，截断宿主输出，供下一轮决策；
-- SSE 流使用显式完成标识与尾缓冲解析；对话历史由局部快照维护，禁止借 React `setState` 回读历史。
-
-### 9.2 组件边界
-`ActionApprovalModal` 只产生决策，不执行宿主请求；`App` 将其转化为 Promise 并串行执行动作。`MarkdownCard` 通过 `actionId` 查找结果，只提供复制、代码展开和文件定位。`ChatColumn` 不维护第二套动作队列、自动授权或执行回调。
-
-### 9.3 测试治具
-纯函数测试覆盖围栏解析、多动作稳定标识、策略、反馈及状态匹配；其中必须包含空/未闭合代码块、拒绝、失败、风险自适应和会话授权不跨越高风险动作。SSE/宿主集成测试属于下一阶段，须以 mock stream 覆盖 `[DONE]` 和尾缓冲行为。
-
 
 ---
 
-## 10. Windows Installer Pipeline（当前 PyInstaller 宿主）
+## 📐 三、核心架构设计与工程约束
 
-构建入口为根 `build_installer.py` 与 `npm run build:installer`。该入口先构建和验证 `prototype`，再将 `prototype/dist` 作为数据资源嵌入窗口化 Python 宿主 `Tcode.exe`，最后将核心 EXE 嵌入窗口化单文件安装向导 `Tcode-Setup.exe`。
+### 1. 一条执行内核 (Single Execution Engine)
+- 废除任何两套执行循环。所有大模型推理统一收敛至 `internal/core/loop/llm_path.go` 驱动的直接执行循环；
+- 统一工具调用轮次上限为 24 轮，统一错误捕获、统一取消处理、统一事件管道派发。
 
-安装后宿主固定监听 `127.0.0.1:8010`：`/health` 供进程探活，`/` 提供已嵌入的静态前端。构建和验证都使用当前源码，绝不拷贝 `release/` 内的历史二进制。Tauri 链路保留为后续主轴迁移目标；在其完整构建脚本落地前，当前受支持的 Windows 安装器采用这一可复现的 Python 宿主链路。
+### 2. Session 最小任务模型 (TaskModel)
+- 每个会话实体 `session.ChatSession` 均强类型挂载 `TaskModel`：
+  - `Goal`：用户原始目标（或提炼目标）；
+  - `Status`：`idle` | `running` | `completed` | `capped` | `interrupted` | `failed` | `pending_diff` | `tdd_failed`；
+  - `ToolBudget` / `ToolsUsed`：工具配额与已用次数计数器；
+  - `Summary`：当前阶段探明成果与未完成项摘要；
+  - `PendingDiffFiles`：智能体已修改但尚未经人工点击采纳的文件列表。
+- **「继续」语义接续**：当用户输入「继续」时，底层自动唤醒未完成任务模型，注入接续提示词，绝对不重新扫描全局目录结构。
 
+### 3. 审查类任务先地图再下钻规约 (Map-First Strategy)
+- 在 `StrategyAnalyze`（及所有代码审查任务）中注入硬性约束：
+  - **第一步（看地图）**：先读取项目顶层结构与关键配置文件（`go.mod`、`package.json`、`Cargo.toml`、`README.md`）；
+  - **第二步（定靶向）**：定位核心模块入口与调用拓扑；
+  - **第三步（精准下钻）**：仅读取靶向具体文件，严禁全库盲目递归扫描。
 
----
+### 4. 人话收尾系统 (Human-Readable Endings)
+- 严禁用户面对「突然没了」或空白气泡：
+  - **触顶 (Capped)**：输出友好阶段性成果说明并提示发送「继续」；
+  - **取消 (Interrupted)**：输出中止说明并保存已生成内容与上下文；
+  - **上游错误 (HTTP 4xx/5xx)**：解析网络与协议错误，以人话指出原因（上下文超长/鉴权失败/限流/服务挂死）及解决建议；
+  - **空回复 (Empty)**：输出空响应防御提示，指导重新提问或更换模型。
 
-## 🏛️ 八、宿主网关与三栏百分比流体架构 (HostGateway & Layout Engine)
+### 5. 文件变更 Diff 确认闭环
+- 工具写入文件后，自动派发 `agent:files_changed`；
+- 前端自动打开 Monaco Diff 工作区，展示行级差异与变更块（Hunk）；
+- 用户点击「✓ 采纳变更」（`git add / stage`）或「✕ 放弃修改」（`git checkout`）后，任务才进入下一阶段或终态。
 
-```mermaid
-graph TB
-    subgraph View ["1. 表现层与流体布局 (React 19)"]
-        LeftCol["LeftPanel (18% 百分比自适应 · 12%~35%)"]
-        ChatCol["ChatColumn (flex: 1 · 最小 320px 弹性自适应)"]
-        WorkCol["EditorWorkspace (32% 百分比自适应 · 20%~50%)"]
-        AgentRunView["AgentRunCard (目标验收清单 + 内部 Step 链路)"]
-    end
+### 6. 项目宪法顶栏显式可见
+- 将当前工作区生效的 Rules 规约与 Skills 技能库统计在对话顶栏（`📜 项目宪法`）；
+- 开发者可随时展开抽屉/弹层，核对当前全流程注入大模型上下文的完整条文。
 
-    subgraph SecurityGateway ["2. 统一宿主安全网关 (HostGateway)"]
-        Shield["SecurityShield (敏感凭据脱敏审查)"]
-        Guard["SandboxGuard (破坏性指令分类与沙箱阻断)"]
-        Gateway["HostGatewayService (统一 IPC 抽象与派发)"]
-    end
-
-    subgraph DesktopHost ["3. 桌面宿主服务 (Python Desktop Core)"]
-        TermExec["/api/terminal/exec (命令执行与管道捕获)"]
-        FSReadWrite["/api/fs/read & /api/fs/write (文件原子 IO)"]
-        GitShadowEngine["/api/git/checkpoint & /api/git/revert (物理文件级影子快照与回滚)"]
-    end
-
-    View --> SecurityGateway
-    Shield --> Guard --> Gateway
-    Gateway --> TermExec & FSReadWrite & GitShadowEngine
-```
-
-### 核心架构原则
-1. **单一入口 openFile**：全链路收敛为 `handleOpenFile(path, fileName, line)`；
-2. **百分比流体拖拽**：基于全局 `PointerEvent` 监听与百分比弹性分配，双击复位；
-3. **真实物理闭环**：杜绝模拟 Toast，回滚与读写直接作用于磁盘与 Git 检查点。
+### 7. MCP 传输规范
+- 微内核与 UI 仅承诺并实现标准 JSON-RPC 2.0 `stdio` 通信；
+- 拒绝任何未实现的 SSE 伪宣传，确保工业级生产稳定性。
