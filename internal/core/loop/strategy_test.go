@@ -141,3 +141,36 @@ func TestDenyByStrategy_Turn1MapEnforcement(t *testing.T) {
 		t.Errorf("turn 2+ reading deep file should be allowed for drill-down")
 	}
 }
+
+func TestDenyByStrategy_ImplementTurn1DeepReadDenied(t *testing.T) {
+	// 1. turn=1, path=internal/foo.go -> deny 并提示人话「请先 search_workspace 或 list 工作区根」
+	rawDeep, _ := json.Marshal(map[string]string{"action": "read", "path": "internal/foo.go"})
+	deny, reason := DenyByStrategy("implement", "fs_control", rawDeep, 1)
+	if !deny {
+		t.Fatalf("expected implement turn 1 deep read to be denied")
+	}
+	if !strings.Contains(reason, "请先 search_workspace 或 list 工作区根") {
+		t.Fatalf("expected reason to contain '请先 search_workspace 或 list 工作区根', got: %s", reason)
+	}
+
+	// 2. turn=1, search_workspace -> allow
+	rawSearch, _ := json.Marshal(map[string]string{"query": "foo", "action": "find"})
+	deny, _ = DenyByStrategy("implement", "search_workspace", rawSearch, 1)
+	if deny {
+		t.Fatalf("expected search_workspace to be allowed in turn 1")
+	}
+
+	// 3. turn=1, fs_control action=list -> allow
+	rawList, _ := json.Marshal(map[string]string{"action": "list", "path": "."})
+	deny, _ = DenyByStrategy("implement", "fs_control", rawList, 1)
+	if deny {
+		t.Fatalf("expected fs_control list to be allowed in turn 1")
+	}
+
+	// 4. turn=2, deep read -> allow
+	denyTurn2, _ := DenyByStrategy("implement", "fs_control", rawDeep, 2)
+	if denyTurn2 {
+		t.Fatalf("expected implement turn 2 deep read to be allowed")
+	}
+}
+

@@ -63,10 +63,36 @@ func ApplyStrategy(strategy, note string, tools []llm.ToolDef, system string) ([
 // DenyByStrategy 在真正执行工具前再拦一层，避免模型无视提示词去写盘或在首轮盲目扫库。
 func DenyByStrategy(strategy, toolName string, rawArgs json.RawMessage, turn ...int) (deny bool, reason string) {
 	s := NormalizeStrategy(strategy)
+	name := strings.ToLower(strings.TrimSpace(toolName))
+
+	// implement / tdd 策略：首轮（turn == 1）硬闸，禁止盲目直接读深层业务文件，引导先检索定位或先看根地图
 	if s != StrategyAnalyze {
+		if len(turn) > 0 && turn[0] == 1 && name == "fs_control" {
+			var args struct {
+				Action   string `json:"action"`
+				Path     string `json:"path"`
+				RelPath  string `json:"rel_path"`
+				FilePath string `json:"file_path"`
+			}
+			_ = json.Unmarshal(rawArgs, &args)
+			action := strings.ToLower(strings.TrimSpace(args.Action))
+			if action == "read" {
+				target := strings.TrimSpace(args.Path)
+				if target == "" {
+					target = strings.TrimSpace(args.RelPath)
+				}
+				if target == "" {
+					target = strings.TrimSpace(args.FilePath)
+				}
+				if !isAllowedAnalyzeFirstTurnFile(target) {
+					return true, "请先 search_workspace 或 list 工作区根（先地图后下钻）：第 1 轮工具调用禁止直接读取深层代码，请先使用 search_workspace 定位或 list 根目录结构"
+				}
+			}
+		}
 		return false, ""
 	}
-	name := strings.ToLower(strings.TrimSpace(toolName))
+
+	// 以下为 analyze 策略专有拦截逻辑
 	if name == "exec_command" {
 		return true, "当前策略为只读分析，已拦截 exec_command"
 	}
@@ -95,7 +121,7 @@ func DenyByStrategy(strategy, toolName string, rawArgs json.RawMessage, turn ...
 				target = strings.TrimSpace(args.FilePath)
 			}
 			if !isAllowedAnalyzeFirstTurnFile(target) {
-				return true, "【审查铁律：先地图后下钻】第 1 轮工具调用必须先观察地图（list 根目录或读取根清单文件如 README.md, go.mod, package.json）。请先输出顶层结构地图并定靶，下一轮再精准下钻读取具体业务文件。"
+				return true, "请先 search_workspace 或 list 工作区根（先地图后下钻）：第 1 轮工具调用必须先观察地图（list 根目录或读取根清单文件如 README.md, go.mod, package.json）。请先输出顶层结构地图并定靶，下一轮再精准下钻读取具体业务文件。"
 			}
 		}
 	}

@@ -141,10 +141,10 @@
 
 **完成定义**
 
-- [ ] `TestDenyByStrategy_ImplementTurn1DeepReadDenied`：turn=1、`path=internal/foo.go` → deny。  
-- [ ] turn=1、`search_workspace` → allow。  
-- [ ] turn=2、深层 read → allow。  
-- [ ] `go test ./internal/core/loop` 绿。
+- [x] `TestDenyByStrategy_ImplementTurn1DeepReadDenied`：turn=1、`path=internal/foo.go` → deny。  
+- [x] turn=1、`search_workspace` → allow。  
+- [x] turn=2、深层 read → allow。  
+- [x] `go test ./internal/core/loop` 绿。
 
 ---
 
