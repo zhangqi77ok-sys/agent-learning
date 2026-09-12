@@ -574,6 +574,21 @@ export const wailsBridge = {
     }
   },
 
+  async getADR(nodeID: string): Promise<string> {
+    const app = getApp()
+    if (app?.GetADR) return await app.GetADR(nodeID)
+    return ''
+  },
+
+  async saveADR(nodeID: string, note: string): Promise<void> {
+    const app = getApp()
+    if (app?.SaveADR) {
+      await app.SaveADR(nodeID, note)
+      return
+    }
+    throw new Error('microkernel not connected: SaveADR unavailable')
+  },
+
   async diagnoseFile(relPath: string): Promise<DiagnosticReport | null> {
     const app = getApp()
     if (app?.DiagnoseFile) return await app.DiagnoseFile(relPath)
@@ -676,6 +691,7 @@ export const wailsBridge = {
       onToolStart?: (tool: string, args: any, tcId?: string, turn?: number) => void
       onToolEnd?: (tool: string, output: string, tcId?: string, turn?: number) => void
       onDone?: () => void
+      onDiagnostic?: (file: string, errors: DiagnosticItem[]) => void
     }
   ): Promise<void> {
     const runtime = getRuntime()
@@ -732,6 +748,11 @@ export const wailsBridge = {
       runtime.EventsOn('agent:tool_end', (data: any) => {
         if (data.session_id === req.session_id && callbacks.onToolEnd) {
           callbacks.onToolEnd(data.tool, data.output, data.id, data.turn)
+        }
+      })
+      runtime.EventsOn('lsp:diagnostic', (data: any) => {
+        if (callbacks.onDiagnostic && Array.isArray(data?.errors)) {
+          callbacks.onDiagnostic(data.file || '', data.errors)
         }
       })
       const handleFinish = (data: any) => {

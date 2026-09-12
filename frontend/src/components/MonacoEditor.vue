@@ -11,6 +11,7 @@ const props = defineProps<{
   modelValue: string
   language: string
   readOnly?: boolean
+  diagnostics?: { line: number; column: number; severity: string; message: string }[]
 }>()
 
 const emit = defineEmits<{
@@ -52,6 +53,7 @@ onMounted(() => {
     if (applying || !editor) return
     emit('update:modelValue', editor.getValue())
   })
+  applyMarkers()
 })
 
 watch(() => props.modelValue, (v) => {
@@ -67,6 +69,22 @@ watch(() => props.language, (l) => {
   const model = editor.getModel()
   if (model) monaco.editor.setModelLanguage(model, langOf(l))
 })
+
+function applyMarkers() {
+  const model = editor?.getModel()
+  if (!model) return
+  const markers = (props.diagnostics || []).map((d) => ({
+    startLineNumber: d.line || 1,
+    startColumn: d.column || 1,
+    endLineNumber: d.line || 1,
+    endColumn: (d.column || 1) + 40,
+    message: d.message,
+    severity: d.severity === 'WARNING' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error
+  }))
+  monaco.editor.setModelMarkers(model, 'tiancode', markers)
+}
+
+watch(() => props.diagnostics, applyMarkers, { deep: true })
 
 onBeforeUnmount(() => {
   editor?.dispose()

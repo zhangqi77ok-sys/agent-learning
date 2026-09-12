@@ -106,5 +106,9 @@ func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName strin
 			}
 		}
 	}
+	if written != "" && !isErr && ShouldVerifyAfterWrite(strategy) && e.Verify != nil {
+		vout, pass := e.Verify(written)
+		output = strings.TrimSpace(output) + "\n\n" + FormatVerifyFollowup(written, vout, pass)
+	}
 	return output, isErr, written
 }

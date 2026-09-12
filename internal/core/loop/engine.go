@@ -64,6 +64,8 @@ type ExecutionEngine struct {
 	registry *host.Registry
 	maxSteps int
 	MCPCall  func(ctx context.Context, name string, args map[string]any) (string, error)
+	// Verify 在 TDD 策略写盘成功后运行工作区测试，结果会拼进工具输出。
+	Verify func(writtenFile string) (output string, pass bool)
 }
 
 // NewExecutionEngine 构造执行引擎

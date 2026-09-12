@@ -232,6 +232,85 @@ func TestExecutionEngine_SafetyRailBlocks(t *testing.T) {
 	}
 }
 
+type tddWriteProvider struct{ calls int }
+
+func (m *tddWriteProvider) ID() string          { return "mock.tdd" }
+func (m *tddWriteProvider) Name() string        { return "tdd" }
+func (m *tddWriteProvider) Version() string     { return "1" }
+func (m *tddWriteProvider) Type() v1.PluginType { return v1.TypeProvider }
+func (m *tddWriteProvider) Init(ctx context.Context, cfg json.RawMessage) error { return nil }
+func (m *tddWriteProvider) Start(ctx context.Context) error { return nil }
+func (m *tddWriteProvider) Stop(ctx context.Context) error  { return nil }
+func (m *tddWriteProvider) Health(ctx context.Context) v1.HealthStatus {
+	return v1.HealthStatus{Healthy: true}
+}
+func (m *tddWriteProvider) Ping(ctx context.Context) (time.Duration, error) {
+	return 0, nil
+}
+func (m *tddWriteProvider) ListModels(ctx context.Context) ([]v1.ModelDescriptor, error) {
+	return nil, nil
+}
+func (m *tddWriteProvider) StreamChat(ctx context.Context, req *v1.ChatRequest) (<-chan v1.StreamChunk, error) {
+	ch := make(chan v1.StreamChunk, 2)
+	m.calls++
+	if m.calls == 1 {
+		ch <- v1.StreamChunk{ToolCalls: []v1.ToolCallChunk{{
+			Index: 0, ID: "c1", Name: "fs_control", ArgumentsDelta: `{"action":"write","path":"a.go","content":"x"}`,
+		}}}
+	} else {
+		ch <- v1.StreamChunk{DeltaContent: "done"}
+	}
+	close(ch)
+	return ch, nil
+}
+
+type tddWriteTool struct{}
+
+func (t *tddWriteTool) ID() string          { return "tool.fs.mock" }
+func (t *tddWriteTool) Name() string        { return "fs" }
+func (t *tddWriteTool) Version() string     { return "1" }
+func (t *tddWriteTool) Type() v1.PluginType { return v1.TypeTool }
+func (t *tddWriteTool) Init(ctx context.Context, cfg json.RawMessage) error { return nil }
+func (t *tddWriteTool) Start(ctx context.Context) error                    { return nil }
+func (t *tddWriteTool) Stop(ctx context.Context) error                     { return nil }
+func (t *tddWriteTool) Health(ctx context.Context) v1.HealthStatus {
+	return v1.HealthStatus{Healthy: true}
+}
+func (t *tddWriteTool) Definition() v1.ToolDefinition {
+	return v1.ToolDefinition{Name: "fs_control", Description: "fs"}
+}
+func (t *tddWriteTool) Execute(ctx context.Context, args json.RawMessage) (*v1.ToolResult, error) {
+	return &v1.ToolResult{Content: "written", IsError: false}, nil
+}
+
+func TestExecutionEngine_TDDVerifyAfterWrite(t *testing.T) {
+	reg := host.NewRegistry()
+	_ = reg.Register(&tddWriteProvider{})
+	_ = reg.Register(&tddWriteTool{})
+	engine := NewExecutionEngine(reg)
+	called := ""
+	engine.Verify = func(written string) (string, bool) {
+		called = written
+		return "ok tests", true
+	}
+	ch := make(chan EngineEvent, 20)
+	go func() {
+		_ = engine.Execute(context.Background(), &EngineRequest{Prompt: "x", Strategy: StrategyTDD}, ch)
+	}()
+	saw := false
+	for ev := range ch {
+		if ev.Type == EventToolEnd && strings.Contains(ev.ToolOutput, "TDD 验证") && strings.Contains(ev.ToolOutput, "a.go") {
+			saw = true
+		}
+	}
+	if called != "a.go" {
+		t.Fatalf("Verify file=%q", called)
+	}
+	if !saw {
+		t.Fatal("expected TDD follow-up in tool output")
+	}
+}
+
 func TestExecutionEngine_DirectPathUsesRegisteredProvider(t *testing.T) {
 	reg := host.NewRegistry()
 	prov := &mockProvider{}

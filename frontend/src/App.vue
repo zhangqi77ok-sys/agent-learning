@@ -416,6 +416,11 @@
                 <span class="font-bold text-[#71717A]">拓扑摘要</span>
                 <p class="text-[11px] text-[#52525B] leading-relaxed mt-1">{{ s.selectedAstNode.details }}</p>
               </div>
+              <div>
+                <span class="font-bold text-[#71717A]">架构决策 (写入 ~/.tiancode/adr.json)</span>
+                <textarea v-model="s.adrNote" rows="4" class="w-full mt-1 px-2 py-1.5 rounded-lg border border-black/[0.08] text-[11px] font-mono" placeholder="这条约束会随节点引用进对话"></textarea>
+                <button class="mt-1 px-2 py-1 rounded-lg bg-white border border-black/[0.08] text-[11px] cursor-pointer" @click="s.saveAdrNote">保存 ADR</button>
+              </div>
             </div>
 
             <button

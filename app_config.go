@@ -163,6 +163,27 @@ func (a *App) DeleteRule(id string) error {
 	}
 	return a.extraStore.DeleteRule(id)
 }
+func (a *App) GetADR(nodeID string) string {
+	if a.adrStore == nil {
+		return ""
+	}
+	return a.adrStore.Get(nodeID)
+}
+
+func (a *App) ListADR() map[string]string {
+	if a.adrStore == nil {
+		return map[string]string{}
+	}
+	return a.adrStore.List()
+}
+
+func (a *App) SaveADR(nodeID, note string) error {
+	if a.adrStore == nil {
+		a.adrStore = config.DefaultADRStore()
+	}
+	return a.adrStore.Save(nodeID, note)
+}
+
 func (a *App) FetchUpstreamModels(endpoint, apiKey string) ([]string, error) {
 	endpoint = strings.TrimSpace(endpoint)
 	if endpoint == "" {

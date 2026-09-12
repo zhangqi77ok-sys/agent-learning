@@ -10,7 +10,8 @@ import {
   type MCPServerConfig,
   type SkillConfig,
   type RuleConfig,
-  type GraphNode
+  type GraphNode,
+  type DiagnosticItem
 } from '../core/wailsBridge'
 import { renderMarkdown } from '../core/markdown'
 
@@ -502,6 +503,8 @@ const diffReport = ref<DiffReport | null>(null)
 const editorView = ref<'edit' | 'diff'>('edit')
 const editorContent = ref('')
 const editorDirty = ref(false)
+const editorDiagnostics = ref<DiagnosticItem[]>([])
+const adrNote = ref('')
 const sessionTabs = ref<{ id: string; title: string }[]>([])
 const tabContextMenu = ref<{ x: number; y: number; id: string } | null>(null)
 
@@ -518,9 +521,26 @@ async function loadEditor() {
   try {
     editorContent.value = await wailsBridge.readFile(activeDiffFile.value)
     editorDirty.value = false
+    await refreshDiagnostics(activeDiffFile.value)
   } catch (err) {
     editorContent.value = ''
     showToast('读取文件失败: ' + err)
+  }
+}
+
+async function refreshDiagnostics(filePath: string) {
+  if (!filePath) {
+    editorDiagnostics.value = []
+    return
+  }
+  try {
+    const report = await wailsBridge.diagnoseFile(filePath)
+    editorDiagnostics.value = report?.errors || []
+    if (report?.has_errors) {
+      showToast(`诊断: ${filePath} 有 ${report.error_count} 处问题`)
+    }
+  } catch {
+    editorDiagnostics.value = []
   }
 }
 
@@ -531,6 +551,7 @@ async function saveEditor() {
     editorDirty.value = false
     await loadDiff()
     await loadGitStatus()
+    await refreshDiagnostics(activeDiffFile.value)
     showToast('✓ 已写入 ' + activeDiffFile.value)
   } catch (err) {
     showToast('保存失败: ' + err)
@@ -1072,6 +1093,11 @@ async function handleSend() {
             }
           }
         },
+        onDiagnostic(file, errors) {
+          if (!file || file === activeDiffFile.value) {
+            editorDiagnostics.value = errors
+          }
+        },
         onDone() {
           pushAgentTrace('done', 'stream complete')
           isStreaming.value = false
@@ -1079,6 +1105,7 @@ async function handleSend() {
           wailsBridge.saveSession(currentSession.value)
           void loadSessionsList()
           ensureSessionTab(currentSessionId.value, currentSession.value.title)
+          if (activeDiffFile.value) void refreshDiagnostics(activeDiffFile.value)
         }
       }
     )
@@ -1411,10 +1438,33 @@ const astGraph = computed(() => {
   return { pos, edges, maxX, maxY }
 })
 
+watch(selectedAstNode, async (node) => {
+  if (!node) {
+    adrNote.value = ''
+    return
+  }
+  try {
+    adrNote.value = (await wailsBridge.getADR(node.id)) || ''
+  } catch {
+    adrNote.value = ''
+  }
+})
+
+async function saveAdrNote() {
+  if (!selectedAstNode.value) return
+  try {
+    await wailsBridge.saveADR(selectedAstNode.value.id, adrNote.value)
+    showToast('✓ ADR 已写入 ~/.tiancode/adr.json')
+  } catch (err) {
+    showToast('保存 ADR 失败: ' + err)
+  }
+}
+
 function injectNodeToPrompt() {
   if (!selectedAstNode.value) return
   const node = selectedAstNode.value
-  const quoteText = `\n> 架构拓扑实体引用: \`${node.name}\` [${node.type}]\n> 声明路径: \`${node.file}\`\n> 关联说明: ${node.details}\n`
+  const adr = adrNote.value.trim()
+  const quoteText = `\n> 架构拓扑实体引用: \`${node.name}\` [${node.type}]\n> 声明路径: \`${node.file}\`\n> 关联说明: ${node.details}${adr ? '\n> ADR: ' + adr : ''}\n`
   inputPrompt.value = inputPrompt.value ? inputPrompt.value + quoteText : quoteText
   isKnowledgeGraphOpen.value = false
   showToast(`✓ 已引用 AST 节点 [${node.name}] 架构约束至输入框`)
@@ -1668,6 +1718,7 @@ function initWorkbench() {
     activeTag,
     activeTerminalTab,
     agentTraceLogs,
+    adrNote,
     activateSession,
     commandPaletteIndex,
     commandPaletteItems,
@@ -1712,6 +1763,7 @@ function initWorkbench() {
     editorDirty,
     executionStrategy,
     executionStrategies,
+    editorDiagnostics,
     editorView,
     editChannel,
     executePing,
@@ -1796,6 +1848,7 @@ function initWorkbench() {
     runCommandPaletteItem,
     ruleForm,
     rules,
+    saveAdrNote,
     saveEditor,
     saveChannelAction,
     saveMcpAction,

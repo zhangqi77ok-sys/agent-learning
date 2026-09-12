@@ -71,6 +71,7 @@
             v-if="s.activeDiffFile"
             v-model="s.editorContent"
             :language="s.activeDiffFile"
+            :diagnostics="s.editorDiagnostics"
             @update:modelValue="s.markEditorDirty"
           />
           <div v-else class="h-full flex items-center justify-center text-xs text-[#A1A1AA]">从左侧文件树打开文件即可编辑</div>

@@ -75,6 +75,19 @@ func DenyByStrategy(strategy, toolName string, rawArgs json.RawMessage) (deny bo
 	return false, ""
 }
 
+// ShouldVerifyAfterWrite TDD 策略在写盘后必须跑工作区测试，其它策略不自动跑。
+func ShouldVerifyAfterWrite(strategy string) bool {
+	return NormalizeStrategy(strategy) == StrategyTDD
+}
+
+// FormatVerifyFollowup 把测试结果缝进工具输出，下一轮模型能看见。
+func FormatVerifyFollowup(file, output string, pass bool) string {
+	if pass {
+		return "[TDD 验证] 写入 " + file + " 后测试通过\n" + output
+	}
+	return "[TDD 验证失败] 写入 " + file + " 后测试未通过，必须继续修复，不得宣称完成\n" + output
+}
+
 func filterTools(tools []llm.ToolDef, keep func(name string) bool) []llm.ToolDef {
 	out := make([]llm.ToolDef, 0, len(tools))
 	for _, t := range tools {

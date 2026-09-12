@@ -13,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 
+	"tiancode/internal/agent"
 	"tiancode/internal/config"
 	"tiancode/internal/core/loop"
 	"tiancode/internal/core/sandbox"
@@ -171,6 +172,7 @@ type App struct {
 	sessionStore     *session.Store
 	projectStore     *config.ProjectStore
 	mcpManager       *mcp.Manager
+	adrStore         *config.ADRStore
 	terminalCancel   context.CancelFunc
 	terminalMu       sync.Mutex
 	termTaskID       int64
@@ -207,6 +209,17 @@ func NewApp() *App {
 	eng.MCPCall = func(ctx context.Context, name string, args map[string]any) (string, error) {
 		return mcpMgr.CallTool(ctx, name, args)
 	}
+	eng.Verify = func(writtenFile string) (string, bool) {
+		report, err := agent.RunTDDValidation(wd)
+		if err != nil {
+			return err.Error(), false
+		}
+		out := report.Output
+		if writtenFile != "" {
+			out = writtenFile + "\n" + out
+		}
+		return out, report.Status == "PASS"
+	}
 
 	return &App{
 		workspace:    wd,
@@ -219,6 +232,7 @@ func NewApp() *App {
 		sessionStore: sessStore,
 		projectStore: projStore,
 		mcpManager:   mcpMgr,
+		adrStore:     config.DefaultADRStore(),
 	}
 }
 
@@ -355,6 +369,18 @@ func (a *App) SetWorkspace(dir string) error {
 		a.engine = loop.NewExecutionEngine(a.registry)
 		a.engine.MCPCall = func(ctx context.Context, name string, args map[string]any) (string, error) {
 			return a.mcpManager.CallTool(ctx, name, args)
+		}
+		ws := absDir
+		a.engine.Verify = func(writtenFile string) (string, bool) {
+			report, err := agent.RunTDDValidation(ws)
+			if err != nil {
+				return err.Error(), false
+			}
+			out := report.Output
+			if writtenFile != "" {
+				out = writtenFile + "\n" + out
+			}
+			return out, report.Status == "PASS"
 		}
 	}
 	if a.extraStore != nil {

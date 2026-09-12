@@ -34,6 +34,26 @@ func TestApplyStrategy_AnalyzeDropsExec(t *testing.T) {
 	}
 }
 
+func TestShouldVerifyAfterWrite(t *testing.T) {
+	if !ShouldVerifyAfterWrite(StrategyTDD) {
+		t.Fatal("tdd must verify after write")
+	}
+	if ShouldVerifyAfterWrite(StrategyAnalyze) || ShouldVerifyAfterWrite(StrategyImplement) {
+		t.Fatal("analyze/implement must not auto-run tests")
+	}
+}
+
+func TestFormatVerifyFollowup(t *testing.T) {
+	ok := FormatVerifyFollowup("a.go", "PASS", true)
+	if !strings.Contains(ok, "a.go") || !strings.Contains(ok, "通过") {
+		t.Fatalf("%s", ok)
+	}
+	fail := FormatVerifyFollowup("a.go", "FAIL x", false)
+	if !strings.Contains(fail, "失败") || !strings.Contains(fail, "FAIL x") {
+		t.Fatalf("%s", fail)
+	}
+}
+
 func TestApplyStrategy_TDDKeepsExecAndPrompt(t *testing.T) {
 	tools := []llm.ToolDef{
 		{Type: "function", Function: llm.ToolFunctionDef{Name: "fs_control"}},
