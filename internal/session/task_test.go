@@ -16,7 +16,7 @@ func TestTaskModel_PersistenceAndStatus(t *testing.T) {
 	sess := ChatSession{
 		ID:        "sess_task_1",
 		Title:     "重构登录模块",
-		Model:     "gpt-5.6-sol",
+		Model:     "test-model",
 		CreatedAt: 1788480000,
 		UpdatedAt: 1788480000,
 		Messages:  []SessionMessage{{ID: "m1", Role: "user", Content: "重构登录模块"}},

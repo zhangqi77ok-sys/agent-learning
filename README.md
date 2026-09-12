@@ -244,7 +244,8 @@
   * 基于 `context.WithCancel` 支持用户一键 `[■ 终止]` 取消正在执行的进程，杜绝孤儿进程与句柄泄漏；
   * 执行目录物理锁定于工作区根目录，具备安全防穿越防护。
 
-### 16. 高保真原型架构 100% 像素级对齐 (High-Fidelity Prototype Architecture Alignment)
+### 16. [历史原型归档参考] React 原型探索阶段界面设计沉淀 (Historical Prototype Notes)
+> ⚠️ **说明**：以下 16~26 小节为项目早期在 `archive/web_prototype.html` / `archive/prototype/` 探索阶段的原型设计记录，仅供视觉交互参考。当前正式发货代码已全面升级收敛至 **Wails v2 + Go 微内核 + Vue 3** 架构。
 * **顶层沉浸式标题栏 (`Titlebar.tsx`)**：
   * 高度严格锁定 38px，左侧呈现 `T` Logo、项目与分支徽标以及 `DeepSeek-V4 · 就绪` 绿色微核探针；
   * 中间集成单焦点工作区胶囊（`💬 智能对话` / `◫ 双栏协同` / `📝 代码工作区`）；
@@ -290,10 +291,7 @@
   * 基于上游真实 `deepseek-v4-flash` 大模型与生产网关 `https://agentrouter.org`，执行首字延迟 (TTFT) 极速响应测试；
 ### 22. Vitest 单元测试矩阵与流水线构建门禁 (`test-automation-mock-governance`)
 * **自动化测试套件架构**：
-  * 基于 Vitest + JSDOM 构建现代测试环境，对核心状态机开展 100% 针对性测试：
-    * [`workspaceStore.test.ts`](file:///d:/weihu/agent-learning/frontend/src/core/store/__tests__/workspaceStore.test.ts)：工作区模式切换、终端抽屉开关与多模态窗生命周期；
-    * [`gitStore.test.ts`](file:///d:/weihu/agent-learning/frontend/src/core/store/__tests__/gitStore.test.ts)：分支列表过滤、检出切换、新建分支与影子快照；
-    * [`settingsStore.test.ts`](file:///d:/weihu/agent-learning/frontend/src/core/store/__tests__/settingsStore.test.ts)：默认空 Key Fail-Closed 安全断言、运行时动态变更与面板唤起；
+  * 原型验证期基于 Vitest + JSDOM 构建测试环境，涵盖工作区模式切换、分支列表过滤、检出切换、以及默认空 Key Fail-Closed 安全断言等规范；
 ### 23. 系统原生文件夹选择与动态工作区装载 (Native Folder Picker & Dynamic Workspace)
 * **Windows 原生对话框集成 (`backend/daemon.js`)**：
   * 基于 WinForms 原生 `FolderBrowserDialog` 与 `CREATE_NO_WINDOW` (`0x08000000`) 标志位，通过 `/api/workspace/pick-folder` 唤起操作系统级原生文件选择窗口，彻底告别浏览器端手输物理路径（严格遵照【铁律 5】）；

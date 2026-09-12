@@ -103,16 +103,28 @@ func isAllowedAnalyzeFirstTurnFile(p string) bool {
 	if p == "" || p == "." {
 		return true
 	}
-	// 根目录直接文件（不含任何斜杠，如 go.mod, package.json, Cargo.toml, README.md, main.go）
-	if !strings.Contains(p, "/") {
-		return true
-	}
-	// 允许根文档目录（如 docs/ 目录下的宏观设计或 readme）
 	lower := strings.ToLower(p)
-	if strings.HasPrefix(lower, "docs/") || strings.HasSuffix(lower, "/readme.md") {
+	// 允许根文档目录（如 docs/ 目录下的宏观设计或 readme）
+	if strings.HasPrefix(lower, "docs/") || strings.HasSuffix(lower, "/readme.md") || strings.HasSuffix(lower, "/readme") {
 		return true
 	}
-	return false
+	// 含有其他子目录的深层业务代码必须第 2 轮及以后定靶下钻
+	if strings.Contains(p, "/") {
+		return false
+	}
+	// 根目录仅允许清单配置与宏观工程说明，严禁首轮直接啃任意源文件 (如 a.go / main.go)
+	switch lower {
+	case "readme.md", "readme", "agents.md", "gemini.md", "architecture.md", "roadmap.md", "license":
+		return true
+	case "go.mod", "go.sum", "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock":
+		return true
+	case "cargo.toml", "cargo.lock", "requirements.txt", "pyproject.toml", "pom.xml", "build.gradle", "build.gradle.kts":
+		return true
+	case "makefile", "cmakelists.txt", "tsconfig.json", "wails.json", ".gitignore", "docker-compose.yml", "dockerfile":
+		return true
+	default:
+		return false
+	}
 }
 
 // ShouldVerifyAfterWrite TDD 策略在写盘后必须跑工作区测试，其它策略不自动跑。

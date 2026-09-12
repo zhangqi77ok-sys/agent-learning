@@ -116,6 +116,12 @@ const currentSession = ref<ChatSession>({
   messages: []
 })
 
+const currentTaskStatus = computed(() => {
+  if (isStreaming.value) return 'running'
+  if (pendingDiffFiles.value.length > 0) return 'pending_diff'
+  return currentSession.value?.task?.status || 'idle'
+})
+
 const availableTags = computed(() => {
   const set = new Set<string>()
   sessions.value.forEach(s => {
@@ -1900,6 +1906,7 @@ function initWorkbench() {
     createSnapshotAction,
     currentSession,
     currentSessionId,
+    currentTaskStatus,
     currentTerminalBuffer,
     deleteMcpAction,
     deleteChannel,

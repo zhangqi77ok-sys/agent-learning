@@ -102,26 +102,42 @@ func TestApplyStrategy_MapFirstAndTDDCompletionBlock(t *testing.T) {
 }
 
 func TestDenyByStrategy_Turn1MapEnforcement(t *testing.T) {
-	// turn 1: 读根目录文件 (如 go.mod, README.md, a.go) 允许
-	rawRoot, _ := json.Marshal(map[string]string{"action": "read", "path": "go.mod"})
-	deny, _ := DenyByStrategy("analyze", "fs_control", rawRoot, 1)
+	// turn 1: 读根目录清单或宏观文档 (如 go.mod, README.md, docs/ARCHITECTURE.md) 允许
+	rawMod, _ := json.Marshal(map[string]string{"action": "read", "path": "go.mod"})
+	deny, _ := DenyByStrategy("analyze", "fs_control", rawMod, 1)
 	if deny {
 		t.Errorf("turn 1 reading go.mod should be allowed")
 	}
+	rawReadme, _ := json.Marshal(map[string]string{"action": "read", "path": "README.md"})
+	deny, _ = DenyByStrategy("analyze", "fs_control", rawReadme, 1)
+	if deny {
+		t.Errorf("turn 1 reading README.md should be allowed")
+	}
 
-	// turn 1: 读深层业务文件 (如 internal/core/loop/llm_path.go) 应被硬闸阻断，要求先看地图
-	rawDeep, _ := json.Marshal(map[string]string{"action": "read", "path": "internal/core/loop/llm_path.go"})
-	deny, reason := DenyByStrategy("analyze", "fs_control", rawDeep, 1)
+	// turn 1: 读根目录源码 (如 a.go / main.go) 必须被硬闸阻断，要求先看清单与地图
+	rawSrc, _ := json.Marshal(map[string]string{"action": "read", "path": "main.go"})
+	deny, reason := DenyByStrategy("analyze", "fs_control", rawSrc, 1)
 	if !deny {
-		t.Errorf("turn 1 reading deep internal file should be denied by map-first rule")
+		t.Errorf("turn 1 reading root source code main.go should be denied by strict manifest whitelist")
 	}
 	if !strings.Contains(reason, "先地图后下钻") {
 		t.Errorf("expected map-first reason, got: %s", reason)
 	}
 
-	// turn 2+: 读深层业务文件放行
-	denyTurn2, _ := DenyByStrategy("analyze", "fs_control", rawDeep, 2)
-	if denyTurn2 {
+	// turn 1: 读深层业务文件 (如 internal/core/loop/llm_path.go) 应被硬闸阻断
+	rawDeep, _ := json.Marshal(map[string]string{"action": "read", "path": "internal/core/loop/llm_path.go"})
+	deny, reason = DenyByStrategy("analyze", "fs_control", rawDeep, 1)
+	if !deny {
+		t.Errorf("turn 1 reading deep internal file should be denied by map-first rule")
+	}
+
+	// turn 2+: 读源码文件 (main.go, llm_path.go) 放行精准下钻
+	denyTurn2Src, _ := DenyByStrategy("analyze", "fs_control", rawSrc, 2)
+	if denyTurn2Src {
+		t.Errorf("turn 2+ reading main.go should be allowed for drill-down")
+	}
+	denyTurn2Deep, _ := DenyByStrategy("analyze", "fs_control", rawDeep, 2)
+	if denyTurn2Deep {
 		t.Errorf("turn 2+ reading deep file should be allowed for drill-down")
 	}
 }

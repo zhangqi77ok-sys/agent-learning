@@ -44,10 +44,44 @@
               class="flex items-center gap-1 px-2 py-0.8 rounded-lg bg-white border border-black/[0.1] text-[11px] font-medium text-[#52525B] hover:text-[#D96B27] hover:border-[#D96B27]/40 shadow-2xs transition-all cursor-pointer shrink-0 ml-1"
               title="查看当前注入生效的项目宪法与规约"
             >
-              <span>📜 项目宪法:</span>
+              <span>📜 宪法:</span>
               <span class="font-bold text-[#D96B27]">{{ s.activeConstitution.total }} 项</span>
               <span class="text-[10px] text-[#71717A]">({{ s.activeConstitution.ruleCount }}规·{{ s.activeConstitution.skillCount }}技)</span>
             </button>
+
+            <!-- 任务状态机指示徽章 (Task Status) -->
+            <div
+              v-if="s.currentTaskStatus && s.currentTaskStatus !== 'idle'"
+              class="flex items-center gap-1 px-2 py-0.8 rounded-lg text-[11px] font-medium shadow-2xs shrink-0 select-none transition-all ml-1"
+              :class="{
+                'bg-[#D96B27]/10 border border-[#D96B27]/30 text-[#D96B27]': s.currentTaskStatus === 'running',
+                'bg-[#D96B27]/15 border border-[#D96B27]/40 text-[#B8551B] font-semibold animate-pulse': s.currentTaskStatus === 'pending_diff',
+                'bg-amber-500/10 border border-amber-500/30 text-amber-700': s.currentTaskStatus === 'capped',
+                'bg-red-500/10 border border-red-500/30 text-red-600': s.currentTaskStatus === 'tdd_failed' || s.currentTaskStatus === 'failed',
+                'bg-[#10A37F]/10 border border-[#10A37F]/30 text-[#10A37F]': s.currentTaskStatus === 'completed',
+                'bg-zinc-100 border border-zinc-200 text-zinc-600': s.currentTaskStatus === 'interrupted'
+              }"
+              :title="'任务状态机状态: ' + s.currentTaskStatus"
+            >
+              <span v-if="s.currentTaskStatus === 'running'" class="inline-block animate-spin text-[10px]">⚡</span>
+              <span v-else-if="s.currentTaskStatus === 'pending_diff'">📝</span>
+              <span v-else-if="s.currentTaskStatus === 'capped'">⚠️</span>
+              <span v-else-if="s.currentTaskStatus === 'tdd_failed' || s.currentTaskStatus === 'failed'">❌</span>
+              <span v-else-if="s.currentTaskStatus === 'completed'">✓</span>
+              <span v-else-if="s.currentTaskStatus === 'interrupted'">⏹</span>
+
+              <span>
+                {{
+                  s.currentTaskStatus === 'running' ? '执行中' :
+                  s.currentTaskStatus === 'pending_diff' ? '待确认 Diff' :
+                  s.currentTaskStatus === 'capped' ? '已达上限' :
+                  s.currentTaskStatus === 'tdd_failed' ? '测试未通过' :
+                  s.currentTaskStatus === 'failed' ? '执行失败' :
+                  s.currentTaskStatus === 'completed' ? '已完成' :
+                  s.currentTaskStatus === 'interrupted' ? '已中断' : s.currentTaskStatus
+                }}
+              </span>
+            </div>
           </div>
 
           <button
