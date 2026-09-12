@@ -103,9 +103,10 @@
                 { id: 'mcp', label: '🧩 MCP 服务协议' },
                 { id: 'skills', label: '🛠️ Agent 技能库' },
                 { id: 'rules', label: '📜 软件规则与提示词' },
-                { id: 'theme', label: '🎨 外观与工作区' },
-                { id: 'sandbox', label: '🛡️ 安全沙箱与防线' },
-                { id: 'about', label: 'ℹ️ 关于系统' }
+                { id: 'theme', label: '🎨 外观与字号' },
+                { id: 'sandbox', label: '🛡️ 安全隔离机制' },
+                { id: 'about', label: 'ℹ️ 关于系统' },
+                { id: 'lab', label: '🧪 实验特性' }
               ]"
               :key="m.id"
               @click="s.activeSettingsTab = m.id"
@@ -330,50 +331,103 @@
               </div>
               <p class="text-[11px] text-[#71717A] font-mono">工作区 {{ s.workspacePath || '尚未打开' }}</p>
             </div>
-            <div v-else-if="s.activeSettingsTab === 'sandbox'" class="space-y-3">
-              <h3 class="text-sm font-bold text-[#18181B]">🔒 安全沙箱与命令防御</h3>
-              <p class="text-[11px] text-[#71717A]">状态来自 Go SafetyRail / Sandbox，不是前端假开关</p>
-              <div class="p-3 rounded-xl bg-white border border-black/[0.08] flex items-center justify-between text-xs">
-                <div>
-                  <div class="font-bold">工作区路径沙箱保护</div>
-                  <div class="text-[11px] text-[#71717A]">禁止读写当前工程目录以外路径 · {{ s.sandboxStatus.workspace || s.workspacePath }}</div>
-                </div>
-                <span class="font-bold" :class="s.sandboxStatus.path_isolation ? 'text-[#10A37F]' : 'text-amber-600'">{{ s.sandboxStatus.path_isolation ? '已开启' : '未绑定工作区' }}</span>
+            <!-- 选项卡 6: 安全隔离机制 (真实防线说明，无假开关) -->
+            <div v-else-if="s.activeSettingsTab === 'sandbox'" class="space-y-4">
+              <div>
+                <h3 class="text-sm font-bold text-[#18181B]">🛡️ 内核级受控安全防线</h3>
+                <p class="text-[11px] text-[#71717A] mt-0.5">
+                  以下安全防线由 Go 微内核 SafetyRail 与 Sandbox 底层强行拦截，所有大模型工具调用与终端执行物理受限，不设可降级软开关。
+                </p>
               </div>
-              <div class="p-3 rounded-xl bg-white border border-black/[0.08] flex items-center justify-between text-xs">
-                <div>
-                  <div class="font-bold">高危命令阻断</div>
-                  <div class="text-[11px] text-[#71717A]">rm -rf、format、shutdown 等由 SafetyRail 拦截</div>
+
+              <div class="p-4 rounded-xl bg-[#FAF8F5] border border-black/[0.08] space-y-4 text-xs">
+                <div class="space-y-1">
+                  <div class="font-bold text-[#18181B] flex items-center gap-1.5">
+                    <span>📁</span><span>工作区路径沙箱硬隔离</span>
+                  </div>
+                  <div class="text-[11px] text-[#71717A] leading-relaxed">
+                    所有文件读写、检索与目录遍历算子强制在当前工作区内执行（当前工作区: <code class="font-mono text-[#18181B] bg-black/[0.04] px-1 py-0.2 rounded">{{ s.workspacePath || '未打开工作区' }}</code>）。内核自动执行路径规范化（Canonicalize）并物理阻断跨盘符与 <code>..</code> 越界访问。
+                  </div>
                 </div>
-                <span class="font-bold text-[#10A37F]">已开启</span>
-              </div>
-              <div class="p-3 rounded-xl bg-white border border-black/[0.08] flex items-center justify-between text-xs">
-                <div>
-                  <div class="font-bold">环境变量与密钥剥离</div>
-                  <div class="text-[11px] text-[#71717A]">发往模型前抹除 sk- / ghp_ / password=</div>
+
+                <div class="space-y-1 pt-3 border-t border-black/[0.06]">
+                  <div class="font-bold text-[#18181B] flex items-center gap-1.5">
+                    <span>⚡</span><span>高危破坏指令物理熔断 (SafetyRail)</span>
+                  </div>
+                  <div class="text-[11px] text-[#71717A] leading-relaxed">
+                    在终端算子与受控执行层，拦截链在执行前物理拦截 <code>rm -rf /</code>、系统关机、格式化磁盘等破坏性指令，杜绝失控脚本破坏本地开发环境。
+                  </div>
                 </div>
-                <span class="font-bold text-[#10A37F]">已开启</span>
+
+                <div class="space-y-1 pt-3 border-t border-black/[0.06]">
+                  <div class="font-bold text-[#18181B] flex items-center gap-1.5">
+                    <span>🔑</span><span>网络请求敏感凭据剥离</span>
+                  </div>
+                  <div class="text-[11px] text-[#71717A] leading-relaxed">
+                    向外部 LLM 发送请求前，自动抹除并脱敏包含 <code>sk-</code>、<code>ghp_</code>、<code>password=</code> 的密钥凭据，防止工程内私密凭据意外泄露。
+                  </div>
+                </div>
               </div>
             </div>
-            <div v-else-if="s.activeSettingsTab === 'about'" class="space-y-3">
-              <h3 class="text-sm font-bold text-[#18181B]">ℹ️ 关于 湉码</h3>
-              <div class="p-4 rounded-2xl bg-white border border-black/[0.08] space-y-3 text-xs">
-                <div class="font-bold text-sm">{{ s.runtimeInfo.product }} v{{ s.runtimeInfo.version }}</div>
+
+            <!-- 选项卡 7: 关于系统 (保留版本与诊断导出) -->
+            <div v-else-if="s.activeSettingsTab === 'about'" class="space-y-4">
+              <div>
+                <h3 class="text-sm font-bold text-[#18181B]">ℹ️ 关于 湉码 (About Tiancode)</h3>
+                <p class="text-[11px] text-[#71717A] mt-0.5">热插拔插件化 AI Coding 工作台</p>
+              </div>
+
+              <div class="p-4 rounded-xl bg-[#FAF8F5] border border-black/[0.08] space-y-3 text-xs">
+                <div class="font-bold text-sm text-[#18181B]">{{ s.runtimeInfo.product }} v{{ s.runtimeInfo.version }}</div>
                 <div class="grid grid-cols-2 gap-2 text-[11px] text-[#71717A] font-mono">
-                  <div>OS：{{ s.runtimeInfo.os }} {{ s.runtimeInfo.arch }}</div>
-                  <div>{{ s.runtimeInfo.webview }}</div>
-                  <div>{{ s.runtimeInfo.go_version }}</div>
-                  <div>数据目录：{{ s.runtimeInfo.data_dir }}</div>
-                </div>
-                <div class="pt-2 border-t border-black/[0.06] font-mono text-[11px] space-y-1">
-                  <p>Token 累计：{{ s.usageMetrics.total_tokens }}</p>
-                  <p>调用次数：{{ s.usageMetrics.total_calls }}</p>
-                  <p>估算费用（非账单）：{{ s.usageMetrics.estimated_cost }}</p>
+                  <div>操作系统：{{ s.runtimeInfo.os }} {{ s.runtimeInfo.arch }}</div>
+                  <div>WebView：{{ s.runtimeInfo.webview }}</div>
+                  <div>Go 微内核：{{ s.runtimeInfo.go_version }}</div>
+                  <div>用户配置目录：{{ s.runtimeInfo.data_dir }}</div>
                 </div>
               </div>
-              <div class="flex gap-2">
-                <button class="px-3 py-1.5 rounded-lg bg-[#FAF8F5] border border-black/[0.08] text-xs cursor-pointer" @click="s.checkUpdatesAction">检查更新</button>
-                <button class="px-3 py-1.5 rounded-lg bg-[#FAF8F5] border border-black/[0.08] text-xs cursor-pointer" @click="s.exportDiagnosticsAction">导出系统诊断</button>
+
+              <div>
+                <button
+                  class="px-3.5 py-1.5 rounded-lg bg-[#FAF8F5] border border-black/[0.1] text-xs font-medium text-[#18181B] hover:bg-black/[0.04] cursor-pointer shadow-2xs"
+                  @click="s.exportDiagnosticsAction"
+                >
+                  📋 导出系统诊断包 (JSON)
+                </button>
+              </div>
+            </div>
+
+            <!-- 选项卡 8: 实验特性 (收纳非主路径辅助能力) -->
+            <div v-else-if="s.activeSettingsTab === 'lab'" class="space-y-4">
+              <div>
+                <h3 class="text-sm font-bold text-[#18181B]">🧪 实验特性与辅助工具</h3>
+                <p class="text-[11px] text-[#71717A] mt-0.5">以下特性处于实验期或仅适用于特定语言，已移出主操作区以保持主路径干净透明。</p>
+              </div>
+
+              <div class="p-4 rounded-xl bg-[#FAF8F5] border border-black/[0.08] space-y-4 text-xs">
+                <div class="flex items-center justify-between gap-4">
+                  <div>
+                    <div class="font-bold text-[#18181B]">Go AST 代码架构拓扑</div>
+                    <div class="text-[11px] text-[#71717A] mt-0.5">解析工作区内 Go 源码语法树并渲染包调用关系拓扑图（仅限 Go 工程，非通用代码地图）。</div>
+                  </div>
+                  <button
+                    @click="s.openKnowledgeGraphModal"
+                    class="px-3 py-1.5 rounded-lg bg-white border border-black/[0.1] text-xs font-medium hover:bg-black/[0.02] cursor-pointer shrink-0 shadow-2xs"
+                  >
+                    打开 AST 拓扑
+                  </button>
+                </div>
+
+                <div class="pt-3 border-t border-black/[0.06] flex items-center justify-between gap-4">
+                  <div>
+                    <div class="font-bold text-[#18181B]">本地 Token 用量估算</div>
+                    <div class="text-[11px] text-[#71717A] mt-0.5">基于当前进程字符吞吐的本地粗略估算（进程重启后清零，非服务商真实结算账单）。</div>
+                  </div>
+                  <div class="text-right font-mono text-[11px] text-[#52525B] shrink-0">
+                    <div>调用: {{ s.usageMetrics.total_calls }} 次</div>
+                    <div>Token: ~{{ s.usageMetrics.total_tokens }}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </main>

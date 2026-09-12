@@ -1109,7 +1109,6 @@ const mentionItems = computed(() => {
     items.push(
       { id: '/tdd', kind: '指令', label: '/tdd 运行工作区测试', insert: '/tdd' },
       { id: '/diff', kind: '指令', label: '/diff 打开 Git 状态', insert: '/diff' },
-      { id: '/audit', kind: '指令', label: '/audit 安全审查', insert: '/audit' },
       { id: '/term', kind: '指令', label: '/term 打开终端', insert: '/term' }
     )
     for (const mcp of mcps.value.filter((m) => m.enabled)) {
@@ -1318,17 +1317,6 @@ async function handleSend() {
     await loadGitStatus()
     isDiffOpen.value = true
     showToast('已打开真实 Git 状态（无改动则为空）')
-    return
-  }
-  if (slash === '/audit') {
-    inputPrompt.value = ''
-    showToast('正在运行工作区安全审查…')
-    try {
-      const report = await wailsBridge.runSecurityAudit()
-      showToast('审查完成: ' + (report.status || JSON.stringify(report).slice(0, 80)))
-    } catch (err) {
-      showToast('安全审查无法执行: ' + err)
-    }
     return
   }
   if (slash === '/term' || slash === '/terminal') {
@@ -1909,7 +1897,6 @@ const commandPaletteItems = computed(() => {
   const items: PaletteItem[] = [
     { id: 'settings', kind: '设置', label: '打开设置', hint: '渠道 / MCP / 技能', run: () => { isSettingsOpen.value = true } },
     { id: 'terminal', kind: '终端', label: '打开终端', hint: 'Ctrl+`', run: () => toggleTerminalDrawer(true) },
-    { id: 'graph', kind: '图谱', label: '打开知识图谱', hint: 'Go AST 扫描', run: () => { isKnowledgeGraphOpen.value = true } },
     { id: 'git', kind: 'Git', label: '源代码管理', hint: gitBranchLabel.value, run: () => switchToGitActivity() },
     { id: 'project', kind: '项目', label: '打开项目文件夹', hint: workspaceName.value, run: () => { void openProjectFolder() } }
   ]

@@ -107,19 +107,7 @@
           </div>
         </div>
 
-        <div v-else-if="s.activeActivity === 'usage'" class="flex flex-col h-full overflow-hidden p-3 space-y-3 text-xs">
-          <div class="font-bold text-[#18181B]">用量（本进程累计）</div>
-          <p class="text-[11px] text-[#71717A]">Token 来自真实推理回调。金额是按统一单价估算，不是账单。</p>
-          <div class="rounded-xl bg-white border border-black/[0.08] p-3 space-y-1 font-mono">
-            <div>调用 {{ s.usageMetrics.total_calls }}</div>
-            <div>Token {{ s.usageMetrics.total_tokens }}</div>
-            <div>估算 {{ s.usageMetrics.estimated_cost }}</div>
-            <div>会话 {{ s.usageMetrics.active_sessions }}</div>
-          </div>
-          <button class="px-2 py-1 rounded-lg border border-black/[0.08] bg-white cursor-pointer" @click="s.loadUsageMetrics">刷新</button>
-        </div>
-
-        <!-- 抽屉视图 3: 真实 Git 变更管理 (Source Control) -->
+        <!-- 抽屉视图 2: 真实 Git 变更管理 (Source Control) -->
         <div v-else-if="s.activeActivity === 'git'" class="flex flex-col h-full overflow-hidden">
           <div class="p-3 border-b border-black/[0.06] flex items-center justify-between">
             <span class="font-bold text-xs text-[#18181B] flex items-center gap-1.5">

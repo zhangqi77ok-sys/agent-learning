@@ -6,19 +6,9 @@
         >
           <!-- 终端控制顶栏 -->
           <div class="h-8 bg-[#1E1C1A] border-b border-white/[0.08] px-3 flex items-center justify-between select-none shrink-0">
-            <div class="flex items-center gap-1.5 text-xs">
-              <button
-                @click="s.activeTerminalTab = 'shell'"
-                :class="['px-2.5 py-1 rounded font-mono font-medium flex items-center gap-1.5 transition-all cursor-pointer', s.activeTerminalTab === 'shell' ? 'bg-[#2A2724] text-white' : 'text-white/60 hover:text-white']"
-              >
-                <span class="text-[#D96B27] font-bold">$_</span><span>终端控制台</span>
-              </button>
-              <button
-                @click="s.activeTerminalTab = 'logs'"
-                :class="['px-2.5 py-1 rounded font-mono flex items-center gap-1.5 transition-all cursor-pointer', s.activeTerminalTab === 'logs' ? 'bg-[#2A2724] text-white' : 'text-white/60 hover:text-white']"
-              >
-                <span class="w-1.5 h-1.5 rounded-full bg-[#10A37F] animate-pulse"></span><span>Agent 执行链路</span>
-              </button>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-[#D96B27] font-bold font-mono">$_</span>
+              <span class="font-bold text-white/90">终端控制台</span>
               <div v-if="s.isTerminalRunning" class="flex items-center gap-1 text-[11px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full font-mono">
                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
                 <span>进程执行中...</span>
@@ -62,7 +52,6 @@
           <div class="flex-1 overflow-hidden relative font-mono text-xs select-text">
             <!-- 视图 1: Shell 实时交互控制台 -->
             <div
-              v-show="s.activeTerminalTab === 'shell'"
               ref="terminalScrollRef"
               class="h-full flex flex-col p-3 overflow-y-auto space-y-1.5 bg-[#161412]"
             >
@@ -106,20 +95,6 @@
                   placeholder="输入工作区命令回车执行 (如: go test ./..., git status, go build, clear)..."
                   class="flex-1 bg-transparent text-white font-mono text-xs focus:outline-none placeholder:text-white/20 disabled:opacity-50"
                 />
-              </div>
-            </div>
-
-            <!-- 视图 2: Agent 执行链路事件日志 -->
-            <div
-              v-show="s.activeTerminalTab === 'logs'"
-              class="h-full p-3 overflow-y-auto space-y-1.5 select-text bg-[#12100E] font-mono text-[11px]"
-            >
-              <div class="text-white/40 pb-1 border-b border-white/[0.06]">--- Agent 执行事件（真实流式回调） ---</div>
-              <div v-if="s.agentTraceLogs.length === 0" class="text-white/30 py-6">尚无事件。发送一条对话后，推理、工具调用会写到这里。</div>
-              <div v-for="(trace, tIdx) in s.agentTraceLogs" :key="tIdx" class="flex items-center gap-2">
-                <span class="text-white/30">[{{ trace.time }}]</span>
-                <span class="text-[#D96B27]">[{{ trace.phase }}]</span>
-                <span class="text-zinc-300">{{ trace.message }}</span>
               </div>
             </div>
           </div>
