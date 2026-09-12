@@ -21,35 +21,29 @@
    - 严禁为了“界面好看或看起来丰富”而添加伪造的模拟数据；
 2. **真实状态与干净空状态原则 (Pure & Clean Empty State)**：
    - 新建项目、初次启动或无数据时，必须展示纯净、真实的空状态提示（例如：“当前暂无会话，请点击新建会话”或“未打开文件”），严禁静默预置假消息；
-   - 插件列表必须读取 Rust 内核真实挂载的插件与真实连接的 MCP Server；
+   - 插件列表必须读取 Go `host.Registry` 真实挂载的插件与真实连接的 MCP Server；
 3. **严格 Fail-Closed 与零假成功 (No Fake Fallback)**：
    - 连通性测试与网络请求未配置或失败时，必须直接暴露真实错误，严禁返回假 200 OK、假延迟或假回复；
    - 严禁任何形式的静默降级与伪造成功。
 
 ---
 
-### 【铁律 0.8: UI/UX、React Web 与 Rust 技能前置必审铁律 (Mandatory Prior Skill Consultation)】
+### 【铁律 0.8: 活路径技能前置（Wails + Go + Vue）】
 1. **强制先验查阅**：
-   - 每次处理任何需求、界面调整、组件开发、状态改造、后端接口或底层架构时，**在动手设计或编写任何代码前，必须无条件优先调阅并严格遵循以下三大专业 Skill 规范**：
-     - **`ui-ux` (`.agents/skills/ui-ux/SKILL.md`)**：暖色极简调色盘（`#FAF8F5`/`#F4EFEA`/`#D96B27`）、16:9 人机工程学布局、弹窗严格水平垂直居中、无多余拟物阴影、全部图标鼠标悬停 Tooltip 提示、对话思考卡片与工具卡片精致折叠；
-     - **`react-web` (`.agents/skills/react-web/SKILL.md`)**：React 19 积木式组件拆分、Zustand 单一数据源与精准选择器订阅、TypeScript 100% 严格类型守卫、局部刷新避免雪崩式卡顿、空值守卫杜绝运行时崩溃；
-     - **`rust` (`.agents/skills/rust/SKILL.md`)**：Safe Rust 内存安全、生产代码严禁 `unwrap()/expect()`、外部进程调用强制注入 `CREATE_NO_WINDOW`（`0x08000000`）、Tauri v2 强类型 IPC、路径沙箱防穿越、修改前影子快照秒级回退；
-2. **审查违规打回制**：
-   - 严禁绕过三大技能规范直接写逻辑；任何不符合三大技能准则的代码或方案，一律打回重构。
+   - 活路径是 **Wails v2 + Go 微内核 + Vue 3**，不是 Tauri / React / Rust。动手前优先：
+     - **`ui-ux`**：暖色极简（`#FAF8F5` / `#D96B27`）、16:9、空状态干净；
+     - **`tcode-studio-architect`**：Go Registry + Rail + 禁止在 `SendMessage` 里写死工具路由；
+     - 聊天循环只允许改 `internal/core/loop`，宿主 `app.go` 只转发事件。
+2. **归档栈**：`react-web`、`rust`、`src-desktop/`、`prototype/` 仅历史参考，禁止按它们改发货代码。
+3. **审查违规打回制**：把桌面主循环写回 `app.go`、或重新引入第二条 LLM 调度，一律打回。
 
 ---
 
-### 【铁律 1.5: 每次开发完成必须打包安装 + 真实桌面端调用测试（强制闭环）】
-- **触发条件**：任何代码修改 / 功能开发 / Bug 修复完成后，**无条件执行以下闭环，严禁只写代码不验证**：
-  1. **增量打包**：调用 `npm run build:installer`（或 `python build_installer.py`），生成 `dist/Tcode-Setup.exe` 与 `release/Tcode-Setup-v2.0.0.exe`；
-  2. **真实安装**：将安装包静默安装至独立目录（`Tcode-Setup.exe --silent-install-dir <dir>`）；
-  3. **桌面端真实调用测试**：启动安装目录内 `Tcode.exe`，验证：
-     - 后端微内核与探活接口正常返回；
-     - 静态前端挂载验证：返回完整 HTML；
-     - 使用真实模型凭据进行真实模型调用，严禁以构建成功或静态截图替代真实调用；
-  4. **测试 → 发现问题 → 修复 → 再打包再测试**，循环直至无问题；
-  5. 只有上述闭环全部通过后才允许 Git 提交与推送。
-- **真实凭据纪律**：用户提供的真实 API Key 仅用于桌面端运行时存储进行真实验证，**严禁硬编码进源码或提交到仓库**；代码必须 fail-closed（未配置凭据时明确提示并中断，不得静默 fallback 到内置测试 Key）。
+### 【铁律 1.5: 验证闭环（按改动范围，不必每次打安装包）】
+- Go 逻辑：`go test ./...`；架构：`go run ./tools/archcheck`。
+- 前端：`cd frontend && npm run build`。
+- 安装包仅在改 `cmd/installer`、`wails.json` 或发版时重打。
+- **真实凭据纪律**：API Key 只进 `~/.tiancode`（加密），**严禁写入源码或 skill**；未配置凭据必须 fail-closed。
 
 ---
 
@@ -65,7 +59,7 @@
 ---
 
 ### 【铁律 2: 暖色极简与人机工程学设计规范】
-- 保持单一架构主轴（Tauri v2 原生桌面端 + React 19 / TS 扁平极简 UI）；
+- 保持单一架构主轴（Wails v2 原生桌面端 + Go 微内核 + Vue 3 / TS）；
 - 严格遵循暖米白（`#FAF8F5`）、工作台（`#F4EFEA`）、低饱和陶土暖橙（`#D96B27`）与代码暖炭黑（`#1E1C1A`）界面视觉规范；
 - 模块间彻底解耦，依赖倒置，保持极简无冗余；
 - 空间布局严格遵循 16:9 原生工作台人体工程学。

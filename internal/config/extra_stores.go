@@ -54,11 +54,7 @@ type ExtraStore struct {
 }
 
 func NewExtraStore() (*ExtraStore, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		home = "."
-	}
-	dir := filepath.Join(home, ".tcode")
+	dir := UserDataDir()
 	_ = os.MkdirAll(dir, 0755)
 
 	store := &ExtraStore{

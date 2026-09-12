@@ -18,6 +18,7 @@ type ChannelConfig struct {
 	AuthType  string `json:"auth_type"` // "codex_session", "sub2_relay", "bearer_token"
 	Endpoint  string `json:"endpoint"`
 	APIKey    string `json:"api_key,omitempty"`
+	APIKeyEnc string `json:"api_key_enc,omitempty"`
 	Model     string `json:"model"`
 	Latency   string `json:"latency"` // e.g. "85ms"
 	UpdatedAt int64  `json:"updated_at"`
@@ -30,13 +31,9 @@ type ChannelStore struct {
 	channels []ChannelConfig
 }
 
-// NewChannelStore 实例化存储，默认保存在用户主目录 ~/.tcode/channels.json
+// NewChannelStore 实例化存储，默认保存在用户主目录 ~/.tiancode/channels.json
 func NewChannelStore() (*ChannelStore, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		home = "."
-	}
-	dir := filepath.Join(home, ".tcode")
+	dir := UserDataDir()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("cannot create config dir [%s]: %w", dir, err)
 	}
@@ -64,12 +61,31 @@ func (s *ChannelStore) load() error {
 		return err
 	}
 
+	for i := range list {
+		if list[i].APIKeyEnc != "" {
+			plain, err := UnprotectSecret(list[i].APIKeyEnc)
+			if err == nil && plain != "" {
+				list[i].APIKey = plain
+			}
+		}
+		list[i].APIKeyEnc = ""
+	}
 	s.channels = list
 	return nil
 }
 
 func (s *ChannelStore) save() error {
-	data, err := json.MarshalIndent(s.channels, "", "  ")
+	disk := make([]ChannelConfig, len(s.channels))
+	for i, ch := range s.channels {
+		enc, err := ProtectSecret(ch.APIKey)
+		if err != nil {
+			return err
+		}
+		ch.APIKeyEnc = enc
+		ch.APIKey = ""
+		disk[i] = ch
+	}
+	data, err := json.MarshalIndent(disk, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -94,6 +110,14 @@ func (s *ChannelStore) Save(ch ChannelConfig) error {
 	ch.UpdatedAt = time.Now().Unix()
 	if ch.ID == "" {
 		ch.ID = fmt.Sprintf("ch_%d", time.Now().UnixNano())
+	}
+	if IsMaskedAPIKey(ch.APIKey) {
+		for _, item := range s.channels {
+			if item.ID == ch.ID {
+				ch.APIKey = item.APIKey
+				break
+			}
+		}
 	}
 
 	// 如果设为主通道，把其他通道的 primary 取消
@@ -150,4 +174,27 @@ func (s *ChannelStore) GetPrimary() *ChannelConfig {
 		return &c
 	}
 	return nil
+}
+
+// Get 按 ID 取完整凭据（内存明文）。
+func (s *ChannelStore) Get(id string) *ChannelConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, ch := range s.channels {
+		if ch.ID == id {
+			c := ch
+			return &c
+		}
+	}
+	return nil
+}
+
+// ListMasked 给 UI：密钥打码。
+func (s *ChannelStore) ListMasked() []ChannelConfig {
+	list := s.List()
+	for i := range list {
+		list[i].APIKey = MaskAPIKey(list[i].APIKey)
+		list[i].APIKeyEnc = ""
+	}
+	return list
 }

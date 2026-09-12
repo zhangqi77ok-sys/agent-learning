@@ -30,7 +30,7 @@ if ($appContent -match 'a\.(termTool|fsTool|gitTool)\.(Execute|ExecuteStream|Get
 $coreFiles = Get-ChildItem -Path "internal\core" -Filter "*.go" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch "_test\.go$" }
 foreach ($file in $coreFiles) {
     $fc = Get-Content $file.FullName -Raw
-    if ($fc -match '"tcode/plugins/tool/') {
+    if ($fc -match '"tiancode/plugins/tool/|"tcode/plugins/tool/') {
         Write-Host "❌ [R4] $($file.Name) (internal/core/) 直接 import plugins/tool/ 具体实现，违反依赖反转" -ForegroundColor Red
         $errors++
     }
@@ -40,7 +40,7 @@ foreach ($file in $coreFiles) {
 $transportFiles = Get-ChildItem -Path "internal\transport" -Filter "*.go" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch "_test\.go$" }
 foreach ($file in $transportFiles) {
     $fc = Get-Content $file.FullName -Raw
-    if ($fc -match '"tcode/plugins/tool/') {
+    if ($fc -match '"tiancode/plugins/tool/|"tcode/plugins/tool/') {
         # 允许 import，但禁止持有字段（字段声明模式）
         if ($fc -match '(?m)^\s+\w+\s+\*\w+tool\.\w+\s*$') {
             Write-Host "❌ [R4b] $($file.Name) (transport/) 持有具体 Tool 字段，必须通过 registry + 类型断言" -ForegroundColor Red
@@ -53,19 +53,20 @@ foreach ($file in $transportFiles) {
 $pluginFiles = Get-ChildItem -Path "plugins" -Filter "*.go" -Recurse | Where-Object { $_.Name -notmatch "_test\.go$" }
 foreach ($file in $pluginFiles) {
     $fc = Get-Content $file.FullName -Raw
-    if ($fc -match '"tcode/app|"tcode/main') {
+    if ($fc -match '"tiancode/app|"tiancode/main|"tcode/app|"tcode/main') {
         Write-Host "❌ [R5] $($file.Name) 依赖宿主层，违反单向依赖规则" -ForegroundColor Red
         $errors++
     }
 }
 
-# 规则 6: Rail 钩子必须在 SendMessage 中被调用
-if ($appContent -notmatch 'OnBeforeAct') {
-    Write-Host "❌ [R6] SendMessage 缺少 Rail.OnBeforeAct() 调用" -ForegroundColor Red
+# 规则 6: Rail 钩子必须在 ExecutionEngine 中被调用
+$engineGo = Get-ChildItem -Path "internal\core\loop" -Filter "*.go" | Where-Object { $_.Name -notmatch "_test\.go$" } | ForEach-Object { Get-Content $_.FullName -Raw } | Out-String
+if ($engineGo -notmatch 'OnBeforeAct') {
+    Write-Host "❌ [R6] engine 缺少 Rail.OnBeforeAct() 调用" -ForegroundColor Red
     $errors++
 }
-if ($appContent -notmatch 'OnAfterAct') {
-    Write-Host "❌ [R6] SendMessage 缺少 Rail.OnAfterAct() 调用" -ForegroundColor Red
+if ($engineGo -notmatch 'OnAfterAct') {
+    Write-Host "❌ [R6] engine 缺少 Rail.OnAfterAct() 调用" -ForegroundColor Red
     $errors++
 }
 

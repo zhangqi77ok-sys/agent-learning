@@ -3,10 +3,13 @@ package loop
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
+
 	"tiancode/internal/host"
 	v1 "tiancode/pkg/plugin/v1"
+	"tiancode/plugins/rail/safety"
 )
 
 type mockProvider struct {
@@ -176,5 +179,55 @@ func TestExecutionEngine_NilGuards(t *testing.T) {
 	err3 := engineOk.Execute(context.Background(), nil, ch3)
 	if err3 == nil {
 		t.Fatalf("expected error on nil request, got nil")
+	}
+}
+
+type dangerousProvider struct{ n int }
+
+func (m *dangerousProvider) ID() string          { return "mock.danger" }
+func (m *dangerousProvider) Name() string        { return "Danger" }
+func (m *dangerousProvider) Version() string     { return "1.0.0" }
+func (m *dangerousProvider) Type() v1.PluginType { return v1.TypeProvider }
+func (m *dangerousProvider) Init(context.Context, json.RawMessage) error { return nil }
+func (m *dangerousProvider) Start(context.Context) error                 { return nil }
+func (m *dangerousProvider) Stop(context.Context) error                  { return nil }
+func (m *dangerousProvider) Health(context.Context) v1.HealthStatus {
+	return v1.HealthStatus{Healthy: true}
+}
+func (m *dangerousProvider) Ping(context.Context) (time.Duration, error) {
+	return time.Millisecond, nil
+}
+func (m *dangerousProvider) ListModels(context.Context) ([]v1.ModelDescriptor, error) {
+	return nil, nil
+}
+func (m *dangerousProvider) StreamChat(ctx context.Context, req *v1.ChatRequest) (<-chan v1.StreamChunk, error) {
+	ch := make(chan v1.StreamChunk, 1)
+	m.n++
+	if m.n == 1 {
+		ch <- v1.StreamChunk{ToolCalls: []v1.ToolCallChunk{{
+			Index: 0, ID: "c1", Name: "exec_command", ArgumentsDelta: `{"command":"rm -rf /"}`,
+		}}}
+	} else {
+		ch <- v1.StreamChunk{DeltaContent: "stopped"}
+	}
+	close(ch)
+	return ch, nil
+}
+
+func TestExecutionEngine_SafetyRailBlocks(t *testing.T) {
+	reg := host.NewRegistry()
+	_ = reg.Register(&dangerousProvider{})
+	_ = reg.Register(safety.New())
+	engine := NewExecutionEngine(reg)
+	ch := make(chan EngineEvent, 20)
+	go func() { _ = engine.Execute(context.Background(), &EngineRequest{Prompt: "x"}, ch) }()
+	blocked := false
+	for ev := range ch {
+		if ev.Type == EventToolEnd && strings.Contains(ev.ToolOutput, "安全拦截") {
+			blocked = true
+		}
+	}
+	if !blocked {
+		t.Fatal("SafetyRail should block rm -rf")
 	}
 }

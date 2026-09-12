@@ -31,8 +31,8 @@ import (
 	"tiancode/internal/llm"
 	"tiancode/internal/network"
 	"tiancode/internal/session"
-	v1 "tiancode/pkg/plugin/v1"
 	"tiancode/plugins/provider/openai"
+	safetyrail "tiancode/plugins/rail/safety"
 	fstool "tiancode/plugins/tool/fs"
 	gittool "tiancode/plugins/tool/git"
 	terminaltool "tiancode/plugins/tool/terminal"
@@ -201,19 +201,24 @@ func NewApp() *App {
 	_ = reg.Register(gittool.NewTool(wd))
 	_ = reg.Register(fstool.NewTool(sb, sm))
 	_ = reg.Register(terminaltool.NewTool(wd))
+	_ = reg.Register(safetyrail.New())
 
 	chStore, _ := config.NewChannelStore()
 	exStore, _ := config.NewExtraStore()
 	sessStore, _ := session.NewStore()
 
 	mcpMgr := mcp.NewManager(wd)
+	eng := loop.NewExecutionEngine(reg)
+	eng.MCPCall = func(ctx context.Context, name string, args map[string]any) (string, error) {
+		return mcpMgr.CallTool(ctx, name, args)
+	}
 
 	return &App{
 		workspace:    wd,
 		sandbox:      sb,
 		snapshotMgr:  sm,
 		registry:     reg,
-		engine:       loop.NewExecutionEngine(reg),
+		engine:       eng,
 		channelStore: chStore,
 		extraStore:   exStore,
 		sessionStore: sessStore,
@@ -224,7 +229,7 @@ func NewApp() *App {
 // startup 窗口初始化生命周期
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	runtime.LogInfo(ctx, "[Tcode] Wails Native App initialized successfully")
+	runtime.LogInfo(ctx, "[tiancode] Wails Native App initialized successfully")
 	// 异步预热并拉起已启用的外部 MCP 协议服务
 	if a.mcpManager != nil && a.extraStore != nil {
 		go func() {
@@ -505,7 +510,7 @@ func (a *App) ListChannels() []config.ChannelConfig {
 	if a.channelStore == nil {
 		return nil
 	}
-	return a.channelStore.List()
+	return a.channelStore.ListMasked()
 }
 
 func (a *App) SaveChannel(cfg config.ChannelConfig) error {
@@ -526,19 +531,17 @@ func (a *App) PingChannel(id string) (string, error) {
 	if a.channelStore == nil {
 		return "", fmt.Errorf("channel store not initialized")
 	}
-	channels := a.channelStore.List()
-	for _, ch := range channels {
-		if ch.ID == id {
-			latency, err := network.PingTarget(ch.Endpoint)
-			if err != nil {
-				return "", err
-			}
-			ch.Latency = latency
-			_ = a.channelStore.Save(ch)
-			return latency, nil
-		}
+	ch := a.channelStore.Get(id)
+	if ch == nil {
+		return "", fmt.Errorf("channel [%s] not found", id)
 	}
-	return "", fmt.Errorf("channel [%s] not found", id)
+	latency, err := network.PingTarget(ch.Endpoint)
+	if err != nil {
+		return "", err
+	}
+	ch.Latency = latency
+	_ = a.channelStore.Save(*ch)
+	return latency, nil
 }
 
 func (a *App) ListMCPs() []config.MCPServerConfig {
@@ -1173,223 +1176,87 @@ func (a *App) SendMessage(req ChatRequest) error {
 		var lastToolExec *session.ToolExecution
 		allToolExecs := make([]session.ToolExecution, 0)
 
-		// 5. 动态收集 Registry 所有插件算子与已激活的 MCP 算子声明 (真正热插拔，新增算子零改动生效)
 		workspaceTools := a.buildLLMToolsFromRegistry(agentCtx)
+		roundStart := time.Now()
+		eventChan := make(chan loop.EngineEvent, 64)
+		go func() {
+			_ = a.engine.Execute(agentCtx, &loop.EngineRequest{
+				Model:        model,
+				Prompt:       req.Prompt,
+				SessionID:    req.SessionID,
+				Endpoint:     endpoint,
+				APIKey:       apiKey,
+				SystemPrompt: systemPrompt,
+				Messages:     conversation,
+				LLMTools:     workspaceTools,
+			}, eventChan)
+		}()
 
-		// 6. 通用多轮自主自愈状态机 (以大模型不再调用工具或目标达成作为核心自然收敛依据)
-		const maxWatchdogTurns = 12
-		for turn := 1; turn <= maxWatchdogTurns; turn++ {
-			if agentCtx.Err() != nil {
-				break
-			}
-
-			llmReq := llm.Request{
-				Endpoint: endpoint,
-				APIKey:   apiKey,
-				Model:    model,
-				Messages: conversation,
-				Tools:    workspaceTools,
-			}
-
-			roundStart := time.Now()
-			var roundContent strings.Builder
-			toolCalls, err := llm.StreamChat(agentCtx, llmReq, llm.StreamHandlers{
-				OnThinking: func(text string) {
-					assistantThinking.WriteString(text)
+		for ev := range eventChan {
+			switch ev.Type {
+			case loop.EventChunk:
+				if ev.Thinking != "" {
+					assistantThinking.WriteString(ev.Thinking)
 					runtime.EventsEmit(a.ctx, "agent:thinking", map[string]any{
 						"session_id": req.SessionID,
-						"thinking":   text,
-						"turn":       turn,
+						"thinking":   ev.Thinking,
 					})
-				},
-				OnContent: func(delta string) {
-					assistantContent.WriteString(delta)
-					roundContent.WriteString(delta)
+				}
+				if ev.DeltaContent != "" {
+					assistantContent.WriteString(ev.DeltaContent)
 					runtime.EventsEmit(a.ctx, "agent:chunk", map[string]any{
 						"session_id": req.SessionID,
-						"delta":      delta,
-						"turn":       turn,
+						"delta":      ev.DeltaContent,
 					})
-				},
-				OnError: func(err error) {
-					errMsg := fmt.Sprintf("\n\n[系统错误: %v]", err)
-					assistantContent.WriteString(errMsg)
-					runtime.EventsEmit(a.ctx, "agent:chunk", map[string]any{
-						"session_id": req.SessionID,
-						"delta":      errMsg,
-						"turn":       turn,
-					})
-				},
-			})
-
-			// 记录遥测大盘用量指标 (耗时与 Token 消耗估算)
-			roundDuration := time.Since(roundStart).Milliseconds()
-			promptTok := (len(req.Prompt) + 300) / 3
-			compTok := (roundContent.Len() + len(assistantThinking.String())) / 3
-			if compTok < 1 && roundContent.Len() > 0 {
-				compTok = 1
-			}
-			telemetry.GetTracker().Record(model, promptTok, compTok, roundDuration)
-
-			// 核心自然收敛判定：若模型没有发起工具调用 (Zero Tool Calls) 或发生错误，说明目标已达成或已汇报完毕，立即退出循环！
-			if err != nil || len(toolCalls) == 0 {
-				break
-			}
-
-			// 确保每个 ToolCall 都有有效唯一的 ID 与 Type，防止上游 400 Bad Request
-			for i := range toolCalls {
-				if toolCalls[i].ID == "" {
-					toolCalls[i].ID = fmt.Sprintf("call_%d_%d", i, time.Now().UnixNano())
 				}
-				if toolCalls[i].Type == "" {
-					toolCalls[i].Type = "function"
-				}
-			}
-
-			// 将模型本轮决策与工具调用注入上下文
-			conversation = append(conversation, llm.Message{
-				Role:      "assistant",
-				Content:   roundContent.String(),
-				ToolCalls: toolCalls,
-			})
-
-			// 物理执行当前轮下发的各个算子并收集反馈
-			for _, tc := range toolCalls {
-				toolName := tc.Function.Name
-				toolArgs := tc.Function.Arguments
-
+			case loop.EventToolStart:
 				runtime.EventsEmit(a.ctx, "agent:tool_start", map[string]any{
 					"session_id": req.SessionID,
-					"id":         tc.ID,
-					"tool":       toolName,
-					"args":       toolArgs,
-					"turn":       turn,
+					"id":         ev.ToolCallID,
+					"tool":       ev.ToolName,
+					"args":       string(ev.ToolArgs),
 				})
-
-				rawToolArgs := json.RawMessage(toolArgs)
-
-				// Rail: 工具执行前置安全审查（危险命令拦截、预算检查）
-				rails := a.registry.ListRails()
-				var railBlocked bool
-				var railBlockReason string
-				for _, rail := range rails {
-					decision, railErr := rail.OnBeforeAct(agentCtx, req.SessionID, toolName, rawToolArgs)
-					if railErr != nil || (decision != nil && !decision.Allow) {
-						railBlocked = true
-						if decision != nil {
-							railBlockReason = decision.Reason
-						} else {
-							railBlockReason = fmt.Sprintf("rail check error: %v", railErr)
-						}
-						break
-					}
-				}
-
-				var output string
-				var toolResultForRail *v1.ToolResult
-
-				if railBlocked {
-					output = fmt.Sprintf("[安全拦截] 工具 [%s] 被 Rail 阻断: %s", toolName, railBlockReason)
-				} else if tool, ok := a.registry.GetToolByName(toolName); ok {
-					// 统一路由：Registry 内置 Tool (支持按 ID 或 Definition.Name 智能匹配)
-					res, err := tool.Execute(agentCtx, rawToolArgs)
-					if err != nil {
-						output = fmt.Sprintf("工具 [%s] 执行失败: %v", toolName, err)
-					} else if res == nil {
-						output = fmt.Sprintf("工具 [%s] 返回空结果", toolName)
-					} else {
-						toolResultForRail = res
-						output = trimToolOutput(res.Content, 3000)
-						// write_file 或 fs_control(action=write) 成功后触发 LSP 诊断与文件变更通知
-						isWriteAction := toolName == "write_file"
-						var argsObj struct {
-							Action   string `json:"action"`
-							RelPath  string `json:"rel_path"`
-							Path     string `json:"path"`
-							FilePath string `json:"file_path"`
-						}
-						_ = json.Unmarshal(rawToolArgs, &argsObj)
-						if strings.ToLower(argsObj.Action) == "write" {
-							isWriteAction = true
-						}
-
-						if isWriteAction && !res.IsError {
-							targetPath := argsObj.RelPath
-							if targetPath == "" {
-								targetPath = argsObj.Path
-							}
-							if targetPath == "" {
-								targetPath = argsObj.FilePath
-							}
-							runtime.EventsEmit(a.ctx, "agent:files_changed", map[string]any{
-								"session_id": req.SessionID,
-								"file":       targetPath,
-							})
-							if diagReport, diagErr := lsp.DiagnoseFile(a.workspace, targetPath); diagErr == nil && diagReport != nil && diagReport.HasErrors {
-								output += lsp.FormatDiagnosticFeedback(diagReport)
-								runtime.EventsEmit(a.ctx, "lsp:diagnostic", map[string]any{
-									"session_id": req.SessionID,
-									"file":       targetPath,
-									"has_errors": true,
-									"errors":     diagReport.Errors,
-								})
-							}
-						}
-					}
-				} else if a.mcpManager != nil {
-					// MCP 外部工具路由
-					var mcpArgs map[string]any
-					if len(toolArgs) > 0 {
-						_ = json.Unmarshal(rawToolArgs, &mcpArgs)
-					}
-					if mcpArgs == nil {
-						mcpArgs = make(map[string]any)
-					}
-					mcpRes, err := a.mcpManager.CallTool(agentCtx, toolName, mcpArgs)
-					if err != nil {
-						output = fmt.Sprintf("MCP 算子 [%s] 执行失败: %v", toolName, err)
-					} else {
-						output = trimToolOutput(mcpRes, 3000)
-					}
-				} else {
-					output = fmt.Sprintf("[未知工具] %s 未在 Registry 或 MCP 中注册", toolName)
-				}
-
-				// Rail: 工具执行后审计钩子
-				if !railBlocked && toolResultForRail != nil {
-					for _, rail := range rails {
-						_ = rail.OnAfterAct(agentCtx, req.SessionID, toolName, toolResultForRail)
-					}
-				}
-	
-				tExec := session.ToolExecution{
-					Name:   toolName,
-					Args:   toolArgs,
-					Output: output,
-				}
+			case loop.EventToolEnd:
+				tExec := session.ToolExecution{Name: ev.ToolName, Args: string(ev.ToolArgs), Output: ev.ToolOutput}
 				allToolExecs = append(allToolExecs, tExec)
-				lastToolExec = &tExec
-
+				cp := tExec
+				lastToolExec = &cp
 				runtime.EventsEmit(a.ctx, "agent:tool_end", map[string]any{
 					"session_id": req.SessionID,
-					"id":         tc.ID,
-					"tool":       toolName,
-					"output":     output,
-					"turn":       turn,
+					"id":         ev.ToolCallID,
+					"tool":       ev.ToolName,
+					"output":     ev.ToolOutput,
 				})
-
-				toolOutput := strings.TrimSpace(output)
-				if toolOutput == "" {
-					toolOutput = fmt.Sprintf("tool [%s] executed successfully with empty output", toolName)
+			case loop.EventFilesChanged:
+				runtime.EventsEmit(a.ctx, "agent:files_changed", map[string]any{
+					"session_id": req.SessionID,
+					"file":       ev.ToolName,
+				})
+				if diagReport, diagErr := lsp.DiagnoseFile(a.workspace, ev.ToolName); diagErr == nil && diagReport != nil && diagReport.HasErrors {
+					runtime.EventsEmit(a.ctx, "lsp:diagnostic", map[string]any{
+						"session_id": req.SessionID,
+						"file":       ev.ToolName,
+						"has_errors": true,
+						"errors":     diagReport.Errors,
+					})
 				}
-				conversation = append(conversation, llm.Message{
-					Role:       "tool",
-					ToolCallID: tc.ID,
-					Name:       toolName,
-					Content:    toolOutput,
+			case loop.EventError:
+				errMsg := fmt.Sprintf("\n\n[系统错误: %s]", ev.ErrorMessage)
+				assistantContent.WriteString(errMsg)
+				runtime.EventsEmit(a.ctx, "agent:chunk", map[string]any{
+					"session_id": req.SessionID,
+					"delta":      errMsg,
 				})
 			}
 		}
+
+		roundDuration := time.Since(roundStart).Milliseconds()
+		promptTok := (len(req.Prompt) + 300) / 3
+		compTok := (assistantContent.Len() + assistantThinking.Len()) / 3
+		if compTok < 1 && assistantContent.Len() > 0 {
+			compTok = 1
+		}
+		telemetry.GetTracker().Record(model, promptTok, compTok, roundDuration)
 
 		// 7. 持久化 Assistant 回复至磁盘
 		if agentCtx.Err() != nil {

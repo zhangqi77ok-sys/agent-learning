@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"tiancode/internal/config"
 )
 
 // SessionMessage 单条消息记录
@@ -57,13 +59,9 @@ type Store struct {
 	baseDir string
 }
 
-// NewStore 初始化会话存储，目录位于 ~/.tcode/sessions/
+// NewStore 初始化会话存储，目录位于 ~/.tiancode/sessions/
 func NewStore() (*Store, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		home = "."
-	}
-	dir := filepath.Join(home, ".tcode", "sessions")
+	dir := filepath.Join(config.UserDataDir(), "sessions")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("create sessions dir failed: %w", err)
 	}

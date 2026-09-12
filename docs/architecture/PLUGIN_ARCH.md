@@ -35,8 +35,8 @@ Tcode 从第一天起坚持**微内核 + 热插拔插件**的架构范式：
 ```
 
 ### 铁律规约：
-1. **禁止反向依赖**：`internal/core` 严禁直接 `import "tcode/plugins/..."` 具体包。
-2. **禁止宿主耦合**：`plugins/` 严禁 `import "tcode/app"` 或 `"tcode/main"`。
+1. **禁止反向依赖**：`internal/core` 严禁直接 `import "tiancode/plugins/..."` 具体包。
+2. **禁止宿主耦合**：`plugins/` 严禁 `import "tiancode/app"` 或 `"tiancode/main"`。
 3. **统一入口**：所有工具调度必须且只能经由 `host.Registry.GetTool(name).Execute(...)`。
 
 ---

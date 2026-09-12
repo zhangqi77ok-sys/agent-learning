@@ -6,6 +6,14 @@
 
 仓库：https://github.com/zhangqi77ok-sys/tiancode
 
+### 活路径 vs 规划中（避免按错栈施工）
+
+**当前发货栈**：Wails v2 + Go 微内核 + Vue 3（`app.go` / `internal/` / `frontend/src`）。聊天主循环走 `internal/core/loop.ExecutionEngine`，工具经 `host.Registry`，安全闸门是 `plugins/rail/safety`。配置目录 `~/.tiancode`（首次启动会从 `~/.tcode` 迁移）。
+
+**已落地**：双环工具循环、fs/git/terminal 插件、MCP stdio、渠道（密钥落盘加密）、会话持久化、GitOps、原生 Windows 安装器。
+
+**规划中（文档里有、代码未当产品主路径）**：Swarm `budget()/parallel()/compact()` 算子流、MemoryRail、磁盘热加载 `.so` 插件、Tauri/React/Python 桌面。`prototype/`、`src-desktop/`、`docs/knowledge` 里大量 Tauri 材料视为归档，不要当活路径改。
+
 ---
 
 ## 🏛️ 一、核心架构设计 (Unified Dual-Loop & SwarmFlow Architecture)

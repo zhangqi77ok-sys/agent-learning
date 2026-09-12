@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"tiancode/internal/host"
+	"tiancode/internal/llm"
 	v1 "tiancode/pkg/plugin/v1"
 )
 
@@ -15,11 +16,12 @@ import (
 type EventType string
 
 const (
-	EventChunk     EventType = "chunk"
-	EventToolStart EventType = "tool_start"
-	EventToolEnd   EventType = "tool_end"
-	EventDone      EventType = "done"
-	EventError     EventType = "error"
+	EventChunk        EventType = "chunk"
+	EventToolStart    EventType = "tool_start"
+	EventToolEnd      EventType = "tool_end"
+	EventDone         EventType = "done"
+	EventError        EventType = "error"
+	EventFilesChanged EventType = "files_changed"
 )
 
 // EngineEvent 引擎事件
@@ -37,9 +39,15 @@ type EngineEvent struct {
 
 // EngineRequest 用户推理请求
 type EngineRequest struct {
-	Model    string `json:"model"`
-	Prompt   string `json:"prompt"`
-	Provider string `json:"provider,omitempty"`
+	Model        string `json:"model"`
+	Prompt       string `json:"prompt"`
+	Provider     string `json:"provider,omitempty"`
+	SessionID    string
+	Endpoint     string
+	APIKey       string
+	SystemPrompt string
+	Messages     []llm.Message
+	LLMTools     []llm.ToolDef
 }
 
 // AssembledToolCall 组装后的工具调用
@@ -53,6 +61,7 @@ type AssembledToolCall struct {
 type ExecutionEngine struct {
 	registry *host.Registry
 	maxSteps int
+	MCPCall  func(ctx context.Context, name string, args map[string]any) (string, error)
 }
 
 // NewExecutionEngine 构造执行引擎
@@ -74,6 +83,10 @@ func (e *ExecutionEngine) Execute(ctx context.Context, req *EngineRequest, event
 	if req == nil {
 		eventChan <- EngineEvent{Type: EventError, ErrorMessage: "engine request cannot be nil"}
 		return fmt.Errorf("engine request cannot be nil")
+	}
+
+	if req.APIKey != "" && req.Endpoint != "" {
+		return e.executeDirectLLM(ctx, req, eventChan)
 	}
 
 	// 1. 查找对应的 Provider
@@ -221,27 +234,7 @@ func (e *ExecutionEngine) Execute(ctx context.Context, req *EngineRequest, event
 				ToolArgs:   rawArgs,
 			}
 
-			toolImpl, ok := toolMap[atc.Name]
-			var toolOutput string
-			var isErr bool
-
-			if !ok {
-				toolOutput = fmt.Sprintf("error: tool [%s] not found in registry", atc.Name)
-				isErr = true
-			} else {
-				// 安全沙箱执行
-				res, err := toolImpl.Execute(ctx, rawArgs)
-				if err != nil {
-					toolOutput = fmt.Sprintf("execution failure: %v", err)
-					isErr = true
-				} else if res == nil {
-					toolOutput = fmt.Sprintf("tool [%s] returned nil result", atc.Name)
-					isErr = true
-				} else {
-					toolOutput = res.Content
-					isErr = res.IsError
-				}
-			}
+			toolOutput, isErr, written := e.runTool(ctx, req.SessionID, atc.Name, rawArgs, toolMap)
 
 			// 通知前端工具完成
 			eventChan <- EngineEvent{
@@ -250,6 +243,9 @@ func (e *ExecutionEngine) Execute(ctx context.Context, req *EngineRequest, event
 				ToolName:   atc.Name,
 				ToolOutput: toolOutput,
 				IsError:    isErr,
+			}
+			if written != "" {
+				eventChan <- EngineEvent{Type: EventFilesChanged, ToolName: written}
 			}
 
 			// 将工具结果回填进会话上下文，确保 content 绝不为空（防御上游网关 400 校验）

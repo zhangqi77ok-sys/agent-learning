@@ -1,4 +1,4 @@
-﻿name: CI
+name: CI
 
 on:
   push:
@@ -6,39 +6,33 @@ on:
   pull_request:
 
 jobs:
+  go:
+    name: Go tests + archcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Go test
+        run: go test ./...
+      - name: Architecture guard
+        run: go run ./tools/archcheck
+
   frontend:
-    name: Frontend (tsc + vitest + coverage + lint)
+    name: Vue frontend build
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: prototype
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "20"
           cache: npm
-          cache-dependency-path: prototype/package-lock.json
-      - name: Install dependencies
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
         run: npm ci
-      - name: TypeScript build (tsc -b && vite build)
+      - name: Vite build
         run: npm run build
-      - name: Unit tests (Vitest)
-        run: npm test
-      - name: Coverage gate (non-regression floor; target 88%)
-        run: npm run test:coverage
-      - name: ESLint (0 errors, warning budget 490)
-        run: npm run lint
-
-  python:
-    name: Python host tests (pytest)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install test deps
-        run: pip install pytest pywebview
-      - name: Run pytest suite
-        run: pytest tests -q
