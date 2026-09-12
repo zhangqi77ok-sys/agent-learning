@@ -289,6 +289,7 @@ async function selectSession(id: string) {
       ensureSessionTab(sess.id, sess.title)
     }
     showToast(`✓ 已载入会话: ${currentSession.value.title}`)
+    followLatestChat()
   } catch (err) {
     console.error('Failed to load session:', err)
   }
@@ -800,6 +801,34 @@ async function discardHunkAction(hunkIndex: number) {
 const inputPrompt = ref('')
 const attachedFiles = ref<string[]>([])
 const messagesContainerRef = ref<HTMLDivElement | null>(null)
+const stickToBottom = ref(true)
+let chatScrollRaf = 0
+
+function isChatNearBottom(el: HTMLElement, px = 120) {
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= px
+}
+
+function onMessagesScroll() {
+  const el = messagesContainerRef.value
+  if (!el) return
+  stickToBottom.value = isChatNearBottom(el)
+}
+
+function scrollChatToLatest(force = false) {
+  const el = messagesContainerRef.value
+  if (!el) return
+  if (!force && !stickToBottom.value) return
+  if (chatScrollRaf) cancelAnimationFrame(chatScrollRaf)
+  chatScrollRaf = requestAnimationFrame(() => {
+    chatScrollRaf = 0
+    el.scrollTop = el.scrollHeight
+  })
+}
+
+function followLatestChat() {
+  stickToBottom.value = true
+  void nextTick(() => scrollChatToLatest(true))
+}
 const mentionOpen = ref(false)
 const mentionKind = ref<'at' | 'slash' | ''>('')
 const mentionQuery = ref('')
@@ -1092,10 +1121,7 @@ async function handleSend() {
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   })
 
-  await nextTick()
-  if (messagesContainerRef.value) {
-    messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
-  }
+  followLatestChat()
 
   try {
     await wailsBridge.sendMessage(
@@ -1112,12 +1138,12 @@ async function handleSend() {
           const target = currentSession.value.messages.find(m => m.id === asstMsgId)
           if (target) target.thinking = (target.thinking || '') + thinking
           pushAgentTrace('thinking', thinking.slice(0, 80))
-          if (messagesContainerRef.value) messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
+          scrollChatToLatest()
         },
         onChunk(delta) {
           const target = currentSession.value.messages.find(m => m.id === asstMsgId)
           if (target) target.content += delta
-          if (messagesContainerRef.value) messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
+          scrollChatToLatest()
         },
         onToolStart(tool, args, tcId) {
           pushAgentTrace('tool', `start ${tool}`)
@@ -1136,6 +1162,7 @@ async function handleSend() {
             if (!target.tools) target.tools = []
             target.tools.push(toolRecord)
           }
+          scrollChatToLatest()
         },
         onToolEnd(tool, output, tcId) {
           pushAgentTrace('tool', `end ${tool}`)
@@ -1149,6 +1176,7 @@ async function handleSend() {
               if (matched) matched.output = output
             }
           }
+          scrollChatToLatest()
         },
         onDiagnostic(file, errors) {
           if (!file || file === activeDiffFile.value) {
@@ -1163,6 +1191,7 @@ async function handleSend() {
           void loadSessionsList()
           ensureSessionTab(currentSessionId.value, currentSession.value.title)
           if (activeDiffFile.value) void refreshDiagnostics(activeDiffFile.value)
+          scrollChatToLatest()
         }
       }
     )
@@ -1890,6 +1919,10 @@ function initWorkbench() {
     mentionOpen,
     mentionQuery,
     messagesContainerRef,
+    stickToBottom,
+    onMessagesScroll,
+    followLatestChat,
+    scrollChatToLatest,
     navigateCommandHistory,
     newBranchName,
     onChatDrop,

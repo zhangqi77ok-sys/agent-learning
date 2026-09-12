@@ -1,5 +1,5 @@
 <template>
-<main class="flex-1 bg-[#FAF8F5] flex flex-col justify-between overflow-hidden relative font-sans" @dragover.prevent @drop.prevent="s.onChatDrop($event)">
+<main class="flex-1 min-h-0 bg-[#FAF8F5] flex flex-col justify-between overflow-hidden relative font-sans" @dragover.prevent @drop.prevent="s.onChatDrop($event)">
         <!-- 顶栏: 场景标签、多模型切换器与收起代码按钮 -->
         <header class="h-10 min-h-[40px] bg-[#FAF8F5] border-b border-black/[0.08] px-2 flex items-center justify-between text-xs select-none z-10 shrink-0 gap-2">
           <div class="flex items-center gap-1 min-w-0 flex-1 overflow-x-auto no-scrollbar">
@@ -46,8 +46,18 @@
           </button>
         </header>
 
-        <!-- 真实动态对话消息列表 (从当前 Session 动态读取与渲染) -->
-        <div ref="messagesContainerRef" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col">
+        <!-- 真实动态对话消息列表：跟最新输出，也可拖拽/滚轮回看 -->
+        <div class="flex-1 min-h-0 relative">
+        <div
+          ref="messagesContainerRef"
+          class="h-full overflow-y-scroll overflow-x-hidden p-4 space-y-4 flex flex-col select-text overscroll-contain"
+          :class="dragging ? 'cursor-grabbing' : 'cursor-grab'"
+          @scroll="s.onMessagesScroll"
+          @mousedown="onTranscriptDown"
+          @mousemove="onTranscriptMove"
+          @mouseup="onTranscriptUp"
+          @mouseleave="onTranscriptUp"
+        >
           <!-- 干净真实的空会话状态 -->
           <div v-if="!s.currentSession.messages || s.currentSession.messages.length === 0" class="flex-1 flex flex-col items-center justify-center text-center p-8 select-none my-auto">
             <div class="w-14 h-14 rounded-2xl bg-white border border-black/[0.08] shadow-xs flex items-center justify-center text-2xl mb-4">
@@ -134,11 +144,13 @@
             </div>
           </template>
 
-          <div v-if="s.currentSession.messages.length === 0" class="h-64 flex flex-col items-center justify-center text-center text-xs text-[#71717A] space-y-2">
-            <span class="text-3xl">💬</span>
-            <div class="font-semibold text-sm text-[#18181B]">新会话已创建就绪</div>
-            <div>请输入编程需求或直接拖拽文件，开始自主智能体编程之旅。</div>
-          </div>
+        </div>
+        <button
+          v-if="!s.stickToBottom"
+          type="button"
+          class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full bg-[#18181B] text-white text-[11px] font-medium shadow-xs cursor-pointer"
+          @click="s.followLatestChat"
+        >↓ 回到最新</button>
         </div>
 
         <!-- 底部输入胶囊舱 (Prompt Capsule) -->
@@ -223,10 +235,41 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWorkbenchStore } from '../stores/workbench'
 const s = useWorkbenchStore()
 const { messagesContainerRef } = storeToRefs(s)
+
+const dragging = ref(false)
+let dragY = 0
+let dragStartScroll = 0
+let moved = false
+
+function onTranscriptDown(e: MouseEvent) {
+  if (e.button !== 0) return
+  const t = e.target as HTMLElement
+  if (t.closest('button, a, textarea, input, pre, code')) return
+  dragging.value = true
+  dragY = e.clientY
+  dragStartScroll = messagesContainerRef.value?.scrollTop || 0
+  moved = false
+}
+
+function onTranscriptMove(e: MouseEvent) {
+  if (!dragging.value || !messagesContainerRef.value) return
+  const dy = e.clientY - dragY
+  if (Math.abs(dy) > 3) moved = true
+  if (moved) {
+    e.preventDefault()
+    messagesContainerRef.value.scrollTop = dragStartScroll - dy
+    s.onMessagesScroll()
+  }
+}
+
+function onTranscriptUp() {
+  dragging.value = false
+}
 </script>
 
 
