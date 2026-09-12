@@ -199,6 +199,47 @@
         </footer>
         </div>
       </section>
+
+    <!-- 未保存文件关闭确认弹窗 (严格遵循铁律 2 与铁律 5：暖色极简、屏幕居中、Esc退出、显式[X]、无原生confirm) -->
+    <div
+      v-if="s.pendingCloseTab"
+      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-xs"
+      @click.self="s.pendingCloseTab = null"
+      @keydown.esc="s.pendingCloseTab = null"
+    >
+      <div class="w-[420px] bg-[#FAF8F5] border border-black/[0.12] rounded-xl shadow-2xl p-5 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-base">⚠️</span>
+            <span class="font-bold text-sm text-[#18181B]">文件未保存修改</span>
+          </div>
+          <button @click="s.pendingCloseTab = null" class="p-1 rounded-md text-[#71717A] hover:bg-black/[0.05] cursor-pointer" title="关闭 (Esc)">✕</button>
+        </div>
+        <p class="text-xs text-[#52525B] leading-relaxed">
+          文件 <span class="font-mono font-bold text-[#D96B27]">{{ s.pendingCloseTab }}</span> 包含未写入磁盘的编辑内容。关闭标签页将放弃这些修改，是否确定关闭？
+        </p>
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-black/[0.06]">
+          <button
+            @click="s.pendingCloseTab = null"
+            class="px-3 py-1.5 rounded-lg text-xs text-[#71717A] hover:bg-black/[0.05] cursor-pointer"
+          >
+            取消
+          </button>
+          <button
+            @click="s.forceCloseEditorTab(s.pendingCloseTab)"
+            class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer"
+          >
+            放弃修改并关闭
+          </button>
+          <button
+            @click="s.saveAndCloseEditorTab(s.pendingCloseTab)"
+            class="px-3 py-1.5 rounded-lg bg-[#D96B27] hover:bg-[#C25A1D] text-white text-xs font-semibold cursor-pointer"
+          >
+            保存并关闭
+          </button>
+        </div>
+      </div>
+    </div>
 </template>
 
 <script setup lang="ts">

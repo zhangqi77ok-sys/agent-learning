@@ -53,7 +53,8 @@ func (a *App) GetFileTree(dir string) ([]FileNode, error) {
 			targetDir = filepath.Join(a.workspace, dir)
 		}
 	}
-	return a.buildFileTree(targetDir, 0, 12)
+	// 按需懒加载：初次加载与按目录加载均采用受控深度 (1 层)，由前端点击目录时异步下钻加载，避免一次性加载过多 DOM 或大项目截断
+	return a.buildFileTree(targetDir, 0, 1)
 }
 
 func (a *App) buildFileTree(currentDir string, currentDepth, maxDepth int) ([]FileNode, error) {

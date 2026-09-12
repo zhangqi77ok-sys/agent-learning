@@ -211,19 +211,8 @@ func NewApp() *App {
 	eng.MCPCall = func(ctx context.Context, name string, args map[string]any) (string, error) {
 		return mcpMgr.CallTool(ctx, name, args)
 	}
-	eng.Verify = func(writtenFile string) (string, bool) {
-		report, err := agent.RunTDDValidation(wd)
-		if err != nil {
-			return err.Error(), false
-		}
-		out := report.Output
-		if writtenFile != "" {
-			out = writtenFile + "\n" + out
-		}
-		return out, report.Status == "PASS"
-	}
 
-	return &App{
+	app := &App{
 		workspace:    wd,
 		sandbox:      sb,
 		snapshotMgr:  sm,
@@ -236,6 +225,24 @@ func NewApp() *App {
 		mcpManager:   mcpMgr,
 		adrStore:     config.DefaultADRStore(),
 	}
+
+	eng.Verify = func(writtenFile string) (string, bool) {
+		ws := app.workspace
+		if ws == "" {
+			ws = wd
+		}
+		report, err := agent.RunTDDValidation(ws)
+		if err != nil {
+			return err.Error(), false
+		}
+		out := report.Output
+		if writtenFile != "" {
+			out = writtenFile + "\n" + out
+		}
+		return out, report.Status == "PASS"
+	}
+
+	return app
 }
 
 // startup 窗口初始化生命周期
@@ -360,6 +367,7 @@ func (a *App) SetWorkspace(dir string) error {
 		_ = a.registry.RegisterOrReplace(gittool.NewTool(absDir))
 		_ = a.registry.RegisterOrReplace(fstool.NewTool(sb, a.snapshotMgr))
 		_ = a.registry.RegisterOrReplace(terminaltool.NewTool(absDir))
+		_ = a.registry.RegisterOrReplace(searchtool.NewTool(sb))
 	}
 
 	// 重新初始化智能体自主执行引擎，绑定新工作区的插件执行链

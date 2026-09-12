@@ -625,6 +625,25 @@
 
 ---
 
+### 48. 工作区动态重绑定、Tab 内存持久化、TDD 双栈闭环与文件树按需懒加载 (Workspace Rebind, Tab Persistence, Dual-Stack TDD & Lazy File Tree)
+* **工作区热切换重绑定遗漏检索算子修复 (`app.go`)**：
+  - 修复在 `SetWorkspace(absDir)` 中仅热替换了 `git/fs/terminal` 算子，而遗漏重新注册 `searchtool.NewTool(sb)` 的严重漏洞，彻底杜绝切换工程目录后智能体 `search_workspace` 仍持续在旧项目根目录下跨目录搜寻代码的越权缺陷；同时在 `NewApp` 与 `SetWorkspace` 中统一升级 `engine.Verify` 闭包，使其动态引用 `a.workspace` 确保 TDD 验证靶向新工作区；
+* **Monaco 多文件标签页内存缓冲区无损持久化 (`frontend/src/stores/workbench.ts`)**：
+  - 在 `EditorTabItem` 实体中扩展 `content?: string` 字段，彻底修复此前在多文件标签页（Tabs）间切换时调用 `loadEditor()` 强制重读物理磁盘覆盖 `editorContent` 导致未保存代码草稿被静默销毁的致命体验缺陷；
+  - 切换 Tab 时先将活动编辑器的内容与脏标记落入当前 Tab 缓存；激活目标 Tab 时优先还原内存缓冲；
+* **关闭未保存标签页暖色弹窗阻断拦截 (铁律 5 闭环) (`DiffWorkspace.vue`)**：
+  - 当用户点击关闭处于 `dirty: true` 的未保存标签页时，强行拦截关闭动作，严禁使用原生 `confirm()`，而是呼出屏幕居中、支持 Esc 退出、具备显式 `[X]` 的 Warm Cream 暖色模态窗；提供「取消」、「放弃修改并关闭」与「保存并关闭」三路明确选择；
+* **TDD 双栈级联验证彻底打破互斥偏见 (`internal/agent/swarm.go`)**：
+  - 彻底重构 `RunTDDValidation`，打破早期 `if hasGoMod ... else ...` 仅能二选一的互斥局限；针对类似 湉码（Go 原生微内核 + `frontend/package.json` 前端工作区）的混合全栈仓库，同时级联执行 `go test -v ./...` 与 `npm test`（智能探测根目录或 `frontend/` 目录）；
+  - 聚合输出两个套件的完整日志与分项统计（`totalPassed` / `totalFailed`），任一套件失败全盘裁定为 `FAIL`，杜绝前端单测挂掉但因 Go 单测通过而亮绿灯的假成功；
+* **工程文件树按需异步懒加载与大项目防截断 (`app_shell.go` & `FileTreeNode.vue`)**：
+  - 根除初次启动时无脑全量遍历 12 层导致大项目 DOM 爆炸及触发 2000 节点全局熔断截断目录树的硬伤；将每次扫描深度严格受控为 1 层直接子级；
+  - 前端点击目录展开时，按需异步下钻调用 `wailsBridge.getFileTree(node.path)` 并实时挂载，搭配优雅的「加载中...」与「(空目录)」指示，实现亿级规模超大工程的秒级轻量加载；
+* **会话默认策略收敛至只读审查 (`analyze`) (`frontend/src/stores/workbench.ts`)**：
+  - 将新建会话与默认执行策略设为 `analyze`（只读审查，先看地图，拦截写盘与非清单深层探索），严格贯彻铁律；若需修改代码，引导用户在驾驶舱或发送栏显式自主选定 `implement` 或 `tdd`。
+
+---
+
 
 ## 🎨 四、视觉与人机工程学规范
 

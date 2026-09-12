@@ -62,6 +62,31 @@ func TestRunTDDValidation_WithPackageJson(t *testing.T) {
 	}
 }
 
+func TestRunTDDValidation_HybridGoAndFrontend(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "tcode_test_agent_hybrid_*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	_ = os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module testhybrid\n\ngo 1.22\n"), 0644)
+	frontendDir := filepath.Join(tempDir, "frontend")
+	_ = os.MkdirAll(frontendDir, 0755)
+	pkgContent := `{"name": "frontend-ui", "scripts": {"test": "echo frontend test passed"}}`
+	_ = os.WriteFile(filepath.Join(frontendDir, "package.json"), []byte(pkgContent), 0644)
+
+	report, err := RunTDDValidation(tempDir)
+	if err != nil {
+		t.Fatalf("RunTDDValidation failed: %v", err)
+	}
+	if report.Status != "PASS" && report.Status != "FAIL" {
+		t.Errorf("expected PASS or FAIL, got: %s", report.Status)
+	}
+	if !strings.Contains(report.Output, "Go Test 套件") || !strings.Contains(report.Output, "Npm Test 套件") {
+		t.Errorf("expected output to contain both Go and Npm test sections, got: %s", report.Output)
+	}
+}
+
 
 func TestRunSecurityAudit_Clean(t *testing.T) {
 	wd, err := os.Getwd()

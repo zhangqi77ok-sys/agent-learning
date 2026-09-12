@@ -19,6 +19,7 @@ export interface EditorTabItem {
   path: string
   title: string
   dirty?: boolean
+  content?: string
 }
 
 export const useWorkbenchStore = defineStore('workbench', () => {
@@ -328,6 +329,8 @@ async function createNewSession() {
   currentSessionId.value = ''
   currentSession.value = emptyDraft()
   showFullHistory.value = false
+  executionStrategy.value = 'analyze'
+  strategyPickerArmed.value = false
 }
 
 async function deleteSession(id: string) {
@@ -560,9 +563,22 @@ function switchToGitActivity() {
   void loadGitStatus()
 }
 
-function handleFileClick(node: FileNode) {
+async function handleFileClick(node: FileNode) {
   if (node.is_dir) {
     expandedFolders[node.path] = !expandedFolders[node.path]
+    // 若点击展开且尚未加载过子级，按需调用底层接口获取直接子项，避免一次性扫描大项目
+    if (expandedFolders[node.path] && !node.loaded && (!node.children || node.children.length === 0)) {
+      node.loading = true
+      try {
+        const subNodes = await wailsBridge.getFileTree(node.path)
+        node.children = subNodes || []
+        node.loaded = true
+      } catch (err) {
+        showToast('加载目录内容失败: ' + err)
+      } finally {
+        node.loading = false
+      }
+    }
   } else {
     editorView.value = 'edit'
     void openFileDiff(node.path)
@@ -635,11 +651,15 @@ const editorDiagnostics = ref<DiagnosticItem[]>([])
 const adrNote = ref('')
 const sessionTabs = ref<{ id: string; title: string }[]>([])
 const tabContextMenu = ref<{ x: number; y: number; id: string } | null>(null)
+const pendingCloseTab = ref<string | null>(null)
 
 function markEditorDirty() {
   editorDirty.value = true
   const tab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
-  if (tab) tab.dirty = true
+  if (tab) {
+    tab.dirty = true
+    tab.content = editorContent.value
+  }
 }
 
 async function loadEditor() {
@@ -648,11 +668,21 @@ async function loadEditor() {
     editorDirty.value = false
     return
   }
+  const tab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
+  if (tab && tab.content !== undefined) {
+    editorContent.value = tab.content
+    editorDirty.value = !!tab.dirty
+    await refreshDiagnostics(activeDiffFile.value)
+    return
+  }
   try {
-    editorContent.value = await wailsBridge.readFile(activeDiffFile.value)
+    const diskContent = await wailsBridge.readFile(activeDiffFile.value)
+    editorContent.value = diskContent
     editorDirty.value = false
-    const tab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
-    if (tab) tab.dirty = false
+    if (tab) {
+      tab.dirty = false
+      tab.content = diskContent
+    }
     await refreshDiagnostics(activeDiffFile.value)
   } catch (err) {
     editorContent.value = ''
@@ -682,7 +712,10 @@ async function saveEditor() {
     await wailsBridge.writeFile(activeDiffFile.value, editorContent.value)
     editorDirty.value = false
     const tab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
-    if (tab) tab.dirty = false
+    if (tab) {
+      tab.dirty = false
+      tab.content = editorContent.value
+    }
     await loadDiff()
     await loadGitStatus()
     await refreshDiagnostics(activeDiffFile.value)
@@ -694,27 +727,76 @@ async function saveEditor() {
 
 function openEditorTab(filePath: string, viewMode: 'edit' | 'diff' = 'edit') {
   if (!filePath) return
+  // 如果切换前已有活动标签页，先将当前缓冲区内容落入该标签页对象，防止切走后未保存改动丢失
+  if (activeDiffFile.value) {
+    const currentTab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
+    if (currentTab) {
+      currentTab.content = editorContent.value
+      currentTab.dirty = editorDirty.value
+    }
+  }
+
   const title = filePath.split('/').pop() || filePath
-  if (!openEditorTabs.value.some(t => t.path === filePath)) {
-    openEditorTabs.value.push({ path: filePath, title, dirty: false })
+  let existing = openEditorTabs.value.find(t => t.path === filePath)
+  if (!existing) {
+    existing = { path: filePath, title, dirty: false }
+    openEditorTabs.value.push(existing)
   }
   activeDiffFile.value = filePath
   isDiffOpen.value = true
   editorView.value = viewMode
-  void Promise.all([loadDiff(), loadEditor()])
+
+  if (existing.content !== undefined) {
+    editorContent.value = existing.content
+    editorDirty.value = !!existing.dirty
+    void Promise.all([loadDiff(), refreshDiagnostics(filePath)])
+  } else {
+    void Promise.all([loadDiff(), loadEditor()])
+  }
 }
 
 function switchEditorTab(filePath: string) {
   if (!filePath || filePath === activeDiffFile.value) return
+  // 切换前持久化暂存当前活动 tab 的编辑状态与内容
+  if (activeDiffFile.value) {
+    const currentTab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
+    if (currentTab) {
+      currentTab.content = editorContent.value
+      currentTab.dirty = editorDirty.value
+    }
+  }
+
   activeDiffFile.value = filePath
-  void Promise.all([loadDiff(), loadEditor()])
+  const targetTab = openEditorTabs.value.find(t => t.path === filePath)
+  if (targetTab && targetTab.content !== undefined) {
+    editorContent.value = targetTab.content
+    editorDirty.value = !!targetTab.dirty
+    void Promise.all([loadDiff(), refreshDiagnostics(filePath)])
+  } else {
+    void Promise.all([loadDiff(), loadEditor()])
+  }
 }
 
 function closeEditorTab(filePath: string, event?: MouseEvent) {
   if (event) event.stopPropagation()
+  const tab = openEditorTabs.value.find(t => t.path === filePath)
+  if (!tab) return
+
+  // 如果包含未保存的编辑改动，弹出严谨居中的暖色确认弹窗，严禁使用原生 confirm()
+  if (tab.dirty) {
+    pendingCloseTab.value = filePath
+    return
+  }
+  forceCloseEditorTab(filePath)
+}
+
+function forceCloseEditorTab(filePath: string) {
   const idx = openEditorTabs.value.findIndex(t => t.path === filePath)
   if (idx === -1) return
   openEditorTabs.value.splice(idx, 1)
+  if (pendingCloseTab.value === filePath) {
+    pendingCloseTab.value = null
+  }
   if (activeDiffFile.value === filePath) {
     if (openEditorTabs.value.length > 0) {
       const nextIdx = Math.min(idx, openEditorTabs.value.length - 1)
@@ -722,9 +804,28 @@ function closeEditorTab(filePath: string, event?: MouseEvent) {
     } else {
       activeDiffFile.value = ''
       editorContent.value = ''
+      editorDirty.value = false
       diffReport.value = null
     }
   }
+}
+
+async function saveAndCloseEditorTab(filePath: string) {
+  if (activeDiffFile.value === filePath) {
+    await saveEditor()
+  } else {
+    const tab = openEditorTabs.value.find(t => t.path === filePath)
+    if (tab && tab.content !== undefined) {
+      try {
+        await wailsBridge.writeFile(filePath, tab.content)
+        tab.dirty = false
+      } catch (err) {
+        showToast('保存失败: ' + err)
+        return
+      }
+    }
+  }
+  forceCloseEditorTab(filePath)
 }
 
 async function openFileDiff(filePath: string, viewMode: 'edit' | 'diff' = 'edit') {
@@ -1126,7 +1227,7 @@ const executionStrategies = [
   }
 ] as const
 
-const executionStrategy = ref<'analyze' | 'implement' | 'tdd'>('implement')
+const executionStrategy = ref<'analyze' | 'implement' | 'tdd'>('analyze')
 const strategyNote = ref('')
 const isStrategyPickerOpen = ref(false)
 const strategyPickerArmed = ref(false)
@@ -1137,7 +1238,7 @@ function openStrategyPicker() {
 }
 
 function skipStrategyChoice() {
-  executionStrategy.value = 'implement'
+  executionStrategy.value = 'analyze'
   confirmStrategyAndSend()
 }
 
@@ -2180,6 +2281,9 @@ function initWorkbench() {
     openEditorTab,
     switchEditorTab,
     closeEditorTab,
+    pendingCloseTab,
+    forceCloseEditorTab,
+    saveAndCloseEditorTab,
     fileTreeFilter,
     displayFileTree,
     gitStatusMap,

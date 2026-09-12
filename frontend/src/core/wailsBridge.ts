@@ -87,6 +87,8 @@ export interface FileNode {
   path: string
   is_dir: boolean
   children?: FileNode[]
+  loaded?: boolean
+  loading?: boolean
 }
 
 export interface TaskModel {

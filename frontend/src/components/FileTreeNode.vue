@@ -28,14 +28,22 @@
       </span>
     </div>
 
-    <!-- 递归子节点渲染 (支持任意深度展开) -->
-    <div v-if="node.is_dir && isExpanded && node.children && node.children.length > 0">
-      <FileTreeNode
-        v-for="child in node.children"
-        :key="child.path"
-        :node="child"
-        :depth="depth + 1"
-      />
+    <!-- 递归子节点渲染 (支持按需懒加载与任意深度展开) -->
+    <div v-if="node.is_dir && isExpanded">
+      <div v-if="node.loading" class="text-[10px] text-[#71717A] py-1 font-mono" :style="{ paddingLeft: `${(depth + 1) * 10 + 6}px` }">
+        加载中...
+      </div>
+      <template v-else-if="node.children && node.children.length > 0">
+        <FileTreeNode
+          v-for="child in node.children"
+          :key="child.path"
+          :node="child"
+          :depth="depth + 1"
+        />
+      </template>
+      <div v-else-if="node.loaded" class="text-[10px] text-[#71717A]/60 py-0.5 font-mono italic" :style="{ paddingLeft: `${(depth + 1) * 10 + 6}px` }">
+        (空目录)
+      </div>
     </div>
   </div>
 </template>
