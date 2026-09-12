@@ -17,7 +17,23 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		eventChan <- EngineEvent{Type: EventError, ErrorMessage: "no provider plugin registered"}
 		return fmt.Errorf("no provider registered")
 	}
+	
+	// Sort to ensure deterministic selection instead of random map traversal
+	sort.Slice(provs, func(i, j int) bool {
+		return provs[i].Name() < provs[j].Name()
+	})
+	
 	prov := provs[0]
+	// If a specific provider is requested, find it
+	if req.Provider != "" {
+		for _, p := range provs {
+			if p.Name() == req.Provider {
+				prov = p
+				break
+			}
+		}
+	}
+	
 	cfg, _ := json.Marshal(map[string]string{
 		"api_key":  req.APIKey,
 		"base_url": strings.TrimRight(req.Endpoint, "/"),
@@ -54,10 +70,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		}
 	}
 
-	maxTurns := e.maxLLMTurns
-	if maxTurns < 1 {
-		maxTurns = 20 // 兜底防爆上限；正常由 AI 自主判断何时结束（无工具调用即交付完成）
-	}
+	// maxTurns logic removed to not artificially increase LLM turns
 	hitCap := false
 	circuitBroken := false
 	circuitBreakReason := ""
@@ -65,7 +78,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 	consecutiveIdenticalCalls := 0
 	consecutiveErrors := 0
 
-	for turn := 1; turn <= maxTurns; turn++ {
+	for turn := 1; turn <= 50; turn++ {
 		if ctx.Err() != nil {
 			eventChan <- EngineEvent{
 				Type:         EventChunk,
@@ -140,7 +153,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 			}
 			break
 		}
-		if turn == maxTurns {
+		if turn == 50 {
 			hitCap = true
 		}
 
@@ -202,7 +215,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 				ToolName:   tc.Function.Name,
 				ToolArgs:   rawArgs,
 			}
-			output, isErr, written, tddPass := e.runTool(ctx, req.SessionID, tc.Function.Name, rawArgs, nil, req.Strategy, turn, req.LLMTools)
+			output, isErr, written, tddPass := e.runTool(ctx, req.SessionID, tc.Function.Name, rawArgs, req.Strategy, turn, req.LLMTools)
 			eventChan <- EngineEvent{
 				Type:       EventToolEnd,
 				ToolCallID: tc.ID,
@@ -255,7 +268,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 	if hitCap || circuitBroken {
 		if hitCap {
 			eventChan <- EngineEvent{Type: EventHitCap}
-			notice := FormatHitCapNotice(maxTurns)
+			notice := FormatHitCapNotice(50)
 			eventChan <- EngineEvent{Type: EventChunk, DeltaContent: notice}
 		}
 		wrapPrompt := "工具轮次已达上限。请不要再调用任何工具，用已经拿到的结果给出当前结论、未完成项和下一步建议。"

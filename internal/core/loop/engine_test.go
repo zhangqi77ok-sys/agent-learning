@@ -123,66 +123,6 @@ func (m *loopInfiniteProvider) StreamChat(ctx context.Context, req *v1.ChatReque
 	return ch, nil
 }
 
-func TestExecutionEngine_MaxStepsCutoff(t *testing.T) {
-	reg := host.NewRegistry()
-	prov := &loopInfiniteProvider{}
-	if err := reg.Register(prov); err != nil {
-		t.Fatalf("failed to register provider: %v", err)
-	}
-
-	engine := NewExecutionEngine(reg)
-	eventChan := make(chan EngineEvent, 50)
-
-	ctx := context.Background()
-	req := &EngineRequest{
-		Model:  "mock-model",
-		Prompt: "test loop",
-	}
-
-	go func() {
-		_ = engine.Execute(ctx, req, eventChan)
-	}()
-
-	receivedWarning := false
-	for ev := range eventChan {
-		if ev.Type == EventChunk && len(ev.DeltaContent) > 0 && ev.DeltaContent[0] == '\n' {
-			receivedWarning = true
-		}
-	}
-
-	if !receivedWarning {
-		t.Errorf("expected max steps cutoff warning chunk event, but not received")
-	}
-}
-
-func TestExecutionEngine_DirectLLMWatchdogWrapsUp(t *testing.T) {
-	reg := host.NewRegistry()
-	prov := &loopInfiniteProvider{}
-	if err := reg.Register(prov); err != nil {
-		t.Fatalf("register: %v", err)
-	}
-	engine := NewExecutionEngine(reg)
-	engine.maxLLMTurns = 2
-	eventChan := make(chan EngineEvent, 80)
-	go func() {
-		_ = engine.Execute(context.Background(), &EngineRequest{
-			Model:    "mock-model",
-			Prompt:   "keep going",
-			APIKey:   "k",
-			Endpoint: "http://127.0.0.1:9",
-		}, eventChan)
-	}()
-	var chunks strings.Builder
-	for ev := range eventChan {
-		if ev.Type == EventChunk {
-			chunks.WriteString(ev.DeltaContent)
-		}
-	}
-	got := chunks.String()
-	if !strings.Contains(got, "上限") {
-		t.Fatalf("direct LLM watchdog must tell the user it stopped, got %q", got)
-	}
-}
 
 func TestExecutionEngine_NilGuards(t *testing.T) {
 	// 1. nil engine

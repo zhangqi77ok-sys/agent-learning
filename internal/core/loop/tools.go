@@ -10,7 +10,7 @@ import (
 	v1 "tiancode/pkg/plugin/v1"
 )
 
-func trimToolOutput(output string, maxChars int) string {
+func TrimToolOutput(output string, maxChars int) string {
 	runes := []rune(output)
 	if len(runes) <= maxChars {
 		return output
@@ -21,7 +21,7 @@ func trimToolOutput(output string, maxChars int) string {
 	return head + fmt.Sprintf("\n\n...[输出过长，中间 %d 字符已截断]...\n\n", len(runes)-maxChars) + tail
 }
 
-func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName string, rawArgs json.RawMessage, toolMap map[string]v1.ToolPlugin, strategy string, turn int, allowedTools []llm.ToolDef) (output string, isErr bool, written string, tddPass *bool) {
+func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName string, rawArgs json.RawMessage, strategy string, turn int, allowedTools []llm.ToolDef) (output string, isErr bool, written string, tddPass *bool) {
 	if deny, reason := DenyByStrategy(strategy, toolName, rawArgs, turn); deny {
 		return "[策略拦截] " + reason, true, "", nil
 	}
@@ -47,33 +47,18 @@ func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName strin
 	}
 
 	var result *v1.ToolResult
-	if toolMap != nil {
-		if impl, ok := toolMap[toolName]; ok {
-			res, err := impl.Execute(ctx, rawArgs)
-			if err != nil {
-				return fmt.Sprintf("execution failure: %v", err), true, "", nil
-			}
-			if res == nil {
-				return fmt.Sprintf("tool [%s] returned nil result", toolName), true, "", nil
-			}
-			result = res
-			output = trimToolOutput(res.Content, 3000)
-			isErr = res.IsError
+	if tool, ok := e.registry.GetToolByName(toolName); ok {
+		res, err := tool.Execute(ctx, rawArgs)
+		if err != nil {
+			return fmt.Sprintf("工具 [%s] 执行失败: %v", toolName, err), true, "", nil
 		}
-	}
-	if result == nil {
-		if tool, ok := e.registry.GetToolByName(toolName); ok {
-			res, err := tool.Execute(ctx, rawArgs)
-			if err != nil {
-				return fmt.Sprintf("工具 [%s] 执行失败: %v", toolName, err), true, "", nil
-			}
-			if res == nil {
-				return fmt.Sprintf("工具 [%s] 返回空结果", toolName), true, "", nil
-			}
-			result = res
-			output = trimToolOutput(res.Content, 3000)
-			isErr = res.IsError
-		} else if e.MCPCall != nil {
+		if res == nil {
+			return fmt.Sprintf("工具 [%s] 返回空结果", toolName), true, "", nil
+		}
+		result = res
+		output = TrimToolOutput(res.Content, 3000)
+		isErr = res.IsError
+	} else if e.MCPCall != nil {
 			var mcpArgs map[string]any
 			if len(rawArgs) > 0 {
 				_ = json.Unmarshal(rawArgs, &mcpArgs)
@@ -85,11 +70,10 @@ func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName strin
 			if err != nil {
 				return fmt.Sprintf("MCP 算子 [%s] 执行失败: %v", toolName, err), true, "", nil
 			}
-			output = trimToolOutput(mcpRes, 3000)
+			output = TrimToolOutput(mcpRes, 3000)
 		} else {
 			return fmt.Sprintf("[未知工具] %s 未在 Registry 或 MCP 中注册", toolName), true, "", nil
 		}
-	}
 
 	if result != nil {
 		for _, rail := range rails {

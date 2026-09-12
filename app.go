@@ -30,18 +30,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// trimToolOutput 限制工具输出长度，保留头尾各半，避免击穿 Token 预算
-// maxChars 建议值：3000（约 1000 token）
-func trimToolOutput(output string, maxChars int) string {
-	runes := []rune(output)
-	if len(runes) <= maxChars {
-		return output
-	}
-	half := maxChars / 2
-	head := string(runes[:half])
-	tail := string(runes[len(runes)-half:])
-	return head + fmt.Sprintf("\n\n...[输出过长，中间 %d 字符已截断]...\n\n", len(runes)-maxChars) + tail
-}
+
 
 // buildConversationWindow 动态构建模型多轮会话上下文窗口
 // 基于 token/字符预算自适应保留多轮对话，避免硬编码消息条数导致失忆或击穿上下文
@@ -63,7 +52,7 @@ func buildConversationWindow(systemPrompt string, history []session.SessionMessa
 		content := m.Content
 		// 历史消息中如果有单条过长，做单条软截断保护（如之前可能未截断的超长输出）
 		if len(content) > 4000 {
-			content = trimToolOutput(content, 4000)
+			content = loop.TrimToolOutput(content, 4000)
 		}
 
 		msgLen := len(content)
