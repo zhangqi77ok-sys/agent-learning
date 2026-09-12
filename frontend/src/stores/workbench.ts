@@ -2264,16 +2264,25 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 
   if (e.key === 'Escape') {
-    if (isStrategyPickerOpen.value) { isStrategyPickerOpen.value = false; return }
-    if (tabContextMenu.value) { tabContextMenu.value = null; return }
+    // 优先级 1: mention/slash 浮层 或 tab 上下文菜单
     if (mentionOpen.value) { mentionOpen.value = false; return }
     if (isCommandPaletteOpen.value) { isCommandPaletteOpen.value = false; return }
+    if (tabContextMenu.value) { tabContextMenu.value = null; return }
+
+    // 优先级 2: 二级弹窗 (渠道/MCP/技能/pending Diff/策略等)
+    if (isChannelModalOpen.value) { isChannelModalOpen.value = false; return }
     if (isMcpModalOpen.value) { isMcpModalOpen.value = false; return }
     if (isSkillModalOpen.value) { isSkillModalOpen.value = false; return }
     if (isRuleModalOpen.value) { isRuleModalOpen.value = false; return }
-    if (isKnowledgeGraphOpen.value) { isKnowledgeGraphOpen.value = false; return }
+    if (isStrategyPickerOpen.value) { isStrategyPickerOpen.value = false; return }
+    if (isPendingDiffPromptOpen.value) { isPendingDiffPromptOpen.value = false; return }
+
+    // 优先级 3: 设置/图谱等一级面板
     if (isSettingsOpen.value) { isSettingsOpen.value = false; return }
+    if (isKnowledgeGraphOpen.value) { isKnowledgeGraphOpen.value = false; return }
     if (isTerminalOpen.value) { isTerminalOpen.value = false; return }
+    
+    // 无操作
   }
 
   if (e.ctrlKey && (e.key === '`' || e.key === '~')) {

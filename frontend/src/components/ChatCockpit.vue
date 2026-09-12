@@ -171,33 +171,43 @@
               </div>
 
               <!-- 深度思考抽屉 (真实 reasoning_content) -->
-              <div v-if="msg.thinking" class="w-full rounded-xl border border-black/[0.08] bg-white/70 shadow-2xs overflow-hidden">
-                <div class="p-2.5 flex items-center justify-between bg-black/[0.02] text-xs font-semibold text-[#18181B]">
+              <div v-if="msg.thinking" class="w-full rounded-xl border border-black/[0.08] bg-white/70 shadow-2xs overflow-hidden transition-all">
+                <div class="p-2.5 flex items-center justify-between bg-black/[0.02] text-xs font-semibold text-[#18181B] cursor-pointer hover:bg-black/[0.04]" @click="msg._thinkingExpanded = !msg._thinkingExpanded">
                   <div class="flex items-center gap-2">
                     <span>🧠</span><span>深度心智思考 (Reasoning Process)</span>
                   </div>
-                  <span class="text-[10px] text-[#10A37F] font-mono">Token 流</span>
+                  <span class="text-[10px] text-[#71717A] font-mono">{{ msg._thinkingExpanded ? '▲ 收起' : '▼ 展开' }}</span>
                 </div>
-                <div class="px-3 pb-3 text-xs text-[#71717A] leading-relaxed italic border-t border-black/[0.04] pt-2 whitespace-pre-wrap font-mono">
+                <div v-show="msg._thinkingExpanded" class="px-3 pb-3 text-xs text-[#71717A] leading-relaxed italic border-t border-black/[0.04] pt-2 whitespace-pre-wrap font-mono">
                   {{ msg.thinking }}
                 </div>
               </div>
 
               <!-- Tool Call 算子执行卡片列表 (多轮自主执行时序链路) -->
               <div v-if="(msg.tools && msg.tools.length > 0) || msg.tool" class="w-full space-y-2">
-                <div
-                  v-for="(tItem, tIdx) in (msg.tools && msg.tools.length > 0 ? msg.tools : [msg.tool!])"
-                  :key="tItem.id || tIdx"
-                  class="rounded-xl border border-black/[0.08] bg-white shadow-2xs overflow-hidden"
-                >
-                  <div class="p-2 flex items-center justify-between bg-black/[0.02] text-xs font-mono">
-                    <span class="font-bold text-[#18181B]">$_ {{ tItem.name }} {{ typeof tItem.args === 'string' ? tItem.args : JSON.stringify(tItem.args) }}</span>
-                    <span class="text-[10px]" :class="(tItem.output || '').startsWith('[') || (tItem.output || '').includes('error') || (tItem.output || '').includes('拦截') ? 'text-red-500' : ((tItem.output === '正在执行...' || !tItem.output) ? 'text-amber-600' : 'text-[#10A37F]')">
-                      {{ (tItem.output || '').startsWith('[') || (tItem.output || '').includes('拦截') ? '● 已拦截/失败' : ((tItem.output === '正在执行...' || !tItem.output) ? '● 执行中' : '● 完成') }}
-                    </span>
+                <div class="w-full rounded-xl border border-black/[0.08] bg-white/70 shadow-2xs overflow-hidden transition-all">
+                  <div class="p-2.5 flex items-center justify-between bg-black/[0.02] text-xs font-semibold text-[#18181B] cursor-pointer hover:bg-black/[0.04]" @click="msg._toolsExpanded = !msg._toolsExpanded">
+                    <div class="flex items-center gap-2">
+                      <span>🔧</span><span>调用 {{ msg.tools && msg.tools.length > 0 ? msg.tools.length : 1 }} 个工具</span>
+                    </div>
+                    <span class="text-[10px] text-[#71717A] font-mono">{{ msg._toolsExpanded ? '▲ 收起' : '▼ 展开' }}</span>
                   </div>
-                  <div class="p-2.5 bg-[#18181B] text-emerald-400 font-mono text-[11px] whitespace-pre-wrap">
-                    {{ tItem.output }}
+                  <div v-show="msg._toolsExpanded" class="p-2 space-y-2 bg-black/[0.01]">
+                    <div
+                      v-for="(tItem, tIdx) in (msg.tools && msg.tools.length > 0 ? msg.tools : [msg.tool!])"
+                      :key="tItem.id || tIdx"
+                      class="rounded-xl border border-black/[0.08] bg-white shadow-2xs overflow-hidden"
+                    >
+                      <div class="p-2 flex items-center justify-between bg-black/[0.02] text-xs font-mono">
+                        <span class="font-bold text-[#18181B]">$_ {{ tItem.name }} {{ typeof tItem.args === 'string' ? tItem.args : JSON.stringify(tItem.args) }}</span>
+                        <span class="text-[10px]" :class="(tItem.output || '').startsWith('[') || (tItem.output || '').includes('error') || (tItem.output || '').includes('拦截') ? 'text-red-500' : ((tItem.output === '正在执行...' || !tItem.output) ? 'text-amber-600' : 'text-[#10A37F]')">
+                          {{ (tItem.output || '').startsWith('[') || (tItem.output || '').includes('拦截') ? '● 已拦截/失败' : ((tItem.output === '正在执行...' || !tItem.output) ? '● 执行中' : '● 完成') }}
+                        </span>
+                      </div>
+                      <div class="p-2.5 bg-[#18181B] text-emerald-400 font-mono text-[11px] whitespace-pre-wrap max-h-64 overflow-y-auto">
+                        {{ tItem.output }}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

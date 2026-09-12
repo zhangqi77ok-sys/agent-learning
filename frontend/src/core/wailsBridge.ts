@@ -124,6 +124,7 @@ export interface SessionMessage {
   role: string
   content: string
   thinking?: string
+  _thinkingExpanded?: boolean
   tool?: {
     name: string
     args: any
@@ -135,6 +136,7 @@ export interface SessionMessage {
     args: any
     output: string
   }>
+  _toolsExpanded?: boolean
   time: string
 }
 

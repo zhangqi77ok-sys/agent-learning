@@ -576,7 +576,10 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs font-sans"
     >
       <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-black/[0.1] p-5 space-y-4">
-        <h4 class="text-sm font-bold text-[#18181B]">渠道配置管理</h4>
+        <div class="flex items-center justify-between pb-2 border-b border-black/[0.06]">
+          <h4 class="text-sm font-bold text-[#18181B]">渠道配置管理</h4>
+          <button @click="s.isChannelModalOpen = false" class="text-[#71717A] hover:text-[#18181B] p-1 rounded-md cursor-pointer" title="关闭弹窗 (Esc)">✕</button>
+        </div>
         <div class="space-y-3 text-xs">
           <div>
             <label class="block font-medium text-[#71717A] mb-1">渠道名称</label>
