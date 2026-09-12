@@ -28,3 +28,4 @@
 - Vue 壳拆分、`app.go` 拆文件、归档死栈、Windows 构建脚本
 - F1 Fail-closed：无渠道不填假 OpenAI 地址；模型列表只来自渠道；抽屉用真实工作区名
 - F2 Skill：启用技能的 `prompt` 注入 system prompt；保存不再误写 `content`
+- F3 `/test` `/tdd` 跑真实 TDD；`/diff` 打开真实 Git 抽屉（未连接内核则报错，不假装 main 分支）

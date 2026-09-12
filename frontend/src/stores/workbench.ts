@@ -375,6 +375,32 @@ async function triggerUpload() {
 async function handleSend() {
   const prompt = inputPrompt.value.trim()
   if (!prompt || isStreaming.value) return
+  const slash = prompt.split(/\s+/)[0]
+  if (slash === '/test' || slash === '/tdd') {
+    inputPrompt.value = ''
+    showToast('正在运行工作区真实测试…')
+    try {
+      const report = await wailsBridge.runTDDValidation()
+      const snippet = (report.output || '').slice(0, 120)
+      if (report.status === 'PASS') {
+        showToast(`✓ TDD PASS passed=${report.passed} ${snippet}`)
+      } else {
+        showToast(`TDD ${report.status} failed=${report.failed} ${snippet}`)
+      }
+    } catch (err) {
+      showToast('TDD 无法执行: ' + err)
+    }
+    return
+  }
+  if (slash === '/diff') {
+    inputPrompt.value = ''
+    activeActivity.value = 'git'
+    await loadGitStatus()
+    isDiffOpen.value = true
+    showToast('已打开真实 Git 状态（无改动则为空）')
+    return
+  }
+
   if (!selectedModel.value) {
     showToast('请先在设置中添加模型渠道并选择模型，不会使用内置假模型')
     return

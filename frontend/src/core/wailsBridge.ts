@@ -511,7 +511,13 @@ export const wailsBridge = {
   async getGitStatus(): Promise<any> {
     const app = getApp()
     if (app?.GetGitStatus) return await app.GetGitStatus()
-    return { branch: 'main', staged: [], working: [], untracked: [] }
+    return { branch: '', staged: [], working: [], untracked: [] }
+  },
+
+  async runTDDValidation(): Promise<{ status: string; passed: number; failed: number; output: string }> {
+    const app = getApp()
+    if (app?.RunTDDValidation) return await app.RunTDDValidation()
+    throw new Error('microkernel not connected: RunTDDValidation unavailable')
   },
 
   async getProjectASTGraph(): Promise<GraphNode[]> {
