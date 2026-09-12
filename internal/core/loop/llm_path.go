@@ -56,7 +56,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 
 	maxTurns := e.maxLLMTurns
 	if maxTurns < 1 {
-		maxTurns = 24
+		maxTurns = 100 // 仅作为防死循环的极端兜底上限；主路径完全由模型自主判断（无工具调用即结束）
 	}
 	hitCap := false
 	for turn := 1; turn <= maxTurns; turn++ {

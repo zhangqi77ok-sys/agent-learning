@@ -172,7 +172,7 @@ func (a *App) SendMessage(req ChatRequest) error {
 			currentSession.Task = &session.TaskModel{
 				Goal:             cleanPrompt,
 				Status:           session.TaskStatusRunning,
-				ToolBudget:       24,
+				ToolBudget:       0, // 0 代表 AI 自主决策结束模式（不设人为固定轮次扣减）
 				ToolsUsed:        0,
 				PendingDiffFiles: make([]string, 0),
 			}

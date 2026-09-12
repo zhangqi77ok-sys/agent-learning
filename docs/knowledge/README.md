@@ -58,6 +58,7 @@
 | **44** | **工作区动态重绑定、Tab 内存持久化、TDD 双栈闭环与文件树按需懒加载** | 热插拔重载 / 状态机内存池 / TDD复合架构 / 虚拟文件树 | 切换工作区全量重载 searchtool 与动态绑定 TDD 验证闭环、Monaco 标签页无损内存草稿持久化、关闭脏文件暖色弹窗阻断拦截、TDD 双栈级联执行打破互斥偏见、文件树 1 层受控按需异步下钻防 DOM 爆炸与默认只读审查策略收敛 | [44-workspace-rebind-tab-persistence-dual-stack-tdd-and-lazy-file-tree.md](./44-workspace-rebind-tab-persistence-dual-stack-tdd-and-lazy-file-tree.md) |
 | **45** | **开发者全局检索打通、策略跳过守卫与 V1 边界矩阵对齐** | 工作区检索 / 策略状态机 / TDD双栈实测 / 交付验收 | 开发者专属工作区 grep/find 双模检索视窗与 Monaco 聚焦跳转、策略推荐弹窗跳过逻辑收敛至安全只读、implement 模式前置检索硬性约束、混合架构前端断言测试脚本实测与 120s 防超时、非核心功能 [实验特性] β 标注与 V1 特性边界矩阵全面重构对齐 | [45-human-workspace-search-strategy-guard-and-v1-matrix-alignment.md](./45-human-workspace-search-strategy-guard-and-v1-matrix-alignment.md) |
 | **46** | **剥离形式主义外壳、主界面五大极简入口与设置中枢真实化治理** | UI去伪存真 / 认知负荷削减 / 极简活动栏 / 真实设置中枢 | 活动栏收敛至五大核心真实入口（对话/文件/Git/终端/设置）、终端抽屉移除前端伪Trace流水账、顶栏移除虚浮宪法徽章、Ctrl+K与/指令剔除实验性及弱匹配项、设置安全防线剔除三行硬编码假开关改真说明、关于页剥离假费用与无效更新并将实验特性下沉二级收纳 | [46-de-bloating-ui-entries-and-honest-settings-hub.md](./46-de-bloating-ui-entries-and-honest-settings-hub.md) |
+| **47** | **终结固定轮次硬限制、确立 AI 自主判断任务结束与防爆安全兜底** | 自主执行回路 / 终态决策契约 / 防爆保险丝 / ReAct状态机 | 废止24轮固定人为硬上限、确立0工具调用即模型自主完成的交付语义、在提示词中刚性注入AI全流程自主控制权、微内核上限提升至100退居极端死循环安全熔断兜底与TaskModel自主执行模式适配 | [47-ai-autonomous-task-completion-and-runaway-safety-fuse.md](./47-ai-autonomous-task-completion-and-runaway-safety-fuse.md) |
 
 ---
 

@@ -52,6 +52,11 @@ func ApplyStrategy(strategy, note string, tools []llm.ToolDef, system string) ([
 	if note != "" {
 		system += "\n[用户附加约束] " + note
 	}
+
+	system += "\n【任务自主完成与结束铁律】"
+	system += "\n1. 执行由你完全自主驱动，不设置人为固定轮次强行中断：当你自主判定当前任务已达成目标、或已得出明确结论向用户汇报时，请直接向用户输出答复内容，不要再发起任何工具调用。系统检测到你未发起工具调用时，即确认本次任务由你自主圆满交付。"
+	system += "\n2. 若任务尚未达成（如需要修改更多关联文件、继续运行测试排错、定位或修复代码等），请自主继续调用必要工具推进，直到任务完成。"
+
 	return tools, system
 }
 
