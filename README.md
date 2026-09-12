@@ -244,86 +244,11 @@
   * 基于 `context.WithCancel` 支持用户一键 `[■ 终止]` 取消正在执行的进程，杜绝孤儿进程与句柄泄漏；
   * 执行目录物理锁定于工作区根目录，具备安全防穿越防护。
 
-### 16. [历史原型归档参考] React 原型探索阶段界面设计沉淀 (Historical Prototype Notes)
-> ⚠️ **说明**：以下 16~26 小节为项目早期在 `archive/web_prototype.html` / `archive/prototype/` 探索阶段的原型设计记录，仅供视觉交互参考。当前正式发货代码已全面升级收敛至 **Wails v2 + Go 微内核 + Vue 3** 架构。
-* **顶层沉浸式标题栏 (`Titlebar.tsx`)**：
-  * 高度严格锁定 38px，左侧呈现 `T` Logo、项目与分支徽标以及 `DeepSeek-V4 · 就绪` 绿色微核探针；
-  * 中间集成单焦点工作区胶囊（`💬 智能对话` / `◫ 双栏协同` / `📝 代码工作区`）；
-  * 右侧快捷集成终端抽屉开关、全局设置弹窗与原生窗口控制。
-* **左侧 48px 极简活动栏与 260px 次级多功能抽屉 (`ActivityBar.tsx` & `LeftSidebar.tsx`)**：
-  * 48px 活动栏挂载 7 大功能（`chat`, `files`, `git`, `usage`, `kg`, `mcp`, `terminal`），激活态伴随陶土暖橙左指示线；
-  * 260px 次级抽屉实现平滑切换：会话分支抽屉（多工程折叠、`#标签` 快速筛选、分支切换与新建）、工程文件目录树、Git 源代码管理抽屉（分支徽标、AI 提炼提交信息、双层暂存列表）。
-* **智能对话工作台与代码 Diff 深度联动 (`ChatCockpit.tsx` & `CodeWorkspace.tsx`)**：
-  * 顶部多会话 Tab 切换与代码区展开/收起按钮；
-  * 消息流完整呈现深度心智思考链卡片、多算子调用抽屉日志（`run_command`, `replace_file_content`, `invoke_subagent`, `tdd_test_runner`）；
-  * **改动文件卡片组**：展示改动文件列表（`~M` / `+A`）与增删行数统计，点击 `查看 Diff` 立即在右侧 Monaco 打开行级双栏对比；
-  * 底部高级输入舱挂载 `@` 引用弹窗（会话与技能）、`/` 快捷指令弹窗、`Act 极速双环` 标识与 `需人工审核` 切换开关；
-  * 右侧暖炭黑（`#1E1C1A`）代码审查台配备 `✕ 放弃` 与 `✓ 一键采纳`。
-### 17. 真实大模型流式推理与 ReAct 自主算子执行端到端闭环 (Autonomous ReAct Loop & Streaming E2E)
-* **动态多模型网关与 WAF 穿透路由**：
-  * 支持上游大模型官方端点与自定义 BaseURL（如 AgentRouter / SiliconFlow / 本地 Ollama），注入 `claude-cli` 客户端指纹穿透 WAF；
-  * 严格 Fail-Closed 凭据纪律：未配置 API Key 时明确阻断提示，严禁内置后门或硬编码凭据，保障数据安全。
-* **原生深度心智思考流实时推送 (`Thinking Stream`)**：
-  * 自动解析并提取上游大模型原生输出的 `reasoning_content`（如 DeepSeek-V4、Claude 3.7 Thinking），通过 SSE 多阶段协议毫秒级流式推送至前端深度心智思考折叠卡片。
-* **ReAct 自主物理算子调度闭环**：
-  * 模型具备自主工具发现与执行能力：`run_command`（Windows 静默 Shell 命令）、`read_file`（受控安全读取）、`write_file`（原子安全写）、`git_status`（工作区状态感知）；
-### 18. 高级 Git 控制中枢模态窗与 Token 效能监控大盘 (Git Modals & 24h Canvas Chart)
-* **分支管理与即时检出模态窗 (`GitBranchModal.tsx`)**：
-  * 支持本地与远程分支关键词即时过滤、当前活跃分支高亮指示、单键 `git checkout` 分支切换，以及一键基于当前分支检出新分支 (`git checkout -b <name>`)；
-  * 严格遵循暖色极简与弹窗铁律：水平垂直居中、无多余拟物阴影、支持 Esc 退出与背景遮罩关闭。
-* **微内核影子快照与 Stash 储藏中心 (`SnapshotModal.tsx`)**：
-  * 双 Tab 架构：实时呈现系统在 Agent 修改物理文件前 5ms 自动生成的轻量影子快照（包含快照 ID、精确时间、受影响文件、操作说明与哈希）；
-  * 提供「Diff 行级比对」与「一键秒级恢复」；集成 Git Stash 储藏栈与一键 Pop 恢复。
-* **24 小时高帧率 Canvas 吞吐时序走势 (`ThroughputCanvas.tsx`)**：
-  * 原生 HTML5 Canvas 自适应 Retina 高分屏（`window.devicePixelRatio`），按小时精准呈现输入/输出 Tokens 堆叠柱状图；
-  * 支持鼠标在 Canvas 划过时实时计算时间切片，呈现悬浮数据探针与微秒级响应气泡。
-* **客户端原生 CSV 审计报表导出**：
-### 19. MCP 工具协议服务导入与 Agent 专家技能定制中心 (MCP & Skill Hubs)
-* **MCP 工具协议服务导入模态窗 (`MCPImportModal.tsx`)**：
-  * 支持三种录入路径：Claude Desktop / Cursor 标准 `mcpServers` JSON 一键粘贴（带语法校验与一键示例填入）、手动表单配置（支持 `stdio` 标准进程管道与 `sse` HTTP 管道）、以及社区官方精选服务（PostgreSQL 只读分析、GitHub API 自动化）一键安装；
-  * 左侧 MCP 抽屉点击 `[ ➕ 添加 / 导入 MCP 协议服务 ]` 瞬间居中弹出，支持 Esc 与遮罩点击关闭。
-### 20. Windows 独立桌面端安装包与自动化闭环发布 (`build-windows-installer`)
-* **自动化增量编译流水线 (`build_installer.py`)**：
-  * 联动前端 Vite 打包 (`npm run build`)，编译并生成高内聚桌面端微内核宿主 `湉码.exe`（嵌入前端静态产物与 API 代理）；
-  * 自动将微内核与运行时资源打包为自解压载荷，编译生成单文件安装向导 `dist/湉码-Setup.exe` 并同步输出至 `release/湉码-Setup-v2.0.0.exe` 与 `release/湉码-Setup-v2.0.0-windows-x64.zip`；
-### 21. 真实大模型自主 ReAct 物理编程实战验证 (Autonomous Coding Showcase)
-* **模型选型与实测配置**：
-  * 基于上游真实 `deepseek-v4-flash` 大模型与生产网关 `https://agentrouter.org`，执行首字延迟 (TTFT) 极速响应测试；
-### 22. Vitest 单元测试矩阵与流水线构建门禁 (`test-automation-mock-governance`)
-* **自动化测试套件架构**：
-  * 原型验证期基于 Vitest + JSDOM 构建测试环境，涵盖工作区模式切换、分支列表过滤、检出切换、以及默认空 Key Fail-Closed 安全断言等规范；
-### 23. 系统原生文件夹选择与动态工作区装载 (Native Folder Picker & Dynamic Workspace)
-* **Windows 原生对话框集成 (`backend/daemon.js`)**：
-  * 基于 WinForms 原生 `FolderBrowserDialog` 与 `CREATE_NO_WINDOW` (`0x08000000`) 标志位，通过 `/api/workspace/pick-folder` 唤起操作系统级原生文件选择窗口，彻底告别浏览器端手输物理路径（严格遵照【铁律 5】）；
-* **递归目录树与智能排除 (`scanDirectory`)**：
-  * 自动智能排除 `node_modules`、`.git`、`dist`、`build`、`.venv`、`coverage` 等大体积目录；
-  * 提供 `/api/workspace/set-root` 与 `/api/workspace/info` 接口，支持动态切换任意本地工程仓库；
-### 24. 会话分支分叉与时空倒流 (Session Tree Forking & Time-Travel)
-* **对话分支分叉 (Session Forking)**：
-  * 支持在任意历史消息节点（无论是提问还是 AI 回复）一键点击 `[ 🌿 分叉分支 ]`；
-  * 精准截取截至该节点的上下文记录，自动派生出带独立标识的平行分支（如 `架构重构 (分支 #2)`），并在左侧抽屉与顶栏无缝渲染；
-  * 新旧分支彻底解耦，为高风险重构与技术方案探索提供安全试验场；
-* **时光倒流回退 (Time-Travel Revert)**：
-  * 支持点击 `[ ⏳ 回退至此 ]`，唤起居中弹窗确认后截断当前分支后续无效或走偏的探索，使上下文重新收敛聚焦；
-### 25. 本地工程知识库 RAG 检索增强 (Local Knowledge RAG Engine)
-* **四段论沉淀动态解析 (`backend/lib/knowledgeEngine.js`)**：
-  * 自动深度遍历当前工程 `docs/knowledge/` 下全部实战经验（涵盖 WAF 穿透、静默 Shell、影子快照、安装包流水线等）；
-  * 解析提取四段核心章节（① 问题背景 ➔ ② 核心原理 ➔ ③ 解决方案 ➔ ④ 避坑指南）；
-* **多权重关键词与语义检索 (`/api/knowledge/search`)**：
-  * 支持标题权重（10x）、避坑规范（5x）与实操方案（4x）的多层打分机制；
-* **对话感知联动与星系研读视窗 (`KnowledgeGraphModal.tsx` & `ChatCockpit.tsx`)**：
-  * 用户在对话框输入相关技术词汇时，输入框上方即时亮起 `💡 已智能匹配本地工程经验` 悬浮胶囊；
-  * 点击一键展开沉淀星系图，直观查阅标准解决方案与防踩坑守则。
+### 16. [历史原型归档] React 原型阶段交互与设计沉淀 (Historical Prototype Notes)
+> ⚠️ **历史归档声明**：早期原型阶段（WP 16~26）在 React / Python 环境下的探索记录已完整迁出归档至 [`docs/archive/HISTORICAL_PROTOTYPE_NOTES.md`](docs/archive/HISTORICAL_PROTOTYPE_NOTES.md)。
+> 当前发货代码与日常施工请 100% 严格遵循现行 **Wails v2 原生桌面端 + Go 微内核 + Vue 3** 架构。
 
-### 26. 源码 AST 模块依赖与架构调用拓扑 (AST Code Topology)
-* **轻量级源码 AST 关系提取 (`backend/lib/astTopology.js`)**：
-  * 毫秒级递归扫描项目前端与后端源码（自动忽略大型依赖与产物）；
-  * 精准提取各源码模块导出的类、函数、组件标识 (`exports`) 与模块间的物理相对引用连线 (`imports`)；
-* **可视化双向依赖探索网络 (`KnowledgeGraphModal.tsx`)**：
-  * 实时呈现组件（Component）、状态机（Store）、微服务（Service）与核心模块（Module）；
-  * 选定任意节点即可完整洞察其下游模块依赖（Imports）与上游被谁引用（Referenced By），彻底告别盲盒式重构。
-
-### 27. Wails v2 + Go 1.22 纯原生桌面架构与单文件安装向导 (Wails Native Architecture & Standalone Go Installer)
+### 17. Wails v2 + Go 1.22 纯原生桌面架构与单文件安装向导 (Wails Native Architecture & Standalone Go Installer)
 * **Wails v2 生产级条件标签编译体系**：
   * 基于 Go 1.22 + Wails v2 + Vue 3.4 纯原生架构，采用 `-tags "desktop,production"` 彻底打通 Windows Edge WebView2 深度融合，去除空壳 Stub 回退，杜绝任何启动红叉异常；
   * 二进制裁剪采用 `-ldflags="-H windowsgui -s -w"`，剥离符号表与调试元信息，二进制体积直降 35%（~9.6MB），且彻底消除了任何控制台 CMD 黑色闪烁黑框；

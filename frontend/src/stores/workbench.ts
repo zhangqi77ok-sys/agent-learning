@@ -1018,9 +1018,9 @@ const executionStrategies = [
   {
     id: 'analyze',
     letter: 'A',
-    title: '只读分析（推荐先看清再改）',
-    badge: '只读',
-    desc: '内核会拿掉 exec_command，并拦截 fs_control 的 write。只能读文件、列目录、看 Git 状态。'
+    title: '只读审查（先看地图）',
+    badge: '只读·硬闸',
+    desc: '首轮硬闸先看地图（仅限清单与宏观文档，阻断深层读取）；全程拦截命令执行与写盘。'
   },
   {
     id: 'implement',
