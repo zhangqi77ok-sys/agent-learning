@@ -113,6 +113,7 @@ func (a *App) buildLLMToolsFromRegistry(ctx context.Context) []llm.ToolDef {
 					Description: d.Description,
 					Parameters:  params,
 				},
+				Mutating: d.Mutating,
 			})
 		}
 	}

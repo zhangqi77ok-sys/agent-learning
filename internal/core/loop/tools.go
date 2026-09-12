@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"tiancode/internal/llm"
 	v1 "tiancode/pkg/plugin/v1"
 )
 
@@ -20,9 +21,18 @@ func trimToolOutput(output string, maxChars int) string {
 	return head + fmt.Sprintf("\n\n...[输出过长，中间 %d 字符已截断]...\n\n", len(runes)-maxChars) + tail
 }
 
-func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName string, rawArgs json.RawMessage, toolMap map[string]v1.ToolPlugin, strategy string, turn int) (output string, isErr bool, written string, tddPass *bool) {
+func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName string, rawArgs json.RawMessage, toolMap map[string]v1.ToolPlugin, strategy string, turn int, allowedTools []llm.ToolDef) (output string, isErr bool, written string, tddPass *bool) {
 	if deny, reason := DenyByStrategy(strategy, toolName, rawArgs, turn); deny {
 		return "[策略拦截] " + reason, true, "", nil
+	}
+	
+	// 在 analyze 模式下，防御性阻断一切 Mutating 算子（比如外部挂载的 MCP），即使大模型出现幻觉去调用
+	if NormalizeStrategy(strategy) == StrategyAnalyze {
+		for _, td := range allowedTools {
+			if td.Function.Name == toolName && td.Mutating {
+				return "[安全拦截] 当前策略为只读分析，禁止调用该工具 (Mutating=true)", true, "", nil
+			}
+		}
 	}
 	rails := e.registry.ListRails()
 	for _, rail := range rails {

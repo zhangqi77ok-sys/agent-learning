@@ -98,6 +98,7 @@ type Message struct {
 type ToolDef struct {
 	Type     string         `json:"type"`
 	Function ToolFunctionDef `json:"function"`
+	Mutating bool           `json:"-"` // internal use
 }
 
 type ToolFunctionDef struct {

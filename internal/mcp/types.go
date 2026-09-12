@@ -46,6 +46,7 @@ type Tool struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	InputSchema json.RawMessage `json:"inputSchema"`
+	Mutating    *bool           `json:"mutating,omitempty"`
 }
 
 // ToolsListResult 工具列表返回

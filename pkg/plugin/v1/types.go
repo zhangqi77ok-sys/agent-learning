@@ -63,6 +63,7 @@ type ToolDefinition struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	Parameters  json.RawMessage `json:"parameters"` // JSON Schema
+	Mutating    bool            `json:"-"` // 不发给模型，仅供策略引擎判断
 }
 
 // ToolResult 算子执行结果

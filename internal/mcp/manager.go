@@ -242,6 +242,11 @@ func (m *Manager) GetAllTools(ctx context.Context) ([]llm.ToolDef, error) {
 				}
 			}
 
+			isMutating := true
+			if t.Mutating != nil {
+				isMutating = *t.Mutating
+			}
+
 			defs = append(defs, llm.ToolDef{
 				Type: "function",
 				Function: llm.ToolFunctionDef{
@@ -249,6 +254,7 @@ func (m *Manager) GetAllTools(ctx context.Context) ([]llm.ToolDef, error) {
 					Description: fmt.Sprintf("[%s] %s", srvID, t.Description),
 					Parameters:  params,
 				},
+				Mutating: isMutating,
 			})
 		}
 	}

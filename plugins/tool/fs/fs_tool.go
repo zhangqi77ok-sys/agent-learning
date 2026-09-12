@@ -64,8 +64,9 @@ func (t *Tool) Definition() v1.ToolDefinition {
 
 	return v1.ToolDefinition{
 		Name:        "fs_control",
-		Description: "在受控沙箱内安全地读写或列出工作区文件，写入前自动生成无损快照",
+		Description: "在受控沙箱内安全地读写或列出工作区文件 (只读策略下会禁用 write 动作)",
 		Parameters:  schemaBytes,
+		Mutating:    false,
 	}
 }
 

@@ -22,8 +22,8 @@ func TestNormalizeStrategy(t *testing.T) {
 
 func TestApplyStrategy_AnalyzeDropsExec(t *testing.T) {
 	tools := []llm.ToolDef{
-		{Type: "function", Function: llm.ToolFunctionDef{Name: "fs_control"}},
-		{Type: "function", Function: llm.ToolFunctionDef{Name: "exec_command"}},
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "fs_control"}, Mutating: false},
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "exec_command"}, Mutating: true},
 	}
 	out, sys := ApplyStrategy("analyze", "不要动配置", tools, "base")
 	if len(out) != 1 || out[0].Function.Name != "fs_control" {
@@ -56,8 +56,8 @@ func TestFormatVerifyFollowup(t *testing.T) {
 
 func TestApplyStrategy_TDDKeepsExecAndPrompt(t *testing.T) {
 	tools := []llm.ToolDef{
-		{Type: "function", Function: llm.ToolFunctionDef{Name: "fs_control"}},
-		{Type: "function", Function: llm.ToolFunctionDef{Name: "exec_command"}},
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "fs_control"}, Mutating: false},
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "exec_command"}, Mutating: true},
 	}
 	out, sys := ApplyStrategy("tdd", "", tools, "base")
 	if len(out) != 2 {
@@ -174,3 +174,23 @@ func TestDenyByStrategy_ImplementTurn1DeepReadDenied(t *testing.T) {
 	}
 }
 
+func TestApplyStrategy_AnalyzeHidesMutatingTools(t *testing.T) {
+	tools := []llm.ToolDef{
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "fs_control"}, Mutating: false},
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "git_control"}, Mutating: false},
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "search_workspace"}, Mutating: false},
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "exec_command"}, Mutating: true},
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "some_mcp_write"}, Mutating: true},
+	}
+	out, _ := ApplyStrategy("analyze", "", tools, "")
+
+	for _, td := range out {
+		if td.Mutating {
+			t.Fatalf("expected all mutating tools to be hidden in analyze, but found: %s", td.Function.Name)
+		}
+	}
+	
+	if len(out) != 3 {
+		t.Fatalf("expected 3 tools to remain (fs_control, git_control, search_workspace), got %d", len(out))
+	}
+}

@@ -36,12 +36,12 @@ func ApplyStrategy(strategy, note string, tools []llm.ToolDef, system string) ([
 		system += "\n 1. 首选检索：优先使用 search_workspace 算子 (grep/find) 快速定位关键词、函数定义与关键文件，杜绝盲扫；"
 		system += "\n 2. 先看地图：首轮仅观察顶层目录结构与关键清单（如 go.mod, package.json, Cargo.toml, README 等）；"
 		system += "\n 3. 精准下钻：仅深入读取靶向文件并分析，严禁读取无关目录或第三方依赖（如 node_modules/vendor/bin/dist）。"
-		tools = filterTools(tools, func(name string) bool {
-			n := strings.ToLower(name)
-			if n == "exec_command" || n == "write_file" {
-				return false
+		tools = filterTools(tools, func(t llm.ToolDef) bool {
+			// 如果是 fs_control，在只读策略下修改其描述与 enum
+			if strings.ToLower(t.Function.Name) == "fs_control" {
+				return true // 保留，但靠 DenyByStrategy 和提示词拦写
 			}
-			return true
+			return !t.Mutating
 		})
 	case StrategyTDD:
 		system += "\n[执行策略 tdd (测试驱动开发)] 先运行或补齐前置测试，再改最小实现，直到测试全绿通过。"
@@ -171,11 +171,10 @@ func FormatVerifyFollowup(file, output string, pass bool) string {
 	return "[TDD 验证失败] 写入 " + file + " 后测试未通过，必须继续修复，不得宣称完成\n" + output
 }
 
-func filterTools(tools []llm.ToolDef, keep func(name string) bool) []llm.ToolDef {
+func filterTools(tools []llm.ToolDef, keep func(t llm.ToolDef) bool) []llm.ToolDef {
 	out := make([]llm.ToolDef, 0, len(tools))
 	for _, t := range tools {
-		name := t.Function.Name
-		if keep(name) {
+		if keep(t) {
 			out = append(out, t)
 		}
 	}

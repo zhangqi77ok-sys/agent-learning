@@ -62,7 +62,8 @@ func (t *Tool) Health(ctx context.Context) v1.HealthStatus {
 func (t *Tool) Definition() v1.ToolDefinition {
 	return v1.ToolDefinition{
 		Name:        "git_control",
-		Description: "查询并管理工作区的物理 Git 暂存与分支状态",
+		Description: "查询工作区的物理 Git 暂存与分支状态",
+		Mutating:    false,
 	}
 }
 

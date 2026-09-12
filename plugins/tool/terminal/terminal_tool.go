@@ -62,6 +62,7 @@ func (t *Tool) Definition() v1.ToolDefinition {
 	return v1.ToolDefinition{
 		Name:        "exec_command",
 		Description: "在沙箱工作区根目录下受控静默执行一条命令行脚本，并返回 stdout 和 stderr。严禁阻塞运行长服务。",
+		Mutating:    true,
 		Parameters:  schemaBytes,
 	}
 }
