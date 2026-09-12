@@ -22,8 +22,8 @@ description: >-
 2. **禁止假 Demo 与 Fake 按钮**：
    - **绝对禁止占位符/Mock 按钮**！所有按钮与操作必须与真实 OS、Go 内核逻辑或业务引擎形成闭环。
 3. **原型是唯一真理源 (Single Source of Truth)**：
-   - 原型主文件为 `web_prototype.html`（已达 7,500+ 行，包含全部 SVG、Modal、Drawer、设置中枢与 Monaco Diff）。
-   - **严禁擅自简化、重构或缩减原型**！任何视觉变动必须先在 `web_prototype.html` 中精细打磨，并同步至 `frontend/index.html`。
+   - 历史视觉原型：`archive/web_prototype.html`。
+   - **发货 UI 以 `frontend/src` 为准**；不要再把 7500 行 HTML 原型当唯一真理源去覆盖 Vue。
 4. **中转路由与模型凭据 (测试基准)**：
    - **Base URL**: `https://agentrouter.org/`
    - **API Key**: 从环境变量 `TIANCODE_API_KEY` 或本机密钥文件读取，**禁止写入仓库**
@@ -35,8 +35,8 @@ description: >-
 
 ```
 tiancode/
-├── web_prototype.html          # 【核心真理源】全功能交互原型 (HTML/Tailwind/原生JS)
-├── frontend/                   # Vue/Vite 桌面前端单包资产
+├── archive/                    # 停用的 React/Python/HTML 原型（非发货）
+├── frontend/                   # Vue/Vite 桌面前端
 │   ├── index.html              # Vite 入口（挂载 Vue #app）
 │   └── dist/                   # npm run build 产物 (embed 进 Go 微内核)
 ├── app.go                      # Wails IPC 桥接层 (暴露给前端的所有核心能力)

@@ -12,7 +12,9 @@
 
 **已落地**：双环工具循环、fs/git/terminal 插件、MCP stdio、渠道（密钥落盘加密）、会话持久化、GitOps、原生 Windows 安装器。
 
-**规划中（文档里有、代码未当产品主路径）**：Swarm `budget()/parallel()/compact()` 算子流、MemoryRail、磁盘热加载 `.so` 插件、Tauri/React/Python 桌面。`prototype/`、`src-desktop/`、`docs/knowledge` 里大量 Tauri 材料视为归档，不要当活路径改。
+**规划中**：Swarm `budget()/parallel()/compact()` 算子流、MemoryRail、磁盘热加载插件。
+
+**已归档**（`archive/`，不要当主路径改）：React `prototype/`、Python `src-desktop/`、单文件 `web_prototype.html`、旧 PyInstaller 脚本。视觉稿仍可在 `archive/web_prototype.html` 打开。Windows 安装包：`powershell -File scripts/build-windows.ps1`。
 
 ---
 

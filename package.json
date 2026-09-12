@@ -2,14 +2,13 @@
   "name": "tiancode",
   "version": "2.0.0",
   "description": "湉码 / tiancode — 热插拔插件化 AI Coding 工作台",
-  "main": "backend/daemon.js",
+  "private": true,
   "scripts": {
-    "dev:frontend": "cd frontend && npm run dev",
-    "dev:backend": "node backend/daemon.js",
-    "build:frontend": "cd frontend && npm run build",
-    "build:installer": "python build_installer.py"
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:windows": "powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1"
   },
-  "keywords": ["ai", "agent", "react", "monaco", "coding"],
+  "keywords": ["ai", "agent", "wails", "vue", "coding"],
   "author": "tiancode",
   "license": "Apache-2.0"
 }

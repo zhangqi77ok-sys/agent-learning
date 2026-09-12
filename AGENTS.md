@@ -4,11 +4,10 @@
 
 ### 【铁律 0: 需求-原型-开发三位一体执行法则】
 1. **双向强同步原则**：
-   - 凡有任何需求、功能或原型发生变更，**必须无条件同时同步更新 `docs/` 下的需求 PRD 与 `prototype/` 下的原型代码**；
-   - 严禁出现“只改原型不改 PRD”或“只写 PRD 原型未跟进”的脱节现象。
+   - 需求变更同步更新 `docs/`；视觉参考用 `archive/web_prototype.html`，**发货 UI 以 `frontend/src` 为准**。
 2. **严禁越界开发禁令**：
-   - **没有进行深度需求澄清与完整原型设计，绝对不准进行任何正式功能开发！**
-   - 必须严格遵循 `需求定义 (PRD in docs/) -> 交互原型验证 (prototype/) -> 人工验收确认 -> SDD+TDD 正式开发` 的流水线，严禁跳步抢跑。
+   - 活路径是 Wails + Go + Vue。`archive/` 内 React/Python/Tauri 材料禁止当主路径施工。
+   - 推荐：`需求 (docs/) -> frontend/src 实现 -> go test + vite build`。
 3. **功能原型必须具备真实交互**：
    - 凡是涉及到功能特性的原型，**必须具备完整、真实、可点击、可感知的交互页面与状态流转**；
    - 杜绝静态图片拼接或不可交互的空壳假原型，必须让用户能够实际体验真实交互细节。
@@ -34,7 +33,7 @@
      - **`ui-ux`**：暖色极简（`#FAF8F5` / `#D96B27`）、16:9、空状态干净；
      - **`tcode-studio-architect`**：Go Registry + Rail + 禁止在 `SendMessage` 里写死工具路由；
      - 聊天循环只允许改 `internal/core/loop`，宿主 `app.go` 只转发事件。
-2. **归档栈**：`react-web`、`rust`、`src-desktop/`、`prototype/` 仅历史参考，禁止按它们改发货代码。
+2. **归档栈**：`archive/`（含旧 `prototype/`、`src-desktop/`、`web_prototype.html`）仅历史参考。
 3. **审查违规打回制**：把桌面主循环写回 `app.go`、或重新引入第二条 LLM 调度，一律打回。
 
 ---
@@ -42,7 +41,7 @@
 ### 【铁律 1.5: 验证闭环（按改动范围，不必每次打安装包）】
 - Go 逻辑：`go test ./...`；架构：`go run ./tools/archcheck`。
 - 前端：`cd frontend && npm run build`。
-- 安装包仅在改 `cmd/installer`、`wails.json` 或发版时重打。
+- 安装包：改安装器或发版时执行 `powershell -File scripts/build-windows.ps1`。
 - **真实凭据纪律**：API Key 只进 `~/.tiancode`（加密），**严禁写入源码或 skill**；未配置凭据必须 fail-closed。
 
 ---
@@ -67,8 +66,8 @@
 ---
 
 ### 【铁律 3: 目录物理隔离与代码纯净性】
-- `docs/` 目录专属于产品需求文档（PRD）与架构设计规约；
-- `prototype/` 目录专属于交互式原型系统，独立运行与单测；
+- `docs/`：需求与架构；
+- `archive/`：停用的 React/Python/HTML 原型，禁止当发货代码；
 - 根目录严禁堆砌散落临时代码与构建产物。
 
 ---
