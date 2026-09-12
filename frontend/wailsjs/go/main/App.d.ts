@@ -53,6 +53,8 @@ export function GetUsageMetrics():Promise<telemetry.UsageMetrics>;
 
 export function GetUIPrefs():Promise<config.UIPrefs>;
 export function SaveUIPrefs(arg1:config.UIPrefs):Promise<void>;
+export function ResumeAgentChoice(arg1:string,arg2:string,arg3:string,arg4:string):Promise<boolean>;
+export function ResumeAgentConfirm(arg1:string,arg2:string,arg3:boolean):Promise<boolean>;
 export function ImportWorkspaceRules():Promise<number>;
 export function GetSandboxStatus():Promise<main.SandboxStatus>;
 export function GetRuntimeInfo():Promise<main.RuntimeInfo>;

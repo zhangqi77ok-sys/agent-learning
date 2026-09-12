@@ -122,6 +122,14 @@ func (a *App) ResumeAgentChoice(sessionID string, requestID string, optionID str
 	})
 }
 
+func (a *App) ResumeAgentConfirm(sessionID string, requestID string, allow bool) bool {
+	return a.engine.DeliverHumanReply(sessionID, loop.HumanReply{
+		OptionID:   "",
+		CustomNote: "",
+		Allow:      allow,
+	})
+}
+
 func (a *App) SendMessage(req ChatRequest) error {
 	if a.ctx == nil {
 		return fmt.Errorf("context not initialized")
@@ -289,6 +297,10 @@ func (a *App) SendMessage(req ChatRequest) error {
 			case loop.EventChoice:
 				if ev.Choice != nil {
 					runtime.EventsEmit(a.ctx, "agent:choice", ev.Choice)
+				}
+			case loop.EventConfirm:
+				if ev.Confirm != nil {
+					runtime.EventsEmit(a.ctx, "agent:confirm", ev.Confirm)
 				}
 			case loop.EventToolStart:
 				runtime.EventsEmit(a.ctx, "agent:tool_start", map[string]any{

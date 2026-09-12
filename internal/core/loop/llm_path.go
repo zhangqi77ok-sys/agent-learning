@@ -269,7 +269,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 					}
 				}
 			} else {
-				output, isErr, written, tddPass = e.runTool(ctx, req.SessionID, tc.Function.Name, rawArgs, req.Strategy, turn, req.LLMTools)
+				output, isErr, written, tddPass = e.runTool(ctx, req.SessionID, tc.ID, tc.Function.Name, rawArgs, req.Strategy, turn, req.LLMTools, eventChan, humanChan)
 			}
 			eventChan <- EngineEvent{
 				Type:       EventToolEnd,

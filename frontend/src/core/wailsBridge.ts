@@ -796,6 +796,7 @@ export const wailsBridge = {
       onDiagnostic?: (file: string, errors: DiagnosticItem[]) => void
       onFilesChanged?: (file: string) => void
       onChoice?: (data: any) => void
+      onConfirm?: (payload: any) => void
     }
   ): Promise<void> {
     const runtime = getRuntime()
@@ -814,6 +815,7 @@ export const wailsBridge = {
         'agent:complete',
         'agent:interrupted',
         'agent:choice',
+        'agent:confirm',
         'lsp:diagnostic'
       ]
 
@@ -863,6 +865,11 @@ export const wailsBridge = {
       runtime.EventsOn('agent:choice', (data: any) => {
         if (data.session_id === req.session_id && callbacks.onChoice) {
           callbacks.onChoice(data)
+        }
+      })
+      runtime.EventsOn('agent:confirm', (data: any) => {
+        if (data.session_id === req.session_id && callbacks.onConfirm) {
+          callbacks.onConfirm(data)
         }
       })
       runtime.EventsOn('lsp:diagnostic', (data: any) => {

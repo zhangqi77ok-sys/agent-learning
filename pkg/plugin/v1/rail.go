@@ -6,10 +6,11 @@ import (
 
 // RailDecision 拦截裁决结果
 type RailDecision struct {
-	Allow       bool   `json:"allow"`
-	Intercepted bool   `json:"intercepted"`
-	Reason      string `json:"reason,omitempty"`
-	Feedback    string `json:"feedback,omitempty"`
+	Allow        bool   `json:"allow"`
+	Intercepted  bool   `json:"intercepted"`
+	NeedsConfirm bool   `json:"needs_confirm,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+	Feedback     string `json:"feedback,omitempty"`
 }
 
 // RailPlugin 核心执行回路治理轨道 SPI

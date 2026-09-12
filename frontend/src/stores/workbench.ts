@@ -115,6 +115,7 @@ const selectedModel = ref('')
 const pendingChoice = ref<any>(null)
 const pendingChoiceSelected = ref('')
 const pendingChoiceCustomNote = ref('')
+const pendingConfirm = ref<any>(null)
 
 const currentSession = ref<ChatSession>({
   id: '',
@@ -1395,13 +1396,25 @@ function confirmStrategyAndSend() {
   }
 }
 
-async function submitAgentChoice(optionId: string, customNote: string = '') {
+async function submitAgentChoice(optionID: string, customNote: string = '') {
   if (!pendingChoice.value) return
-  const { session_id, request_id } = pendingChoice.value
+  const choiceCopy = pendingChoice.value
   pendingChoice.value = null
   const app = (window as any).go?.main?.App
   if (app?.ResumeAgentChoice) {
-    await app.ResumeAgentChoice(session_id, request_id, optionId, customNote)
+    await app.ResumeAgentChoice(choiceCopy.session_id, choiceCopy.request_id, optionID, customNote)
+  } else {
+    showToast('microkernel not connected')
+  }
+}
+
+async function submitAgentConfirm(allow: boolean) {
+  if (!pendingConfirm.value) return
+  const confirmCopy = pendingConfirm.value
+  pendingConfirm.value = null
+  const app = (window as any).go?.main?.App
+  if (app?.ResumeAgentConfirm) {
+    await app.ResumeAgentConfirm(confirmCopy.session_id, confirmCopy.request_id, allow)
   } else {
     showToast('microkernel not connected')
   }
@@ -1411,10 +1424,11 @@ async function handleSend() {
   const prompt = inputPrompt.value.trim()
   if (!prompt || isStreaming.value) return
   
-  if (pendingChoice.value) {
+  if (pendingChoice.value || pendingConfirm.value) {
     pendingChoice.value = null
+    pendingConfirm.value = null
     await wailsBridge.cancelStreaming()
-    showToast('已取消当前等待的选择项并中断旧任务。')
+    showToast('已取消当前等待项并中断旧任务。')
   }
 
   if (!strategyPickerArmed.value) {
@@ -1616,6 +1630,10 @@ async function handleSend() {
             if (rec) pendingChoiceSelected.value = rec.id
             else if (data.options.length > 0) pendingChoiceSelected.value = data.options[0].id
           }
+          scrollChatToLatest()
+        },
+        onConfirm(data) {
+          pendingConfirm.value = data
           scrollChatToLatest()
         },
         onFilesChanged(file) {
@@ -2317,6 +2335,15 @@ function handleGlobalKeydown(e: KeyboardEvent) {
       }
       return
     }
+    if (pendingConfirm.value) {
+      const confirmCopy = pendingConfirm.value
+      pendingConfirm.value = null
+      const app = (window as any).go?.main?.App
+      if (app?.ResumeAgentConfirm) {
+        app.ResumeAgentConfirm(confirmCopy.session_id, confirmCopy.request_id, false)
+      }
+      return
+    }
     if (isChannelModalOpen.value) { isChannelModalOpen.value = false; return }
     if (isMcpModalOpen.value) { isMcpModalOpen.value = false; return }
     if (isSkillModalOpen.value) { isSkillModalOpen.value = false; return }
@@ -2583,6 +2610,8 @@ function initWorkbench() {
     pendingChoiceSelected,
     pendingChoiceCustomNote,
     submitAgentChoice,
+    pendingConfirm,
+    submitAgentConfirm,
     activeConstitution,
     isConstitutionModalOpen,
     openEditorTabs,

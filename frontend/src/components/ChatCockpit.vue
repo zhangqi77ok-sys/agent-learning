@@ -254,6 +254,22 @@
             </div>
           </div>
 
+          <!-- 危险命令确认卡片 (WP-H2) -->
+          <div v-if="s.pendingConfirm" class="flex flex-col items-start space-y-3.5 max-w-3xl w-full">
+            <div class="flex items-center gap-2 text-xs font-semibold text-amber-600">
+              <div class="w-4 h-4 rounded bg-amber-500 text-white flex items-center justify-center text-[9px] font-bold">!</div>
+              <span>危险操作确认</span>
+            </div>
+            <div class="w-full rounded-xl border border-amber-500/40 bg-amber-50/50 shadow-2xs overflow-hidden p-4 space-y-3">
+              <h3 class="text-sm font-bold text-[#18181B]">拦截原因：{{ s.pendingConfirm.reason }}</h3>
+              <div class="p-3 bg-black/5 rounded-lg border border-black/10 font-mono text-[11px] text-[#18181B] whitespace-pre-wrap break-all">{{ s.pendingConfirm.args_preview }}</div>
+              <div class="flex items-center gap-3 pt-2">
+                <button @click="s.submitAgentConfirm(false)" class="flex-1 py-1.5 rounded-lg border border-amber-600/30 bg-white text-amber-700 text-xs font-semibold shadow-sm hover:bg-amber-50">拒绝并让模型改方案</button>
+                <button @click="s.submitAgentConfirm(true)" class="px-4 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold shadow-xs hover:bg-amber-700">允许这一次</button>
+              </div>
+            </div>
+          </div>
+
         </div>
         <button
           v-if="!s.stickToBottom"

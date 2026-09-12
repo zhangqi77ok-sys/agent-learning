@@ -166,6 +166,10 @@ export function ResumeAgentChoice(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['ResumeAgentChoice'](arg1, arg2, arg3, arg4);
 }
 
+export function ResumeAgentConfirm(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ResumeAgentConfirm'](arg1, arg2, arg3);
+}
+
 export function ListMCPs() {
   return window['go']['main']['App']['ListMCPs']();
 }

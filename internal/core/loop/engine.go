@@ -24,6 +24,7 @@ const (
 	EventHitCap       EventType = "hit_cap"
 	EventTDDResult    EventType = "tdd_result"
 	EventChoice       EventType = "choice"
+	EventConfirm      EventType = "confirm"
 )
 
 // ChoiceOption 用户选择题选项
@@ -43,6 +44,15 @@ type ChoicePayload struct {
 	AllowCustom bool           `json:"allow_custom"`
 }
 
+// ConfirmPayload 危险命令确认载荷
+type ConfirmPayload struct {
+	SessionID   string `json:"session_id"`
+	RequestID   string `json:"request_id"`
+	Tool        string `json:"tool"`
+	ArgsPreview string `json:"args_preview"`
+	Reason      string `json:"reason"`
+}
+
 // EngineEvent 引擎事件
 type EngineEvent struct {
 	Type         EventType       `json:"type"`
@@ -56,6 +66,7 @@ type EngineEvent struct {
 	ErrorMessage string          `json:"error_message,omitempty"`
 	TDDPassed    *bool           `json:"tdd_passed,omitempty"`
 	Choice       *ChoicePayload  `json:"choice,omitempty"`
+	Confirm      *ConfirmPayload `json:"confirm,omitempty"`
 }
 
 // EngineRequest 用户推理请求

@@ -63,7 +63,7 @@ func (r *Rail) OnBeforeAct(_ context.Context, _ string, toolName string, args []
 		}
 		if err := json.Unmarshal(args, &payload); err == nil {
 			if isDangerousRm(payload.Command) {
-				return &v1.RailDecision{Allow: false, Intercepted: true, Reason: "dangerous rm command blocked by SafetyRail (semantic)"}, nil
+				return &v1.RailDecision{Allow: false, Intercepted: true, NeedsConfirm: true, Reason: "dangerous rm command blocked by SafetyRail (semantic)"}, nil
 			}
 		}
 	}
@@ -72,9 +72,10 @@ func (r *Rail) OnBeforeAct(_ context.Context, _ string, toolName string, args []
 	for _, re := range dangerous {
 		if re.MatchString(hay) {
 			return &v1.RailDecision{
-				Allow:       false,
-				Intercepted: true,
-				Reason:      fmt.Sprintf("dangerous command blocked by SafetyRail: %s", re.String()),
+				Allow:        false,
+				Intercepted:  true,
+				NeedsConfirm: true,
+				Reason:       fmt.Sprintf("dangerous command blocked by SafetyRail: %s", re.String()),
 			}, nil
 		}
 	}
