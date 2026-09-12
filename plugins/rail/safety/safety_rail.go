@@ -55,6 +55,19 @@ func (r *Rail) OnBeforeAct(_ context.Context, _ string, toolName string, args []
 			return &v1.RailDecision{Allow: false, Intercepted: true, Reason: "path traversal blocked"}, nil
 		}
 	}
+	// 检查 rm 的危险选项
+	if strings.Contains(blob, "exec_command") {
+		// 提取 command 字段
+		var payload struct {
+			Command string `json:"command"`
+		}
+		if err := json.Unmarshal(args, &payload); err == nil {
+			if isDangerousRm(payload.Command) {
+				return &v1.RailDecision{Allow: false, Intercepted: true, Reason: "dangerous rm command blocked by SafetyRail (semantic)"}, nil
+			}
+		}
+	}
+
 	hay := toolName + " " + string(args)
 	for _, re := range dangerous {
 		if re.MatchString(hay) {
@@ -66,6 +79,35 @@ func (r *Rail) OnBeforeAct(_ context.Context, _ string, toolName string, args []
 		}
 	}
 	return &v1.RailDecision{Allow: true}, nil
+}
+
+func isDangerousRm(cmd string) bool {
+	cmd = strings.TrimSpace(cmd)
+	if !strings.HasPrefix(strings.ToLower(cmd), "rm ") && strings.ToLower(cmd) != "rm" {
+		return false
+	}
+	
+	tokens := strings.Fields(cmd)
+	hasForce := false
+	hasRecursive := false
+	
+	for _, token := range tokens[1:] {
+		if token == "--force" {
+			hasForce = true
+		} else if token == "--recursive" || token == "-R" {
+			hasRecursive = true
+		} else if strings.HasPrefix(token, "-") && !strings.HasPrefix(token, "--") {
+			// 短选项拆分
+			for _, ch := range token[1:] {
+				if ch == 'f' || ch == 'F' {
+					hasForce = true
+				} else if ch == 'r' || ch == 'R' {
+					hasRecursive = true
+				}
+			}
+		}
+	}
+	return hasForce && hasRecursive
 }
 
 func (r *Rail) OnAfterAct(context.Context, string, string, *v1.ToolResult) error { return nil }
