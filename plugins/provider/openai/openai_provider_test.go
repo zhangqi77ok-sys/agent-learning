@@ -55,31 +55,34 @@ func TestOpenAIProvider_ReasoningAliasAndBuffer(t *testing.T) {
 	}
 }
 
-func TestOpenAIProvider_ListModels_RealModelsOnly(t *testing.T) {
+func TestOpenAIProvider_ListModels_FailClosedWithoutKey(t *testing.T) {
 	p := NewProvider()
+	p.apiKey = ""
+	p.baseURL = "https://api.openai.com/v1"
+	_, err := p.ListModels(context.Background())
+	if err == nil {
+		t.Fatal("expected error without API key")
+	}
+}
+
+func TestOpenAIProvider_ListModels_FromUpstream(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/models" {
+			t.Errorf("path %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":"local-only-model"}]}`))
+	}))
+	defer server.Close()
+	p := NewProvider()
+	p.baseURL = server.URL
+	p.apiKey = "fake-api-key-0123456789abcdef"
 	models, err := p.ListModels(context.Background())
 	if err != nil {
-		t.Fatalf("ListModels failed: %v", err)
+		t.Fatal(err)
 	}
-
-	fakeKeywords := []string{"v4-flash", "5.6-sol", "opus-4-8", "glm-5.3"}
-	for _, m := range models {
-		for _, fk := range fakeKeywords {
-			if m.ID == fk || m.Name == fk {
-				t.Errorf("found fake demo model in ListModels: id=%s name=%s", m.ID, m.Name)
-			}
-		}
-	}
-
-	foundDeepSeek := false
-	for _, m := range models {
-		if m.ID == "deepseek-chat" || m.ID == "deepseek-reasoner" {
-			foundDeepSeek = true
-			break
-		}
-	}
-	if !foundDeepSeek {
-		t.Errorf("expected real deepseek model in ListModels, got none")
+	if len(models) != 1 || models[0].ID != "local-only-model" {
+		t.Fatalf("got %+v", models)
 	}
 }
 

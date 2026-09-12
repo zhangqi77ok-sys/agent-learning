@@ -166,22 +166,18 @@ func (a *App) DeleteRule(id string) error {
 func (a *App) FetchUpstreamModels(endpoint, apiKey string) ([]string, error) {
 	endpoint = strings.TrimSpace(endpoint)
 	if endpoint == "" {
-		endpoint = "https://agentrouter.org/v1"
-	} else {
-		if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
-			if strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") {
-				endpoint = "http://" + endpoint
-			} else {
-				endpoint = "https://" + endpoint
-			}
+		return nil, fmt.Errorf("未填写 endpoint，拒绝使用内置假网关地址")
+	}
+	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
+		if strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") {
+			endpoint = "http://" + endpoint
+		} else {
+			endpoint = "https://" + endpoint
 		}
 	}
-	if apiKey == "" {
+	if apiKey == "" && a.channelStore != nil {
 		if primary := a.channelStore.GetPrimary(); primary != nil && primary.APIKey != "" {
 			apiKey = primary.APIKey
-			if endpoint == "https://agentrouter.org/v1" && primary.Endpoint != "" {
-				endpoint = primary.Endpoint
-			}
 		}
 	}
 	if apiKey == "" {

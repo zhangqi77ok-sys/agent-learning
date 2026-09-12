@@ -126,44 +126,42 @@ func (p *Provider) Ping(ctx context.Context) (time.Duration, error) {
 }
 
 func (p *Provider) ListModels(ctx context.Context) ([]v1.ModelDescriptor, error) {
-	return []v1.ModelDescriptor{
-		{
-			ID:              "deepseek-chat",
-			Name:            "DeepSeek-V3 Chat",
-			Provider:        "DeepSeek",
-			ContextWindow:   64000,
-			MaxTokens:       8192,
-			SupportThinking: false,
-			SupportCaching:  true,
-		},
-		{
-			ID:              "deepseek-reasoner",
-			Name:            "DeepSeek-R1 (Thinking)",
-			Provider:        "DeepSeek",
-			ContextWindow:   64000,
-			MaxTokens:       8192,
-			SupportThinking: true,
-			SupportCaching:  true,
-		},
-		{
-			ID:              "gpt-4o",
-			Name:            "GPT-4o",
-			Provider:        "OpenAI",
-			ContextWindow:   128000,
-			MaxTokens:       4096,
-			SupportThinking: false,
-			SupportCaching:  true,
-		},
-		{
-			ID:              "claude-3-5-sonnet-20241022",
-			Name:            "Claude 3.5 Sonnet",
-			Provider:        "Anthropic",
-			ContextWindow:   200000,
-			MaxTokens:       8192,
-			SupportThinking: false,
-			SupportCaching:  true,
-		},
-	}, nil
+	if p.apiKey == "" && !strings.Contains(p.baseURL, "localhost") && !strings.Contains(p.baseURL, "127.0.0.1") {
+		return nil, fmt.Errorf("未配置 API Key，拒绝返回内置假模型列表")
+	}
+	url := strings.TrimRight(p.baseURL, "/") + "/models"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if p.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+p.apiKey)
+	}
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("ListModels HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var data struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, err
+	}
+	out := make([]v1.ModelDescriptor, 0, len(data.Data))
+	for _, m := range data.Data {
+		if strings.TrimSpace(m.ID) == "" {
+			continue
+		}
+		out = append(out, v1.ModelDescriptor{ID: m.ID, Name: m.ID})
+	}
+	return out, nil
 }
 
 // StreamChat 发起流式推理
@@ -171,16 +169,8 @@ func (p *Provider) StreamChat(ctx context.Context, req *v1.ChatRequest) (<-chan 
 	// 背压通道缓冲大小设为 64
 	outChan := make(chan v1.StreamChunk, 64)
 
-	// 若未配置 API Key 且不是本地 Ollama，向通道反馈明确提示
 	if p.apiKey == "" && !strings.Contains(p.baseURL, "localhost") && !strings.Contains(p.baseURL, "127.0.0.1") {
-		go func() {
-			defer close(outChan)
-			outChan <- v1.StreamChunk{
-				Thinking: "微内核已拦截：未检测到有效的大模型凭据 (API Key)。请在系统设置中配置 OPENAI_API_KEY。",
-				DeltaContent: "未配置 API Key。请在环境变量或配置中设置 `OPENAI_API_KEY`，或者指定本地 Ollama 端点 (`http://localhost:11434/v1`)。",
-			}
-		}()
-		return outChan, nil
+		return nil, fmt.Errorf("未配置 API Key，拒绝发起上游请求")
 	}
 
 	go func() {

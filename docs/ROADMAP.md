@@ -29,3 +29,4 @@
 - F1 Fail-closed：无渠道不填假 OpenAI 地址；模型列表只来自渠道；抽屉用真实工作区名
 - F2 Skill：启用技能的 `prompt` 注入 system prompt；保存不再误写 `content`
 - F3 `/test` `/tdd` 跑真实 TDD；`/diff` 打开真实 Git 抽屉（未连接内核则报错，不假装 main 分支）
+- F4 ListModels / 拉取上游：无 Key 报错，只返回网关真实 `/models`，去掉内置 gpt-4o 目录
