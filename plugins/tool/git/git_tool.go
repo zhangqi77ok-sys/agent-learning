@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
-	v1 "tcode/pkg/plugin/v1"
+	v1 "tiancode/pkg/plugin/v1"
 )
 
 // GitFileStatus 单文件状态

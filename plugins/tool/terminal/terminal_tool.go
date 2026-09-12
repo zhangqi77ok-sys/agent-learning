@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	v1 "tcode/pkg/plugin/v1"
+	v1 "tiancode/pkg/plugin/v1"
 )
 
 // Tool 受控终端执行算子插件

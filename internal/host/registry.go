@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
-	v1 "tcode/pkg/plugin/v1"
+	v1 "tiancode/pkg/plugin/v1"
 )
 
 // Registry 工业级并发安全分段锁插件注册中心

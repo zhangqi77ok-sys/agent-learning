@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"tcode/internal/core/sandbox"
+	"tiancode/internal/core/sandbox"
 )
 
 func TestSandbox_ValidatePathAndAtomicWrite(t *testing.T) {

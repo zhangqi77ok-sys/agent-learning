@@ -60,7 +60,7 @@
         <div v-else class="flex flex-col items-start space-y-3.5 max-w-3xl">
           <div class="flex items-center gap-2 text-xs font-semibold text-[#18181B]">
             <div class="w-4 h-4 rounded bg-[#D96B27] text-white flex items-center justify-center text-[9px] font-bold">T</div>
-            <span>Tcode Agent</span>
+            <span>湉码 Agent</span>
             <span class="text-[10px] text-[#10A37F] bg-[#10A37F]/10 px-1.5 py-0.2 rounded font-mono">{{ selectedModel }} · 自主算子模式</span>
           </div>
 
@@ -212,7 +212,7 @@
           ref="textareaRef"
           v-model="inputPrompt"
           rows="2"
-          :placeholder="store.isFullAuto ? '给 Tcode Agent 发送指令 (⚡ 全自动免审核模式：Agent 自主闭环执行代码写入与终端命令)...' : '给 Tcode Agent 发送指令 (支持直接拖拽文件入内，输入 @ 检索工程，/ 调起算子)...'"
+          :placeholder="store.isFullAuto ? '给 湉码 Agent 发送指令 (⚡ 全自动免审核模式：Agent 自主闭环执行代码写入与终端命令)...' : '给 湉码 Agent 发送指令 (支持直接拖拽文件入内，输入 @ 检索工程，/ 调起算子)...'"
           class="w-full text-xs text-[#18181B] placeholder-[#A1A1AA] bg-transparent focus:outline-none resize-none leading-relaxed"
           @keydown="handleKeydown"
           @keydown.enter.prevent="handleSend"

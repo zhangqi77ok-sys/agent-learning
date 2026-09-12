@@ -101,7 +101,7 @@ func (m *SnapshotManager) ListSnapshots() ([]Snapshot, error) {
 		if len(parts) >= 4 {
 			refShort := parts[0]
 			id := strings.TrimPrefix(refShort, "refs/tcode/snapshots/")
-			id = strings.TrimPrefix(id, "tcode/snapshots/")
+			id = strings.TrimPrefix(id, "tiancode/snapshots/")
 
 			created, _ := time.Parse("2006-01-02 15:04:05 -0700", parts[3])
 			snapshots = append(snapshots, Snapshot{

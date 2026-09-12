@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	v1 "tcode/pkg/plugin/v1"
+	v1 "tiancode/pkg/plugin/v1"
 )
 
 func TestOpenAIProvider_ReasoningAliasAndBuffer(t *testing.T) {

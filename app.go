@@ -1,11 +1,11 @@
 package main
 
 import (
-	"tcode/internal/agent"
-	"tcode/internal/gitops"
-	"tcode/internal/lsp"
-	"tcode/internal/mcp"
-	"tcode/internal/telemetry"
+	"tiancode/internal/agent"
+	"tiancode/internal/gitops"
+	"tiancode/internal/lsp"
+	"tiancode/internal/mcp"
+	"tiancode/internal/telemetry"
 
 	"context"
 	"encoding/json"
@@ -22,20 +22,20 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"tcode/internal/ast"
-	"tcode/internal/config"
-	"tcode/internal/core/loop"
-	"tcode/internal/core/sandbox"
-	"tcode/internal/diff"
-	"tcode/internal/host"
-	"tcode/internal/llm"
-	"tcode/internal/network"
-	"tcode/internal/session"
-	v1 "tcode/pkg/plugin/v1"
-	"tcode/plugins/provider/openai"
-	fstool "tcode/plugins/tool/fs"
-	gittool "tcode/plugins/tool/git"
-	terminaltool "tcode/plugins/tool/terminal"
+	"tiancode/internal/ast"
+	"tiancode/internal/config"
+	"tiancode/internal/core/loop"
+	"tiancode/internal/core/sandbox"
+	"tiancode/internal/diff"
+	"tiancode/internal/host"
+	"tiancode/internal/llm"
+	"tiancode/internal/network"
+	"tiancode/internal/session"
+	v1 "tiancode/pkg/plugin/v1"
+	"tiancode/plugins/provider/openai"
+	fstool "tiancode/plugins/tool/fs"
+	gittool "tiancode/plugins/tool/git"
+	terminaltool "tiancode/plugins/tool/terminal"
 )
 
 // trimToolOutput 限制工具输出长度，保留头尾各半，避免击穿 Token 预算
@@ -1152,7 +1152,7 @@ func (a *App) SendMessage(req ChatRequest) error {
 		})
 
 		// 4. 构建提示词体系 (注入规则 + 工作区技术栈感知 + 最近多轮历史)
-		systemPrompt := "你是 Tcode Studio 纯原生桌面智能体。你有权调用工具来审查、读取、修改工程代码及运行测试命令。请优先利用工具解决问题，并在每次调用后解释原因。"
+		systemPrompt := "你是 湉码 / tiancode 纯原生桌面智能体。你有权调用工具来审查、读取、修改工程代码及运行测试命令。请优先利用工具解决问题，并在每次调用后解释原因。"
 		rules := a.extraStore.ListRules()
 		for _, r := range rules {
 			if r.Enabled {

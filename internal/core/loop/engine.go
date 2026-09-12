@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"tcode/internal/host"
-	v1 "tcode/pkg/plugin/v1"
+	"tiancode/internal/host"
+	v1 "tiancode/pkg/plugin/v1"
 )
 
 // EventType 引擎向前端派发的事件类型

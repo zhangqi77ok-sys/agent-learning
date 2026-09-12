@@ -8,13 +8,13 @@ import (
 	"syscall"
 	"time"
 
-	"tcode/internal/core/sandbox"
-	"tcode/internal/host"
-	transporthttp "tcode/internal/transport/http"
-	"tcode/plugins/provider/openai"
-	fstool "tcode/plugins/tool/fs"
-	gittool "tcode/plugins/tool/git"
-	terminaltool "tcode/plugins/tool/terminal"
+	"tiancode/internal/core/sandbox"
+	"tiancode/internal/host"
+	transporthttp "tiancode/internal/transport/http"
+	"tiancode/plugins/provider/openai"
+	fstool "tiancode/plugins/tool/fs"
+	gittool "tiancode/plugins/tool/git"
+	terminaltool "tiancode/plugins/tool/terminal"
 )
 
 const (

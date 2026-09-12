@@ -1,7 +1,7 @@
 {
-  "name": "tcode-desktop",
+  "name": "tiancode",
   "version": "2.0.0",
-  "description": "Tcode - Autonomous AI Coding Assistant & Engineer Cockpit",
+  "description": "湉码 / tiancode — 热插拔插件化 AI Coding 工作台",
   "main": "backend/daemon.js",
   "scripts": {
     "dev:frontend": "cd frontend && npm run dev",
@@ -10,6 +10,6 @@
     "build:installer": "python build_installer.py"
   },
   "keywords": ["ai", "agent", "react", "monaco", "coding"],
-  "author": "Tcode Team",
+  "author": "tiancode",
   "license": "Apache-2.0"
 }

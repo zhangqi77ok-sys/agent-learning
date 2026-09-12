@@ -1,22 +1,26 @@
-# Tcode (Next-Gen AI Agentic Studio)
+# 湉码 / tiancode
 
-新一代开源 AI 编程桌面工作台，基于 **Wails v2 + Go 原生微内核 + Vue 3 + TypeScript**，采用 **Inner/Outer Loop 统一双环执行内核**、**Rail 能力插件体系** 与 **Swarm Flow 算子化多智能体编排流**，严格遵循暖米白（`#FAF8F5`）、工作台米灰（`#F4EFEA`）与陶土暖橙（`#D96B27`）的极简工程人机美学规范。
+热插拔插件化 AI Coding 工作台。名字来自 **湉**：水面平静、水流安稳。
+
+基于 **Wails v2 + Go 原生微内核 + Vue 3 + TypeScript**，采用 **Inner/Outer Loop 统一双环执行内核**、**Rail 能力插件体系** 与 **Swarm Flow 算子化多智能体编排流**。模型、工具、记忆、编排都是可装卸的 Rail，对标 DSH 那种「一切皆插件」的 coding agent，但是独立桌面产品，不是 DSH 插件。
+
+仓库：https://github.com/zhangqi77ok-sys/tiancode
 
 ---
 
 ## 🏛️ 一、核心架构设计 (Unified Dual-Loop & SwarmFlow Architecture)
 
-Tcode 打破了单体硬编码调度逻辑，将 Agent 的执行循环、能力轨道、多智能体协同编排与表现层彻底解耦：
+湉码 打破了单体硬编码调度逻辑，将 Agent 的执行循环、能力轨道、多智能体协同编排与表现层彻底解耦：
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                              Tcode Frontend (Vue 3 + TypeScript)                      │
+│                              湉码 Frontend (Vue 3 + TypeScript)                      │
 │      [ 单焦点主工作区 (智能对话 / Monaco编辑器 聚合切换) | Diff 对比 | 终端抽屉 | 纯净空状态 ]       │
 └───────────────────────────────────────────┬────────────────────────────────────────────┘
                                             │ Wails v2 原生 IPC / Typed Event Streams
                                             ▼
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                          Tcode Go Native Microkernel (Wails v2 Engine)                 │
+│                          湉码 Go Native Microkernel (Wails v2 Engine)                 │
 │                                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
 │  │                    Swarm Flow 算子化多智能体编排流 (Swarm Flow Operators)            │  │
@@ -254,8 +258,8 @@ Tcode 打破了单体硬编码调度逻辑，将 Agent 的执行循环、能力�
   * 左侧 MCP 抽屉点击 `[ ➕ 添加 / 导入 MCP 协议服务 ]` 瞬间居中弹出，支持 Esc 与遮罩点击关闭。
 ### 20. Windows 独立桌面端安装包与自动化闭环发布 (`build-windows-installer`)
 * **自动化增量编译流水线 (`build_installer.py`)**：
-  * 联动前端 Vite 打包 (`npm run build`)，编译并生成高内聚桌面端微内核宿主 `Tcode.exe`（嵌入前端静态产物与 API 代理）；
-  * 自动将微内核与运行时资源打包为自解压载荷，编译生成单文件安装向导 `dist/Tcode-Setup.exe` 并同步输出至 `release/Tcode-Setup-v2.0.0.exe` 与 `release/Tcode-Setup-v2.0.0-windows-x64.zip`；
+  * 联动前端 Vite 打包 (`npm run build`)，编译并生成高内聚桌面端微内核宿主 `湉码.exe`（嵌入前端静态产物与 API 代理）；
+  * 自动将微内核与运行时资源打包为自解压载荷，编译生成单文件安装向导 `dist/湉码-Setup.exe` 并同步输出至 `release/湉码-Setup-v2.0.0.exe` 与 `release/湉码-Setup-v2.0.0-windows-x64.zip`；
 ### 21. 真实大模型自主 ReAct 物理编程实战验证 (Autonomous Coding Showcase)
 * **模型选型与实测配置**：
   * 基于上游真实 `deepseek-v4-flash` 大模型与生产网关 `https://agentrouter.org`，执行首字延迟 (TTFT) 极速响应测试；
@@ -300,10 +304,10 @@ Tcode 打破了单体硬编码调度逻辑，将 Agent 的执行循环、能力�
 * **Wails v2 生产级条件标签编译体系**：
   * 基于 Go 1.22 + Wails v2 + Vue 3.4 纯原生架构，采用 `-tags "desktop,production"` 彻底打通 Windows Edge WebView2 深度融合，去除空壳 Stub 回退，杜绝任何启动红叉异常；
   * 二进制裁剪采用 `-ldflags="-H windowsgui -s -w"`，剥离符号表与调试元信息，二进制体积直降 35%（~9.6MB），且彻底消除了任何控制台 CMD 黑色闪烁黑框；
-* **纯 Go 嵌入式单文件自解压安装向导 (`bin/TcodeStudio_Setup_v2.0.0.exe`)**：
+* **纯 Go 嵌入式单文件自解压安装向导 (`bin/湉码Studio_Setup_v2.0.0.exe`)**：
   * 基于 `//go:embed` 深度内嵌主桌面程序 `tcode.exe` 与独立卸载器 `uninstall.exe`，免除外部打包器依赖；
   * Win32 原生 API `MessageBoxW` 提供高亲和力安装向导交互；支持 `-silent` 极速静默安装；
-  * 遵循现代桌面软件工程规范，自动部署至 `%LOCALAPPDATA%\Programs\TcodeStudio`（无需 UAC 提权干扰），全自动创建桌面与开始菜单快捷方式，并完整写入 Windows 注册表卸载中心；
+  * 遵循现代桌面软件工程规范，自动部署至 `%LOCALAPPDATA%\Programs\湉码Studio`（无需 UAC 提权干扰），全自动创建桌面与开始菜单快捷方式，并完整写入 Windows 注册表卸载中心；
 * **铁律 1.5 物理闭环自动化验证体系**：
   * 物理安装验证 ➔ 真实进程生命周期探活 ➔ AgentRouter WAF 穿透流式推理 ➔ 真实工作区工具调用端到端回归，全链路保障高可靠交付。
 
@@ -356,8 +360,8 @@ Tcode 打破了单体硬编码调度逻辑，将 Agent 的执行循环、能力�
   - 重构 `GetFileTree` 为支持 4 层深度递归扫描并自动过滤构建依赖目录（`.git`, `node_modules`, `bin`, `dist` 等）；
   - 标题栏注入 `--wails-draggable:drag` 原生拖拽，右上角无边框控制按钮完整打通最小化、最大化/还原与安全退出；
 * **安装包自定义路径隔离与卸载器全盘防误杀守卫**：
-  - 单文件安装程序全面支持 `--dir=`, `-dir=`, `/D=`, `--silent-install-dir=`，自动对自定义目录校验并补齐 `TcodeStudio` 隔离子目录；
-  - 卸载程序引入物理路径多重安全断言（禁止系统根目录、禁止非 `TcodeStudio` 目录整体 `rmdir`），并采用 `CREATE_NO_WINDOW` 隐蔽控制台执行自清理。
+  - 单文件安装程序全面支持 `--dir=`, `-dir=`, `/D=`, `--silent-install-dir=`，自动对自定义目录校验并补齐 `湉码Studio` 隔离子目录；
+  - 卸载程序引入物理路径多重安全断言（禁止系统根目录、禁止非 `湉码Studio` 目录整体 `rmdir`），并采用 `CREATE_NO_WINDOW` 隐蔽控制台执行自清理。
 
 ### 32. 进程树生命周期隔离、Untracked Diff 适配与全模态窗完整性治理 (Process Tree Isolation & UI Modal Completeness)
 * **Windows 孤儿进程树安全治理 (`KillProcessTree`)**：
@@ -665,7 +669,7 @@ Tcode 打破了单体硬编码调度逻辑，将 Agent 的执行循环、能力�
 * **前端 IPC 桥接层配置变更方法严格 Fail-Closed (铁律 0.5) (`frontend/src/core/wailsBridge.ts`)**：
   - 为 `setWorkspace`、`saveSession`、`deleteSession`、`saveChannel`、`deleteChannel`、`saveMCP`、`deleteMCP`、`saveSkill`、`deleteSkill`、`saveRule`、`deleteRule` 全量补齐微内核连接性校验，在微内核断开时强制抛出 `microkernel not connected` 错误，杜绝静默失败与假成功；
 * **单文件安装器测试模式安全隔离 (`cmd/installer/main.go`)**：
-  - 为安装器的旧进程清理命令注入 `!isTestingMode` 守卫，避免单元测试或临时目录探活时误杀用户正在正常运行的 Tcode 实例。
+  - 为安装器的旧进程清理命令注入 `!isTestingMode` 守卫，避免单元测试或临时目录探活时误杀用户正在正常运行的 湉码 实例。
 
 ---
 
@@ -710,20 +714,20 @@ go build -ldflags="-H windowsgui -s -w" -o bin/uninstall.exe ./cmd/uninstaller
 # 封装单文件安装向导
 copy bin\tcode.exe cmd\installer\assets\
 copy bin\uninstall.exe cmd\installer\assets\
-go build -ldflags="-H windowsgui -s -w" -o bin/TcodeStudio_Setup_v2.0.0.exe ./cmd/installer
+go build -ldflags="-H windowsgui -s -w" -o bin/湉码Studio_Setup_v2.0.0.exe ./cmd/installer
 ```
 
 ### 4. 真实端到端安装与启动验证 (铁律 1.5)
 ```powershell
-# 方式 A: 默认路径快速静默安装 (安装至 %LOCALAPPDATA%\Programs\TcodeStudio)
-Start-Process -FilePath ".\bin\TcodeStudio_Setup_v2.0.0.exe" -ArgumentList "-silent" -Wait
+# 方式 A: 默认路径快速静默安装 (安装至 %LOCALAPPDATA%\Programs\湉码Studio)
+Start-Process -FilePath ".\bin\湉码Studio_Setup_v2.0.0.exe" -ArgumentList "-silent" -Wait
 
 # 方式 B: 指定自定义路径静默安装 (支持 -dir, --dir, /D= 等业界标准参数)
-Start-Process -FilePath ".\bin\TcodeStudio_Setup_v2.0.0.exe" -ArgumentList "-silent -dir ""D:\Custom\TcodeStudio""" -Wait
+Start-Process -FilePath ".\bin\湉码Studio_Setup_v2.0.0.exe" -ArgumentList "-silent -dir ""D:\Custom\湉码Studio""" -Wait
 
 # 方式 C: 交互式向导安装 (双击直接运行)
 # 弹窗提示默认路径与自定义选择；点击【否】自动唤起 Windows 系统原生资源管理器文件夹浏览选择，无黑框闪烁
 
 # 启动并检查进程探活
-Start-Process -FilePath "$env:LOCALAPPDATA\Programs\TcodeStudio\tcode.exe"
+Start-Process -FilePath "$env:LOCALAPPDATA\Programs\湉码Studio\tcode.exe"
 ```

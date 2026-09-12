@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	v1 "tcode/pkg/plugin/v1"
+	v1 "tiancode/pkg/plugin/v1"
 )
 
 // Provider OpenAI 官方协议驱动插件

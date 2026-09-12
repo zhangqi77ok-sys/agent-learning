@@ -45,7 +45,7 @@ func main() {
 	}
 
 	if !silent {
-		ans := messageBox("卸载 Tcode Studio", "您确定要从这台计算机上完全卸载 Tcode Studio 及其所有快捷方式吗？", MB_YESNO|MB_ICONQUESTION)
+		ans := messageBox("卸载 湉码", "您确定要从这台计算机上完全卸载 湉码 及其所有快捷方式吗？", MB_YESNO|MB_ICONQUESTION)
 		if ans != IDYES {
 			return
 		}
@@ -57,15 +57,15 @@ func main() {
 	_ = killCmd.Run()
 
 	homeDir, _ := os.UserHomeDir()
-	desktop := filepath.Join(homeDir, "Desktop", "Tcode Studio.lnk")
-	startMenu := filepath.Join(homeDir, "AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs", "Tcode Studio.lnk")
+	desktop := filepath.Join(homeDir, "Desktop", "湉码.lnk")
+	startMenu := filepath.Join(homeDir, "AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs", "湉码.lnk")
 
 	// 2. 删除快捷方式
 	_ = os.Remove(desktop)
 	_ = os.Remove(startMenu)
 
 	// 3. 读取注册表卸载项获取可能的原始安装路径，然后删除注册表项
-	regPath := `Software\Microsoft\Windows\CurrentVersion\Uninstall\TcodeStudio`
+	regPath := `Software\Microsoft\Windows\CurrentVersion\Uninstall\Tiancode`
 	var regInstallDir string
 	k, err := registry.OpenKey(registry.CURRENT_USER, regPath, registry.QUERY_VALUE)
 	if err == nil {
@@ -84,7 +84,7 @@ func main() {
 		appDir = regInstallDir
 	}
 	if appDir == "" {
-		appDir = filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "TcodeStudio")
+		appDir = filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "Tiancode")
 	}
 	appDir = filepath.Clean(appDir)
 
@@ -100,7 +100,7 @@ func main() {
 		!strings.EqualFold(appDir, userProfile) &&
 		!strings.EqualFold(appDir, homeDir) {
 		baseName := filepath.Base(appDir)
-		if strings.EqualFold(baseName, "TcodeStudio") {
+		if strings.EqualFold(baseName, "Tiancode") {
 			isSafeToDelete = true
 		}
 	}
@@ -117,7 +117,7 @@ func main() {
 	_ = os.WriteFile(batPath, []byte(batContent), 0755)
 
 	if !silent {
-		messageBox("卸载完成", "Tcode Studio 已成功从您的计算机移除。", MB_ICONINFO)
+		messageBox("卸载完成", "湉码 已成功从您的计算机移除。", MB_ICONINFO)
 	}
 
 	op, _ := syscall.UTF16PtrFromString("open")

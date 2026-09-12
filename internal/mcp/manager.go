@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
-	"tcode/internal/config"
-	"tcode/internal/llm"
+	"tiancode/internal/config"
+	"tiancode/internal/llm"
 	"time"
 )
 

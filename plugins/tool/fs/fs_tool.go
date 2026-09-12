@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"tcode/internal/core/sandbox"
-	v1 "tcode/pkg/plugin/v1"
+	"tiancode/internal/core/sandbox"
+	v1 "tiancode/pkg/plugin/v1"
 )
 
 // Tool 文件系统受控操作算子插件

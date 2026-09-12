@@ -1,4 +1,4 @@
-# Tcode 研发团队与智能体开发守则 (AGENTS.md)
+# 湉码 / tiancode 研发守则 (AGENTS.md)
 
 ## 🚨 项目级绝对强制铁律 (Always-On Mandatory Iron Rules)
 

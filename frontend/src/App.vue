@@ -5,8 +5,8 @@
     <!-- ========================================================================= -->
     <header style="--wails-draggable:drag" class="h-[38px] min-h-[38px] bg-[#FAF8F5] border-b border-black/[0.08] flex items-center justify-between px-3 z-30 select-none">
       <div style="--wails-draggable:no-drag" class="flex items-center gap-2">
-        <div class="w-5 h-5 rounded-md bg-[#18181B] text-white flex items-center justify-center font-bold text-xs shadow-xs">T</div>
-        <span class="text-xs font-semibold tracking-tight text-[#18181B]">Tcode Studio</span>
+        <div class="w-5 h-5 rounded-md bg-[#18181B] text-white flex items-center justify-center font-bold text-xs shadow-xs">湉</div>
+        <span class="text-xs font-semibold tracking-tight text-[#18181B]">湉码</span>
         <span class="text-[#A1A1AA] text-xs">/</span>
         <button
           @click="chooseWorkspace"
@@ -349,7 +349,7 @@
             <div class="w-14 h-14 rounded-2xl bg-white border border-black/[0.08] shadow-xs flex items-center justify-center text-2xl mb-4">
               💬
             </div>
-            <h3 class="text-sm font-bold text-[#18181B] mb-1.5">Tcode Agentic Studio</h3>
+            <h3 class="text-sm font-bold text-[#18181B] mb-1.5">湉码 / tiancode</h3>
             <p class="text-xs text-[#71717A] max-w-sm mb-5 leading-relaxed">
               当前暂无活跃对话。请在下方输入框键入编程任务，或点击【＋新建会话】开始。
             </p>
@@ -375,7 +375,7 @@
             <div v-else class="flex flex-col items-start space-y-3.5 max-w-3xl w-full">
               <div class="flex items-center gap-2 text-xs font-semibold text-[#18181B]">
                 <div class="w-4 h-4 rounded bg-[#D96B27] text-white flex items-center justify-center text-[9px] font-bold">T</div>
-                <span>Tcode Agent</span>
+                <span>湉码 Agent</span>
                 <span class="text-[10px] text-[#10A37F] bg-[#10A37F]/10 px-1.5 py-0.2 rounded font-mono">{{ selectedModel }} · 自主算子模式</span>
               </div>
 
@@ -445,7 +445,7 @@
             <textarea
               v-model="inputPrompt"
               rows="2"
-              placeholder="给 Tcode Agent 发送指令 (支持拖拽文件，输入 @ 引用工程，/ 调起算子)..."
+              placeholder="给 湉码 Agent 发送指令 (支持拖拽文件，输入 @ 引用工程，/ 调起算子)..."
               class="w-full text-xs text-[#18181B] placeholder-[#A1A1AA] bg-transparent focus:outline-none resize-none leading-relaxed"
               @keydown.enter.prevent="handleSend"
             ></textarea>
@@ -692,7 +692,7 @@
               class="h-full flex flex-col p-3 overflow-y-auto space-y-1.5 bg-[#161412]"
             >
               <div class="text-white/40 mb-1 text-[11px]">
-                Tcode Studio 受控静默终端 · 工作区: agent-learning [Windows 安全沙箱就绪]
+                湉码 受控静默终端 · 工作区: tiancode [Windows 安全沙箱就绪]
               </div>
               
               <!-- 历史流式输出块 -->
@@ -739,7 +739,7 @@
               v-show="activeTerminalTab === 'logs'"
               class="h-full p-3 overflow-y-auto space-y-1.5 select-text bg-[#12100E] font-mono text-[11px]"
             >
-              <div class="text-white/40 pb-1 border-b border-white/[0.06]">--- Tcode Microkernel Live Event Trace (SSE Active) ---</div>
+              <div class="text-white/40 pb-1 border-b border-white/[0.06]">--- 湉码 Microkernel Live Event Trace (SSE Active) ---</div>
               <div v-for="(trace, tIdx) in agentTraceLogs" :key="tIdx" class="flex items-center gap-2">
                 <span class="text-white/30">[{{ trace.time }}]</span>
                 <span class="text-[#D96B27]">[{{ trace.phase }}]</span>
@@ -1360,7 +1360,7 @@ async function deleteSession(id: string) {
 // 3. 真实工作区、文件树与 Git 状态
 const workspacePath = ref('')
 const workspaceName = computed(() => {
-  if (!workspacePath.value) return 'Tcode Studio'
+  if (!workspacePath.value) return '湉码'
   const normalized = workspacePath.value.replace(/\\/g, '/')
   const parts = normalized.split('/').filter(Boolean)
   return parts[parts.length - 1] || 'Workspace'

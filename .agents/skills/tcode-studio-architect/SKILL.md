@@ -2,14 +2,14 @@
 name: tcode-studio-architect
 description: >-
   Comprehensive architectural guidelines, desktop engineering workflow, and operational protocols
-  for Tcode Studio (Go microkernel + Vue 3 desktop AI IDE). Use this skill when continuing development,
+  for 湉码 / tiancode (Go microkernel + Vue 3 desktop AI IDE). Use this skill when continuing development,
   compiling Wails desktop binaries, building Windows installer packages, editing prototypes, or
   extending backend business engines (GitOps, MCP, Monaco Diff, Swarm Agents).
 ---
 
-# Tcode Studio 架构师与全栈工程规范 (Architecture & Dev Protocol)
+# 湉码 / tiancode 架构师与全栈工程规范 (Architecture & Dev Protocol)
 
-本技能沉淀了 **Tcode Studio v2.0** 桌面端的所有架构决策、代码约束、构建踩坑点与工程流水线。
+本技能沉淀了 **湉码 v2.0** 桌面端的所有架构决策、代码约束、构建踩坑点与工程流水线。
 无论在任何新电脑或新环境下唤起 AI 助手，**必须严格遵循本规范执行后续开发**。
 
 ---
@@ -26,7 +26,7 @@ description: >-
    - **严禁擅自简化、重构或缩减原型**！任何视觉变动必须先在 `web_prototype.html` 中精细打磨，并同步至 `frontend/index.html`。
 4. **中转路由与模型凭据 (测试基准)**：
    - **Base URL**: `https://agentrouter.org/`
-   - **API Key**: `sk-gKTbHfCZqgyDVf3TaXWpXT5TXW9qIZdAFVMOsY49ZKFssyFZ`
+   - **API Key**: 从环境变量 `TIANCODE_API_KEY` 或本机密钥文件读取，**禁止写入仓库**
    - **支持模型**: `gpt-5.6-sol`、`claude-opus-4-8`、`deepseek-v4-flash`、`glm-5.3`
 
 ---
@@ -34,7 +34,7 @@ description: >-
 ## 🏗️ 系统分层架构与目录拓扑
 
 ```
-agent-learning/
+tiancode/
 ├── web_prototype.html          # 【核心真理源】全功能交互原型 (HTML/Tailwind/原生JS)
 ├── frontend/                   # Vue/Vite 桌面前端单包资产
 │   ├── index.html              # 与 web_prototype.html 1:1 同步
@@ -82,9 +82,9 @@ agent-learning/
 ### 3. 原生 Windows 独立 EXE 安装包机制
 - 安装包源码位于 `cmd/installer/main.go`；
 - 原理：使用 `//go:embed assets/tcode.exe` 与 `assets/uninstall.exe` 封装单文件向导；
-- 安装位置：`%LOCALAPPDATA%\Programs\TcodeStudio`（免 UAC 提权）；
-- 自动生成桌面快捷方式 `Tcode Studio.lnk` 与开始菜单项；
-- 注册表登记卸载项：`HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\TcodeStudio`；
+- 安装位置：`%LOCALAPPDATA%\Programs\Tiancode`（免 UAC 提权）；
+- 自动生成桌面快捷方式 `湉码.lnk` 与开始菜单项；
+- 注册表登记卸载项：`HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Tiancode`；
 - 编译命令：
   ```powershell
   # 1. 复制最新编译好的二进制到 assets
@@ -108,8 +108,8 @@ agent-learning/
 
 ### 步骤 2：克隆仓库与安装前端依赖
 ```powershell
-git clone git@github.com:zhangqi77ok-sys/agent-learning.git
-cd agent-learning/frontend
+git clone git@github.com:zhangqi77ok-sys/tiancode.git
+cd tiancode/frontend
 npm install
 ```
 

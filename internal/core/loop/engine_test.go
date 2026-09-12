@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
-	"tcode/internal/host"
-	v1 "tcode/pkg/plugin/v1"
+	"tiancode/internal/host"
+	v1 "tiancode/pkg/plugin/v1"
 )
 
 type mockProvider struct {

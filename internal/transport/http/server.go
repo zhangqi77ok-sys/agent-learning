@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"tcode/internal/core/loop"
-	"tcode/internal/core/sandbox"
-	"tcode/internal/host"
-	gitTool "tcode/plugins/tool/git"
+	"tiancode/internal/core/loop"
+	"tiancode/internal/core/sandbox"
+	"tiancode/internal/host"
+	gitTool "tiancode/plugins/tool/git"
 )
 
 // Server 本地开发网关服务端

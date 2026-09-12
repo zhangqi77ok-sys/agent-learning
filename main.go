@@ -16,7 +16,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "Tcode · 智能体与模型全景工作台",
+		Title:     "湉码 · tiancode",
 		Width:     1440,
 		Height:    900,
 		MinWidth:  1024,

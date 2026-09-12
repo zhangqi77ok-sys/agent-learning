@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
-	v1 "tcode/pkg/plugin/v1"
+	v1 "tiancode/pkg/plugin/v1"
 )
 
 // GuardedExecutionError 带有完整堆栈信息的插件崩溃错误

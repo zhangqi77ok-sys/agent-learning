@@ -79,7 +79,7 @@ func main() {
 		localAppData = filepath.Join(home, "AppData", "Local")
 	}
 
-	defaultInstallDir := filepath.Join(localAppData, "Programs", "TcodeStudio")
+	defaultInstallDir := filepath.Join(localAppData, "Programs", "Tiancode")
 	customDir := ""
 	isSilent := false
 	isTestingMode := false
@@ -117,8 +117,8 @@ func main() {
 	installDir := defaultInstallDir
 	if customDir != "" {
 		cleaned := filepath.Clean(customDir)
-		if !strings.EqualFold(filepath.Base(cleaned), "TcodeStudio") {
-			installDir = filepath.Join(cleaned, "TcodeStudio")
+		if !strings.EqualFold(filepath.Base(cleaned), "Tiancode") {
+			installDir = filepath.Join(cleaned, "Tiancode")
 		} else {
 			installDir = cleaned
 		}
@@ -128,7 +128,7 @@ func main() {
 		// 若命令行未指定自定义路径，提供选择默认路径与自定义浏览选项
 		if customDir == "" {
 			welcomeText := fmt.Sprintf(
-				"欢迎使用 Tcode Agentic Studio 安装向导！\n\n"+
+				"欢迎使用 湉码 / tiancode 安装向导！\n\n"+
 					"系统推荐默认安装位置：\n%s\n\n"+
 					"• 点击【是 (Y)】：直接使用推荐默认路径快速安装\n"+
 					"• 点击【否 (N)】：自定义浏览选择安装文件夹\n"+
@@ -137,7 +137,7 @@ func main() {
 				defaultInstallDir,
 			)
 
-			ans := messageBox("Tcode Studio v2.0 安装向导", welcomeText, MB_YESNOCANCEL|MB_ICONQUESTION)
+			ans := messageBox("湉码 v2.0 安装向导", welcomeText, MB_YESNOCANCEL|MB_ICONQUESTION)
 			if ans == IDCANCEL {
 				return
 			} else if ans == IDNO {
@@ -148,10 +148,10 @@ func main() {
 					return
 				}
 
-				// 若选中的文件夹尾部未包含 TcodeStudio，自动创建专用子目录
+				// 若选中的文件夹尾部未包含 Tiancode，自动创建专用子目录
 				selectedClean := filepath.Clean(selected)
-				if !strings.EqualFold(filepath.Base(selectedClean), "TcodeStudio") {
-					installDir = filepath.Join(selectedClean, "TcodeStudio")
+				if !strings.EqualFold(filepath.Base(selectedClean), "Tiancode") {
+					installDir = filepath.Join(selectedClean, "Tiancode")
 				} else {
 					installDir = selectedClean
 				}
@@ -167,7 +167,7 @@ func main() {
 		} else {
 			// 命令行已传入 customDir 且为交互模式，弹窗确认即可
 			confirmText := fmt.Sprintf(
-				"Tcode Studio 安装向导将安装至指定目录：\n%s\n\n是否立即开始安装？",
+				"湉码 安装向导将安装至指定目录：\n%s\n\n是否立即开始安装？",
 				installDir,
 			)
 			if messageBox("确认安装目录", confirmText, MB_YESNO|MB_ICONQUESTION) != IDYES {
@@ -212,21 +212,21 @@ func main() {
 	// 5. 创建快捷方式 (桌面 + 开始菜单) - 仅在非隔离测试模式下生成
 	if !isTestingMode {
 		homeDir, _ := os.UserHomeDir()
-		desktopLnk := filepath.Join(homeDir, "Desktop", "Tcode Studio.lnk")
+		desktopLnk := filepath.Join(homeDir, "Desktop", "湉码.lnk")
 		startMenuDir := filepath.Join(homeDir, "AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs")
-		startMenuLnk := filepath.Join(startMenuDir, "Tcode Studio.lnk")
+		startMenuLnk := filepath.Join(startMenuDir, "湉码.lnk")
 
 		createShortcut(desktopLnk, targetExe, installDir)
 		createShortcut(startMenuLnk, targetExe, installDir)
 
 		// 6. 注册 Windows 卸载表项
-		regPath := `Software\Microsoft\Windows\CurrentVersion\Uninstall\TcodeStudio`
+		regPath := `Software\Microsoft\Windows\CurrentVersion\Uninstall\Tiancode`
 		k, _, err := registry.CreateKey(registry.CURRENT_USER, regPath, registry.ALL_ACCESS)
 		if err == nil {
 			defer k.Close()
-			_ = k.SetStringValue("DisplayName", "Tcode Agentic Studio v2.0")
+			_ = k.SetStringValue("DisplayName", "湉码 tiancode v2.0")
 			_ = k.SetStringValue("DisplayVersion", "2.0.0")
-			_ = k.SetStringValue("Publisher", "Tcode Studio")
+			_ = k.SetStringValue("Publisher", "tiancode")
 			_ = k.SetStringValue("DisplayIcon", targetExe+",0")
 			_ = k.SetStringValue("InstallLocation", installDir)
 			_ = k.SetStringValue("UninstallString", fmt.Sprintf("\"%s\"", uninstallExe))
@@ -239,7 +239,7 @@ func main() {
 	if !isSilent {
 		launchAns := messageBox(
 			"安装成功",
-			fmt.Sprintf("✓ Tcode Studio v2.0.0 已成功安装到：\n%s\n\n桌面与开始菜单已生成快捷方式。\n\n是否立即启动应用程序？", installDir),
+			fmt.Sprintf("✓ 湉码 v2.0.0 已成功安装到：\n%s\n\n桌面与开始菜单已生成快捷方式。\n\n是否立即启动应用程序？", installDir),
 			MB_YESNO|MB_ICONINFO,
 		)
 

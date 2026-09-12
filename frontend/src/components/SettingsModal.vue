@@ -8,7 +8,7 @@
       <header class="h-12 bg-[#FAF8F5] border-b border-black/[0.08] flex items-center justify-between px-5 select-none shrink-0">
         <div class="flex items-center gap-2">
           <span class="text-base">⚙️</span>
-          <span class="font-bold text-sm text-[#18181B]">系统全局设置中枢 (Tcode Studio Settings)</span>
+          <span class="font-bold text-sm text-[#18181B]">系统全局设置中枢 (湉码 Settings)</span>
         </div>
         <button @click="store.isSettingsOpen = false" class="p-1.5 rounded-lg text-[#71717A] hover:bg-black/[0.05] cursor-pointer">✕</button>
       </header>
