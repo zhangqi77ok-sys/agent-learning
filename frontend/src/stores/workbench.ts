@@ -17,7 +17,7 @@ import { renderMarkdown } from '../core/markdown'
 export const useWorkbenchStore = defineStore('workbench', () => {
 // 1. 活动栏与工作区状态
 const activeActivity = ref('chat')
-const isDiffOpen = ref(false)
+const isDiffOpen = ref(true)
 const activeDiffFile = ref('')
 const isSettingsOpen = ref(false)
 const isKnowledgeGraphOpen = ref(false)
@@ -418,8 +418,41 @@ async function restoreSnapshotAction(id: string) {
 }
 
 function switchToFileActivity() {
-  activeActivity.value = 'files'
-  loadFileTree()
+  activeActivity.value = 'chat'
+  isDiffOpen.value = true
+  void loadFileTree()
+}
+
+async function gitPullAction() {
+  try {
+    const out = await wailsBridge.gitPull()
+    await loadGitStatus()
+    showToast('✓ git pull: ' + (out || 'ok').slice(0, 80))
+  } catch (err) {
+    showToast('git pull 失败: ' + err)
+  }
+}
+
+async function gitPushAction() {
+  try {
+    const out = await wailsBridge.gitPush()
+    showToast('✓ git push: ' + (out || 'ok').slice(0, 80))
+  } catch (err) {
+    showToast('git push 失败: ' + err)
+  }
+}
+
+async function setSessionTag(id: string, tag: string) {
+  try {
+    const sess = await wailsBridge.getSession(id)
+    if (!sess) return
+    sess.tag = tag.trim()
+    await wailsBridge.saveSession(sess)
+    await loadSessionsList()
+    if (currentSessionId.value === id) currentSession.value.tag = sess.tag
+  } catch (err) {
+    showToast('打标签失败: ' + err)
+  }
 }
 
 function switchToGitActivity() {
@@ -1053,6 +1086,7 @@ const rules = ref<RuleConfig[]>([])
 const pingLoadingMap = reactive<Record<string, boolean>>({})
 
 const channelForm = reactive({
+  id: '',
   name: '',
   endpoint: '',
   api_key: ''
@@ -1111,6 +1145,7 @@ function setPrimaryChannel(id: string) {
 }
 
 function openAddChannelModal() {
+  channelForm.id = ''
   channelForm.name = ''
   channelForm.endpoint = ''
   channelForm.api_key = ''
@@ -1118,6 +1153,7 @@ function openAddChannelModal() {
 }
 
 function editChannel(ch: ChannelConfig) {
+  channelForm.id = ch.id
   channelForm.name = ch.name
   channelForm.endpoint = ch.endpoint
   channelForm.api_key = ch.api_key || ''
@@ -1151,7 +1187,7 @@ async function fetchModelsAction() {
 
 async function saveChannelAction() {
   await wailsBridge.saveChannel({
-    id: 'ch_' + Date.now(),
+    id: channelForm.id || 'ch_' + Date.now(),
     name: channelForm.name,
     primary: false,
     status: 'standby',
@@ -1169,6 +1205,21 @@ async function saveChannelAction() {
 
 async function toggleMcp(mcp: MCPServerConfig) {
   await wailsBridge.saveMCP(mcp)
+}
+
+async function deleteMcpAction(id: string) {
+  await wailsBridge.deleteMCP(id)
+  await loadSettingsData()
+  showToast('✓ MCP 已删除')
+}
+
+async function testMcpAction(id: string) {
+  try {
+    const r = await wailsBridge.testMCPServer(id)
+    showToast((r.status || 'OK') + ' · 工具 ' + (r.tool_count || 0) + ' · ' + (r.latency || ''))
+  } catch (err) {
+    showToast('MCP 探活失败: ' + err)
+  }
 }
 
 async function toggleSkill(skill: SkillConfig) {
@@ -1578,6 +1629,7 @@ function initWorkbench() {
     if (!ws) return
     workspacePath.value = ws
     await wailsBridge.addProject(ws)
+    isDiffOpen.value = true
     await Promise.all([loadFileTree(), loadGitStatus(), loadSessionsList(), loadProjects()])
     const mine = sessions.value.filter((s) => samePath(s.workspace, ws))
     if (mine.length > 0) {
@@ -1628,6 +1680,7 @@ function initWorkbench() {
     currentSession,
     currentSessionId,
     currentTerminalBuffer,
+    deleteMcpAction,
     deleteChannel,
     deleteRuleAction,
     deleteSession,
@@ -1649,6 +1702,8 @@ function initWorkbench() {
     gitBranches,
     gitCurrentBranch,
     gitSnapshots,
+    gitPullAction,
+    gitPushAction,
     gitStatus,
     handleComposerKeydown,
     handleFileClick,
@@ -1733,6 +1788,7 @@ function initWorkbench() {
     selectedModel,
     sessions,
     skipStrategyChoice,
+    setSessionTag,
     setPrimaryChannel,
     showToast,
     skillForm,
@@ -1744,6 +1800,7 @@ function initWorkbench() {
     stagedTreeFiles,
     stopGenerationAction,
     submitTerminalCommand,
+    testMcpAction,
     tabContextMenu,
     switchToFileActivity,
     switchToGitActivity,

@@ -182,10 +182,14 @@
                     </div>
                     <div class="text-[11px] text-[#71717A] mt-0.5 font-mono">{{ mcp.command }} {{ (mcp.args || []).join(' ') }}</div>
                   </div>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" v-model="mcp.enabled" @change="s.toggleMcp(mcp)" class="sr-only peer">
-                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#10A37F]"></div>
-                  </label>
+                  <div class="flex items-center gap-2">
+                    <button class="px-2 py-1 rounded-lg bg-white border border-black/[0.08] text-[11px] cursor-pointer" @click="s.testMcpAction(mcp.id)">探活</button>
+                    <button class="px-2 py-1 rounded-lg bg-white border border-red-200 text-[11px] text-red-600 cursor-pointer" @click="s.deleteMcpAction(mcp.id)">删除</button>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" v-model="mcp.enabled" @change="s.toggleMcp(mcp)" class="sr-only peer">
+                      <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#10A37F]"></div>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -270,7 +274,7 @@
               <h3 class="text-xs font-bold text-[#18181B]">安全沙箱与防线</h3>
               <div class="p-3 rounded-xl bg-[#FAF8F5] border border-black/[0.06] text-xs text-[#52525B] leading-relaxed space-y-2">
                 <p>Agent 工具调用走 Go 微内核 <span class="font-mono">SafetyRail</span>：写文件、执行命令、Git 操作在内核侧校验，而不是前端开关。</p>
-                <p>对话里「需人工审核 / 全自动」尚未接到内核策略，因此已从输入栏移除，避免假装能免审核。</p>
+                <p>发送消息前会选择执行策略：只读分析会拦截写盘与命令；直接改代码 / TDD 才允许工具写文件。</p>
                 <p>API Key 在 Windows 上用 DPAPI 加密写入 <span class="font-mono">~/.tiancode/channels.json</span>。</p>
               </div>
             </div>
@@ -283,7 +287,7 @@
                 <div class="pt-2 border-t border-black/[0.06] font-mono text-[11px] space-y-1">
                   <p>Token 累计：{{ s.usageMetrics.total_tokens }}</p>
                   <p>调用次数：{{ s.usageMetrics.total_calls }}</p>
-                  <p>估算费用：{{ s.usageMetrics.estimated_cost }}</p>
+                  <p>估算费用（非账单）：{{ s.usageMetrics.estimated_cost }}</p>
                   <p>活跃会话计数：{{ s.usageMetrics.active_sessions }}</p>
                   <p>更新时间：{{ s.usageMetrics.last_updated_time || '尚无记录' }}</p>
                 </div>
@@ -305,7 +309,7 @@
         <header class="h-12 bg-[#FAF8F5] border-b border-black/[0.08] flex items-center justify-between px-5 select-none shrink-0">
           <div class="flex items-center gap-3">
             <span class="text-base">🕸️</span>
-            <span class="font-bold text-sm text-[#18181B]">项目代码语义与拓扑知识图谱 (AST Topology Graph)</span>
+            <span class="font-bold text-sm text-[#18181B]">工作区 Go AST 拓扑</span>
           </div>
 
           <div class="flex items-center gap-2">

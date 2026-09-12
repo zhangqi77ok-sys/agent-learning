@@ -458,6 +458,18 @@ export const wailsBridge = {
     throw new Error('microkernel not connected: GitCreateSnapshot unavailable')
   },
 
+  async gitPull(): Promise<string> {
+    const app = getApp()
+    if (app?.GitPull) return await app.GitPull()
+    throw new Error('microkernel not connected: GitPull unavailable')
+  },
+
+  async gitPush(): Promise<string> {
+    const app = getApp()
+    if (app?.GitPush) return await app.GitPush()
+    throw new Error('microkernel not connected: GitPush unavailable')
+  },
+
   async gitRestoreSnapshot(id: string): Promise<void> {
     const app = getApp()
     if (app?.GitRestoreSnapshot) {

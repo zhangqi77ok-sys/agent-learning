@@ -2,8 +2,25 @@
 <!-- 右侧 Monaco Diff 审查工作区 (Diff Workspace) -->
       <section
         v-show="s.isDiffOpen"
-        class="w-[45vw] min-w-[380px] max-w-[700px] border-l border-black/[0.08] bg-[#FAF8F5] flex flex-col justify-between select-none z-10 shrink-0 font-sans"
+        class="w-[46vw] min-w-[420px] max-w-[820px] border-l border-black/[0.08] bg-[#FAF8F5] flex select-none z-10 shrink-0 font-sans"
       >
+        <div class="w-44 min-w-[10rem] border-r border-black/[0.08] flex flex-col overflow-hidden bg-[#F4EFEA]">
+          <div class="h-10 min-h-[40px] px-2 border-b border-black/[0.08] flex items-center justify-between text-[11px] font-bold">
+            <span class="truncate">{{ s.workspaceName }}</span>
+            <button class="cursor-pointer text-[#71717A]" @click="s.loadFileTree">↻</button>
+          </div>
+          <div class="flex-1 overflow-y-auto p-1.5 text-[11px] font-mono space-y-0.5">
+            <div v-for="node in s.fileTree" :key="node.path">
+              <div @click="s.handleFileClick(node)" class="px-1.5 py-0.5 rounded hover:bg-white cursor-pointer truncate">
+                {{ node.is_dir ? '▸' : '' }} {{ node.name }}
+              </div>
+              <div v-if="node.is_dir && s.expandedFolders[node.path] && node.children" class="pl-3">
+                <div v-for="sub in node.children" :key="sub.path" @click="s.handleFileClick(sub)" class="px-1 py-0.5 rounded hover:bg-white cursor-pointer truncate">{{ sub.name }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1 flex flex-col justify-between min-w-0">
         <header class="h-10 min-h-[40px] bg-[#FAF8F5] border-b border-black/[0.08] px-3 flex items-center justify-between text-xs shrink-0">
           <div class="flex items-center gap-2 min-w-0">
             <span class="text-sm">📄</span>
@@ -139,8 +156,9 @@
 
         <footer class="h-6 bg-[#FAF8F5] border-t border-black/[0.08] px-3 flex items-center justify-between text-[10px] text-[#71717A] font-mono select-none shrink-0">
           <span>{{ s.diffReport?.lang || 'Go · UTF-8' }}</span>
-          <span class="text-emerald-700 font-bold">● Git 磁盘实时同步</span>
+          <span class="text-emerald-700 font-bold">● 读写工作区磁盘</span>
         </footer>
+        </div>
       </section>
 </template>
 

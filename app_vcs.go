@@ -258,6 +258,32 @@ func (a *App) RunSecurityAudit() (agent.AuditReport, error) {
 	return agent.RunSecurityAudit(a.workspace)
 }
 
+func (a *App) GitPull() (string, error) {
+	cmd := exec.Command("git", "pull", "--rebase", "--autostash")
+	cmd.Dir = a.workspace
+	if attr := windowsSysProcAttr(); attr != nil {
+		cmd.SysProcAttr = attr
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(out), fmt.Errorf("%s: %w", strings.TrimSpace(string(out)), err)
+	}
+	return string(out), nil
+}
+
+func (a *App) GitPush() (string, error) {
+	cmd := exec.Command("git", "push")
+	cmd.Dir = a.workspace
+	if attr := windowsSysProcAttr(); attr != nil {
+		cmd.SysProcAttr = attr
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(out), fmt.Errorf("%s: %w", strings.TrimSpace(string(out)), err)
+	}
+	return string(out), nil
+}
+
 // GetUsageMetrics 获取 Token 消耗与网关使用量统计大盘
 func (a *App) GetUsageMetrics() telemetry.UsageMetrics {
 	activeCount := 0

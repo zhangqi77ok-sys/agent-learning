@@ -111,7 +111,9 @@
                 >
                   <div class="p-2 flex items-center justify-between bg-black/[0.02] text-xs font-mono">
                     <span class="font-bold text-[#18181B]">$_ {{ tItem.name }} {{ typeof tItem.args === 'string' ? tItem.args : JSON.stringify(tItem.args) }}</span>
-                    <span class="text-[10px] text-[#10A37F]">● 执行成功</span>
+                    <span class="text-[10px]" :class="(tItem.output || '').startsWith('[') || (tItem.output || '').includes('error') || (tItem.output || '').includes('拦截') ? 'text-red-500' : ((tItem.output === '正在执行...' || !tItem.output) ? 'text-amber-600' : 'text-[#10A37F]')">
+                      {{ (tItem.output || '').startsWith('[') || (tItem.output || '').includes('拦截') ? '● 已拦截/失败' : ((tItem.output === '正在执行...' || !tItem.output) ? '● 执行中' : '● 完成') }}
+                    </span>
                   </div>
                   <div class="p-2.5 bg-[#18181B] text-emerald-400 font-mono text-[11px] whitespace-pre-wrap">
                     {{ tItem.output }}

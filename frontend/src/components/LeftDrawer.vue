@@ -1,5 +1,5 @@
 <template>
-<aside class="w-64 bg-[#FAF8F5] border-r border-black/[0.08] flex flex-col justify-between select-none z-10 shrink-0 font-sans">
+<aside class="w-[260px] min-w-[220px] bg-[#F4EFEA] border-r border-black/[0.08] flex flex-col justify-between select-none z-10 shrink-0 font-sans">
         <!-- 抽屉视图 1: 真实会话列表 (Chat Sessions) -->
         <div v-if="s.activeActivity === 'chat'" class="flex flex-col h-full overflow-hidden">
           <div class="p-3 border-b border-black/[0.06] flex items-center justify-between gap-2">
@@ -94,7 +94,10 @@
                     <button @click.stop="s.deleteSession(sess.id)" class="text-[#A1A1AA] hover:text-red-500 text-[10px] cursor-pointer" title="删除会话">🗑</button>
                   </div>
                   <div class="flex items-center gap-1 text-[10px] text-[#71717A]">
-                    <span v-if="sess.tag" class="bg-[#D96B27]/10 text-[#D96B27] px-1 py-0.2 rounded">#{{ sess.tag }}</span>
+                    <button
+                      class="bg-[#D96B27]/10 text-[#D96B27] px-1 py-0.2 rounded cursor-pointer"
+                      @click.stop="s.setSessionTag(sess.id, window.prompt('会话标签（空则清除）', sess.tag || '') ?? sess.tag)"
+                    >{{ sess.tag ? '#' + sess.tag : '#标签' }}</button>
                     <span class="truncate flex-1">{{ sess.desc }}</span>
                     <span class="font-mono text-[#A1A1AA] shrink-0">{{ sess.time }}</span>
                   </div>
@@ -104,51 +107,16 @@
           </div>
         </div>
 
-        <!-- 抽屉视图 2: 真实工程文件树 (File Explorer) -->
-        <div v-else-if="s.activeActivity === 'files'" class="flex flex-col h-full overflow-hidden">
-          <div class="p-3 border-b border-black/[0.06] flex items-center justify-between">
-            <span class="font-bold text-xs text-[#18181B] flex items-center gap-1.5 truncate mr-2" :title="s.workspacePath">
-              <span>📁</span><span class="truncate">{{ s.workspaceName }}</span>
-            </span>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button @click="s.chooseWorkspace" class="text-xs text-[#71717A] hover:text-[#D96B27] cursor-pointer" title="打开/切换工程文件夹 (原生对话框)">📂</button>
-              <button @click="s.loadFileTree" class="text-xs text-[#71717A] hover:text-[#D96B27] cursor-pointer" title="刷新文件树">🔄</button>
-            </div>
+        <div v-else-if="s.activeActivity === 'usage'" class="flex flex-col h-full overflow-hidden p-3 space-y-3 text-xs">
+          <div class="font-bold text-[#18181B]">用量（本进程累计）</div>
+          <p class="text-[11px] text-[#71717A]">Token 来自真实推理回调。金额是按统一单价估算，不是账单。</p>
+          <div class="rounded-xl bg-white border border-black/[0.08] p-3 space-y-1 font-mono">
+            <div>调用 {{ s.usageMetrics.total_calls }}</div>
+            <div>Token {{ s.usageMetrics.total_tokens }}</div>
+            <div>估算 {{ s.usageMetrics.estimated_cost }}</div>
+            <div>会话 {{ s.usageMetrics.active_sessions }}</div>
           </div>
-
-          <div class="flex-1 overflow-y-auto p-2 text-xs space-y-1 font-mono">
-            <div v-if="s.isFileTreeLoading" class="p-6 text-center text-[#A1A1AA] text-xs flex flex-col items-center justify-center gap-2">
-              <span class="animate-spin text-lg">⏳</span>
-              <span>正在读取工程目录...</span>
-            </div>
-            <div v-else-if="s.fileTree.length === 0" class="p-6 text-center text-[#A1A1AA] text-xs">
-              <span>工作区暂无文件</span>
-            </div>
-            <div v-for="node in s.fileTree" :key="node.path" class="space-y-0.5">
-              <div
-                @click="s.handleFileClick(node)"
-                class="px-2 py-1 rounded hover:bg-black/[0.04] cursor-pointer flex items-center justify-between transition-all"
-              >
-                <div class="flex items-center gap-1.5 min-w-0">
-                  <span>{{ node.is_dir ? (s.expandedFolders[node.path] ? '📂' : '📁') : '📄' }}</span>
-                  <span class="truncate" :class="{ 'font-bold': node.is_dir }">{{ node.name }}</span>
-                </div>
-                <span v-if="node.is_dir" class="text-[10px] text-[#A1A1AA]">{{ s.expandedFolders[node.path] ? '▲' : '▼' }}</span>
-              </div>
-
-              <div v-if="node.is_dir && s.expandedFolders[node.path] && node.children" class="pl-4 space-y-0.5 border-l border-black/[0.06] ml-2">
-                <div
-                  v-for="sub in node.children"
-                  :key="sub.path"
-                  @click="s.openFileDiff(sub.path)"
-                  class="px-2 py-0.5 rounded hover:bg-black/[0.04] cursor-pointer flex items-center gap-1.5 text-[11px] text-[#52525B]"
-                >
-                  <span>{{ sub.is_dir ? '📁' : '📄' }}</span>
-                  <span class="truncate">{{ sub.name }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <button class="px-2 py-1 rounded-lg border border-black/[0.08] bg-white cursor-pointer" @click="s.loadUsageMetrics">刷新</button>
         </div>
 
         <!-- 抽屉视图 3: 真实 Git 变更管理 (Source Control) -->
@@ -157,9 +125,13 @@
             <span class="font-bold text-xs text-[#18181B] flex items-center gap-1.5">
               <span>🌿</span><span>源代码管理 (Git)</span>
             </span>
-            <span class="text-[10px] font-mono text-[#10A37F] bg-[#10A37F]/10 px-1.5 py-0.2 rounded font-bold">
-              {{ s.gitCurrentBranch || s.gitBranchLabel }}
-            </span>
+            <div class="flex items-center gap-1">
+              <button class="text-[10px] px-1.5 py-0.5 rounded bg-white border border-black/[0.08] cursor-pointer" @click="s.gitPullAction">pull</button>
+              <button class="text-[10px] px-1.5 py-0.5 rounded bg-white border border-black/[0.08] cursor-pointer" @click="s.gitPushAction">push</button>
+              <span class="text-[10px] font-mono text-[#10A37F] bg-[#10A37F]/10 px-1.5 py-0.2 rounded font-bold">
+                {{ s.gitCurrentBranch || s.gitBranchLabel }}
+              </span>
+            </div>
           </div>
 
           <div class="flex-1 overflow-y-auto p-3 space-y-3 text-xs">

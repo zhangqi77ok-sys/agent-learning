@@ -23,9 +23,16 @@
             <span class="text-base">🌿</span>
           </button>
           <button
+            @click="s.activeActivity = 'usage'; s.loadUsageMetrics()"
+            :class="['w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.activeActivity === 'usage' ? 'bg-white shadow-2xs text-[#D96B27] border border-black/[0.06]' : 'text-[#71717A] hover:bg-black/[0.04]']"
+            title="Token 用量"
+          >
+            <span class="text-base">📊</span>
+          </button>
+          <button
             @click="s.openKnowledgeGraphModal"
             class="w-9 h-9 rounded-xl flex items-center justify-center text-[#71717A] hover:bg-black/[0.04] transition-all cursor-pointer"
-            title="项目知识图谱与记忆"
+            title="项目 AST 拓扑"
           >
             <span class="text-base">🕸️</span>
           </button>
