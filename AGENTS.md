@@ -36,6 +36,11 @@
 2. **归档栈**：`archive/`（含旧 `prototype/`、`src-desktop/`、`web_prototype.html`）仅历史参考。
 3. **审查违规打回制**：把桌面主循环写回 `app.go`、或重新引入第二条 LLM 调度，一律打回。
 
+### 【铁律 0.9: 后续施工只认一份合同】
+1. 原型缺口与工作包顺序以 **`docs/AI_IMPLEMENTATION_CONTRACT.md`** 为准；旧 PRD / `docs/knowledge` / Tauri-Python 计划不是施工依据。
+2. 按 WP-1 → WP-10 顺序；禁止跳号做 Swarm、OAuth、SSE、图谱主功能。
+3. 未满足该文档「完成定义」不得声称完成，不得把半成品标成达标。
+
 ---
 
 ### 【铁律 1.5: 验证闭环（按改动范围，不必每次打安装包）】

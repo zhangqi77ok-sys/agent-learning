@@ -4,6 +4,8 @@
 
 活路径：Wails v2 + Go 微内核 + Vue 3（`app_*.go` / `internal/` / `frontend/src`）。
 
+**后续 AI 只认这份施工合同（原型缺口工作包 WP-1…WP-10）**：[`docs/AI_IMPLEMENTATION_CONTRACT.md`](./AI_IMPLEMENTATION_CONTRACT.md)
+
 ## 正在做 / 下一波（按序）
 
 | ID | 功能 | 解决什么 | 验收 |

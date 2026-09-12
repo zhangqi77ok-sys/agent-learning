@@ -8,6 +8,8 @@
 
 工程任务板（新功能按序落地、禁止 Demo）：[`docs/ROADMAP.md`](docs/ROADMAP.md)
 
+后续 AI 实现原型缺口的**唯一施工合同**：[`docs/AI_IMPLEMENTATION_CONTRACT.md`](docs/AI_IMPLEMENTATION_CONTRACT.md)
+
 ### 活路径 vs 规划中（避免按错栈施工）
 
 **当前发货栈**：Wails v2 + Go 微内核 + Vue 3（`app.go` / `internal/` / `frontend/src`）。聊天主循环走 `internal/core/loop` 单一执行内核，工具经 `host.Registry`，安全闸门是 `plugins/rail/safety`。配置目录 `~/.tiancode`（首次启动会从 `~/.tcode` 迁移）。
