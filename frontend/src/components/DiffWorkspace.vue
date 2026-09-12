@@ -5,23 +5,60 @@
         :class="s.workspaceView === 'editor' ? 'flex-1 min-w-0' : 'w-[46vw] min-w-[420px] max-w-[820px]'"
         class="border-l border-black/[0.08] bg-[#FAF8F5] flex select-none z-10 shrink-0 font-sans"
       >
-        <div class="w-44 min-w-[10rem] border-r border-black/[0.08] flex flex-col overflow-hidden bg-[#F4EFEA]">
-          <div class="h-10 min-h-[40px] px-2 border-b border-black/[0.08] flex items-center justify-between text-[11px] font-bold">
-            <span class="truncate">{{ s.workspaceName }}</span>
-            <button class="cursor-pointer text-[#71717A]" @click="s.loadFileTree">↻</button>
-          </div>
-          <div class="flex-1 overflow-y-auto p-1.5 text-[11px] font-mono space-y-0.5">
-            <div v-for="node in s.fileTree" :key="node.path">
-              <div @click="s.handleFileClick(node)" class="px-1.5 py-0.5 rounded hover:bg-white cursor-pointer truncate">
-                {{ node.is_dir ? '▸' : '' }} {{ node.name }}
-              </div>
-              <div v-if="node.is_dir && s.expandedFolders[node.path] && node.children" class="pl-3">
-                <div v-for="sub in node.children" :key="sub.path" @click="s.handleFileClick(sub)" class="px-1 py-0.5 rounded hover:bg-white cursor-pointer truncate">{{ sub.name }}</div>
-              </div>
+        <!-- 左侧工作区文件树 (支持无限深度与文件名过滤) -->
+        <div class="w-52 min-w-[12rem] border-r border-black/[0.08] flex flex-col overflow-hidden bg-[#F4EFEA]">
+          <div class="h-10 min-h-[40px] px-2.5 border-b border-black/[0.08] flex items-center justify-between text-[11px] font-bold">
+            <span class="truncate" :title="s.workspacePath">{{ s.workspaceName }}</span>
+            <div class="flex items-center gap-1">
+              <button class="cursor-pointer text-[#71717A] hover:text-[#18181B] p-1 rounded" @click="s.loadFileTree" title="刷新文件树">↻</button>
             </div>
           </div>
+          <!-- 文件名快速过滤输入框 -->
+          <div class="p-1.5 border-b border-black/[0.06] bg-[#FAF8F5]">
+            <input
+              v-model="s.fileTreeFilter"
+              type="text"
+              placeholder="过滤文件 (如 .go, .vue)..."
+              class="w-full h-6 px-2 rounded-md bg-white text-[10px] font-mono border border-black/[0.08] focus:border-[#D96B27] focus:outline-none placeholder:text-[#A1A1AA]"
+            />
+          </div>
+          <div class="flex-1 overflow-y-auto p-1 text-[11px] font-mono space-y-0.5">
+            <div v-if="s.displayFileTree.length === 0" class="p-4 text-center text-[#A1A1AA] text-[10px]">
+              {{ s.fileTreeFilter ? '无匹配文件' : '工作区为空' }}
+            </div>
+            <FileTreeNode
+              v-for="node in s.displayFileTree"
+              :key="node.path"
+              :node="node"
+              :depth="0"
+            />
+          </div>
         </div>
+
         <div class="flex-1 flex flex-col justify-between min-w-0">
+        <!-- 多文件标签页栏 (Editor Tab Bar) -->
+        <div v-if="s.openEditorTabs.length > 0" class="h-8 bg-[#F4EFEA] border-b border-black/[0.08] flex items-center px-2 gap-1 overflow-x-auto no-scrollbar shrink-0 select-none">
+          <div
+            v-for="tab in s.openEditorTabs"
+            :key="tab.path"
+            @click="s.switchEditorTab(tab.path)"
+            :class="[
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-t-md font-mono text-[11px] cursor-pointer border-t border-x transition-all shrink-0',
+              s.activeDiffFile === tab.path ? 'bg-white text-[#18181B] font-bold border-black/[0.08] shadow-2xs' : 'bg-transparent text-[#71717A] hover:bg-black/[0.03] border-transparent'
+            ]"
+            :title="tab.path"
+          >
+            <span>📄</span>
+            <span class="truncate max-w-[120px]">{{ tab.title }}</span>
+            <span v-if="tab.dirty" class="w-1.5 h-1.5 rounded-full bg-[#D96B27]" title="未保存改动"></span>
+            <button
+              @click.stop="s.closeEditorTab(tab.path, $event)"
+              class="hover:text-red-500 rounded p-0.5 text-[10px] cursor-pointer"
+              title="关闭标签页"
+            >✕</button>
+          </div>
+        </div>
+
         <header class="h-10 min-h-[40px] bg-[#FAF8F5] border-b border-black/[0.08] px-3 flex items-center justify-between text-xs shrink-0">
           <div class="flex items-center gap-2 min-w-0">
             <span class="text-sm">📄</span>
@@ -167,6 +204,6 @@
 <script setup lang="ts">
 import { useWorkbenchStore } from '../stores/workbench'
 import MonacoEditor from './MonacoEditor.vue'
+import FileTreeNode from './FileTreeNode.vue'
 const s = useWorkbenchStore()
 </script>
-

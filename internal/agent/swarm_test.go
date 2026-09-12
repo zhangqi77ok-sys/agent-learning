@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestRunTDDValidation_NoGoMod(t *testing.T) {
+func TestRunTDDValidation_NoTestSuite(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "tcode_test_agent_*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -18,11 +18,12 @@ func TestRunTDDValidation_NoGoMod(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunTDDValidation failed: %v", err)
 	}
-	if report.Status != "PASS" {
-		t.Errorf("expected PASS for no-go-mod directory, got %s", report.Status)
+	// 无测试套件时，根据铁律与达标标准，严禁返回假 PASS 假成功
+	if report.Status != "FAIL" {
+		t.Errorf("expected FAIL when no test suite is configured, got %s", report.Status)
 	}
-	if !strings.Contains(report.Output, "跳过") {
-		t.Errorf("expected skip message in output, got: %s", report.Output)
+	if !strings.Contains(report.Output, "未检测到可执行的自动化测试套件") {
+		t.Errorf("expected failure explanation in output, got: %s", report.Output)
 	}
 }
 
@@ -38,7 +39,24 @@ func TestRunTDDValidation_WithGoMod(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunTDDValidation failed: %v", err)
 	}
-	// 无论是否有测试文件，状态应返回有效报表（PASS 或 FAIL），而不是崩溃
+	if report.Status != "PASS" && report.Status != "FAIL" {
+		t.Errorf("expected PASS or FAIL, got: %s", report.Status)
+	}
+}
+
+func TestRunTDDValidation_WithPackageJson(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "tcode_test_agent_pkg_*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pkgContent := `{"name": "testpkg", "scripts": {"test": "echo test executed"}}`
+	_ = os.WriteFile(filepath.Join(tempDir, "package.json"), []byte(pkgContent), 0644)
+	report, err := RunTDDValidation(tempDir)
+	if err != nil {
+		t.Fatalf("RunTDDValidation failed: %v", err)
+	}
 	if report.Status != "PASS" && report.Status != "FAIL" {
 		t.Errorf("expected PASS or FAIL, got: %s", report.Status)
 	}

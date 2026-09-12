@@ -14,6 +14,7 @@ import (
 	"tiancode/plugins/provider/openai"
 	fstool "tiancode/plugins/tool/fs"
 	gittool "tiancode/plugins/tool/git"
+	searchtool "tiancode/plugins/tool/search"
 	terminaltool "tiancode/plugins/tool/terminal"
 )
 
@@ -50,6 +51,9 @@ func main() {
 	fsT := fstool.NewTool(sb, sm)
 	_ = reg.Register(fsT)
 
+	searchT := searchtool.NewTool(sb)
+	_ = reg.Register(searchT)
+
 	gitT := gittool.NewTool(workspaceRoot)
 	_ = reg.Register(gitT)
 
@@ -58,6 +62,7 @@ func main() {
 
 	fmt.Printf("[Tcode] Registered plugin: [%s] (%s)\n", openaiProv.ID(), openaiProv.Name())
 	fmt.Printf("[Tcode] Registered plugin: [%s] (%s)\n", fsT.ID(), fsT.Name())
+	fmt.Printf("[Tcode] Registered plugin: [%s] (%s)\n", searchT.ID(), searchT.Name())
 	fmt.Printf("[Tcode] Registered plugin: [%s] (%s)\n", gitT.ID(), gitT.Name())
 	fmt.Printf("[Tcode] Registered plugin: [%s] (%s)\n", termT.ID(), termT.Name())
 

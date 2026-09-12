@@ -32,9 +32,9 @@ func ApplyStrategy(strategy, note string, tools []llm.ToolDef, system string) ([
 	switch s {
 	case StrategyAnalyze:
 		system += "\n[执行策略 analyze (审查与分析)] 只允许读取与解释。禁止写入文件、禁止执行会改动工作区的命令、禁止 Git 写操作。"
-		system += "\n【审查与探索铁律（先地图再下钻）】禁止盲目全库扫描或无节制大面积遍历文件。必须严格按三步执行："
-		system += "\n 1. 先看地图：观察顶层目录结构与关键入口配置（如 go.mod, package.json, Cargo.toml, README 等）；"
-		system += "\n 2. 定位靶向：结合任务目标定位核心模块与关键调用链路，缩小勘探范围；"
+		system += "\n【审查与探索铁律（先检索/先地图再下钻）】禁止盲目全库扫描或无节制大面积递归列举文件。必须严格执行："
+		system += "\n 1. 首选检索：优先使用 search_workspace 算子 (grep/find) 快速定位关键词、函数定义与关键文件，杜绝盲扫；"
+		system += "\n 2. 先看地图：首轮仅观察顶层目录结构与关键清单（如 go.mod, package.json, Cargo.toml, README 等）；"
 		system += "\n 3. 精准下钻：仅深入读取靶向文件并分析，严禁读取无关目录或第三方依赖（如 node_modules/vendor/bin/dist）。"
 		tools = filterTools(tools, func(name string) bool {
 			n := strings.ToLower(name)
@@ -47,7 +47,7 @@ func ApplyStrategy(strategy, note string, tools []llm.ToolDef, system string) ([
 		system += "\n[执行策略 tdd (测试驱动开发)] 先运行或补齐前置测试，再改最小实现，直到测试全绿通过。"
 		system += "\n【TDD 完成判定铁律】测试失败则任务状态绝对不是完成，严禁在测试未通过时宣称任务完成；必须继续分析失败原因并修复代码直至测试全部通过。"
 	default:
-		system += "\n[执行策略 implement (功能实现)] 允许读写文件并执行必要命令完成任务。先说明要改什么，再调用工具。探索代码时同样遵循「先看地图再精准下钻」原则，禁止盲目全库遍历。"
+		system += "\n[执行策略 implement (功能实现)] 允许读写文件并执行必要命令完成任务。优先使用 search_workspace (grep/find) 定位代码，探索代码时遵循「先检索/看地图再精准下钻」原则，严禁盲目全库递归遍历。"
 	}
 	if note != "" {
 		system += "\n[用户附加约束] " + note

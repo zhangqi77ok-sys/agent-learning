@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -31,34 +32,37 @@ type AuditReport struct {
 	Timestamp   int64    `json:"timestamp"`
 }
 
-// RunTDDValidation 运行自动化 TDD 测试驱动红绿灯验证 (带 60s 硬超时与 Windows 零黑框)
+// RunTDDValidation 运行自动化 TDD 测试驱动红绿灯验证 (支持 Go 原生 go test 与 Node npm test，带 60s 硬超时与零黑框)
 func RunTDDValidation(workspace string) (TestReport, error) {
 	start := time.Now()
 
-	// 检查工程是否包含 go.mod
 	hasGoMod := false
 	if fi, err := os.Stat(filepath.Join(workspace, "go.mod")); err == nil && !fi.IsDir() {
 		hasGoMod = true
 	}
 
-	if !hasGoMod {
-		return TestReport{
-			Status:    "PASS",
-			Passed:    0,
-			Failed:    0,
-			Duration:  "0ms",
-			Output:    "当前工作区未检测到 go.mod，跳过 Go 原生测试套件",
-			Timestamp: time.Now().Unix(),
-		}, nil
+	hasPkgJsonTest := false
+	pkgJsonPath := filepath.Join(workspace, "package.json")
+	if fi, err := os.Stat(pkgJsonPath); err == nil && !fi.IsDir() {
+		if data, err := os.ReadFile(pkgJsonPath); err == nil {
+			var pkg struct {
+				Scripts map[string]string `json:"scripts"`
+			}
+			if json.Unmarshal(data, &pkg) == nil && pkg.Scripts != nil {
+				if testScript, ok := pkg.Scripts["test"]; ok && strings.TrimSpace(testScript) != "" {
+					hasPkgJsonTest = true
+				}
+			}
+		}
 	}
 
-	if _, lookErr := exec.LookPath("go"); lookErr != nil {
+	if !hasGoMod && !hasPkgJsonTest {
 		return TestReport{
 			Status:    "FAIL",
 			Passed:    0,
 			Failed:    1,
 			Duration:  "0ms",
-			Output:    "未检测到系统安装的 Go 编译器环境 (go not found in PATH)，请先安装 Go 工具链以运行 TDD 验证套件",
+			Output:    "当前工作区未检测到可执行的自动化测试套件 (既未找到 go.mod，亦未找到配置了 test 脚本的 package.json)。TDD 模式严禁无测试直接通过。",
 			Timestamp: time.Now().Unix(),
 		}, nil
 	}
@@ -66,30 +70,79 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "go", "test", "-v", "./...")
-	cmd.Dir = workspace
+	var testCmd *exec.Cmd
+	var isNpmTest bool
+
+	if hasGoMod {
+		goExe, err := exec.LookPath("go")
+		if err != nil {
+			// 备用查找路径
+			for _, candidate := range []string{`E:\pro\tools\go\bin\go.exe`, `C:\Program Files\Go\bin\go.exe`} {
+				if _, statErr := os.Stat(candidate); statErr == nil {
+					goExe = candidate
+					err = nil
+					break
+				}
+			}
+		}
+		if err != nil {
+			return TestReport{
+				Status:    "FAIL",
+				Passed:    0,
+				Failed:    1,
+				Duration:  "0ms",
+				Output:    "未检测到系统安装的 Go 编译器环境 (go not found in PATH)，请配置 Go 工具链以执行 TDD 验证",
+				Timestamp: time.Now().Unix(),
+			}, nil
+		}
+		testCmd = exec.CommandContext(ctx, goExe, "test", "-v", "./...")
+	} else {
+		isNpmTest = true
+		npmCmdName := "npm"
+		if runtime.GOOS == "windows" {
+			npmCmdName = "npm.cmd"
+		}
+		npmExe, err := exec.LookPath(npmCmdName)
+		if err != nil {
+			npmExe, err = exec.LookPath("npm")
+		}
+		if err != nil {
+			return TestReport{
+				Status:    "FAIL",
+				Passed:    0,
+				Failed:    1,
+				Duration:  "0ms",
+				Output:    "未检测到 Node.js / npm 运行环境 (npm not found in PATH)，请配置 Node.js 以执行 npm test",
+				Timestamp: time.Now().Unix(),
+			}, nil
+		}
+		testCmd = exec.CommandContext(ctx, npmExe, "test")
+	}
+
+	testCmd.Dir = workspace
 	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
+		testCmd.SysProcAttr = &syscall.SysProcAttr{
 			CreationFlags: 0x08000000,
 			HideWindow:    true,
 		}
-		cmd.Cancel = func() error {
-			if cmd.Process != nil && cmd.Process.Pid > 0 {
-				killCmd := exec.Command("taskkill", "/F", "/T", "/PID", fmt.Sprintf("%d", cmd.Process.Pid))
+		testCmd.Cancel = func() error {
+			if testCmd.Process != nil && testCmd.Process.Pid > 0 {
+				killCmd := exec.Command("taskkill", "/F", "/T", "/PID", fmt.Sprintf("%d", testCmd.Process.Pid))
 				killCmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x08000000, HideWindow: true}
 				return killCmd.Run()
 			}
 			return nil
 		}
 	} else {
-		cmd.Cancel = func() error {
-			if cmd.Process != nil {
-				return cmd.Process.Kill()
+		testCmd.Cancel = func() error {
+			if testCmd.Process != nil {
+				return testCmd.Process.Kill()
 			}
 			return nil
 		}
 	}
-	out, err := cmd.CombinedOutput()
+
+	out, err := testCmd.CombinedOutput()
 	duration := time.Since(start).Round(time.Millisecond).String()
 
 	outputStr := string(out)
@@ -97,8 +150,19 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 		outputStr += "\n[超时警告] 测试执行超过 60s 硬超时上限，已被安全中断"
 	}
 
-	passed := strings.Count(outputStr, "--- PASS:")
-	failed := strings.Count(outputStr, "--- FAIL:")
+	passed := 0
+	failed := 0
+
+	if !isNpmTest {
+		passed = strings.Count(outputStr, "--- PASS:")
+		failed = strings.Count(outputStr, "--- FAIL:")
+	} else {
+		if err == nil {
+			passed = 1
+		} else {
+			failed = 1
+		}
+	}
 
 	status := "PASS"
 	if err != nil || failed > 0 {

@@ -263,22 +263,38 @@
             </div>
 
             <div class="flex items-center justify-between border-t border-black/[0.04] pt-2 text-xs">
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1.5 min-w-0 flex-1">
                 <button
                   @click="s.triggerUpload"
-                  class="px-2.5 py-1 rounded-full text-xs text-[#52525B] hover:text-[#18181B] hover:bg-black/[0.04] flex items-center gap-1 cursor-pointer"
+                  class="px-2.5 py-1 rounded-full text-xs text-[#52525B] hover:text-[#18181B] hover:bg-black/[0.04] flex items-center gap-1 cursor-pointer shrink-0"
                   title="调起系统文件选择框"
                 >
                   <span>📎</span><span>上传</span>
                 </button>
-                <div class="h-3.5 w-px bg-black/[0.1] mx-1"></div>
+                <div class="h-3.5 w-px bg-black/[0.1] mx-0.5 shrink-0"></div>
 
-                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D96B27]/10 text-[#D96B27] text-xs font-semibold select-none" :title="'当前策略: ' + s.executionStrategy">
-                  <span>⚡</span><span>{{ s.executionStrategy === 'analyze' ? '只读分析' : s.executionStrategy === 'tdd' ? 'TDD 闭环' : '直接改代码' }}</span>
-                </div>
+                <!-- 可切换策略药丸 -->
+                <button
+                  @click="s.executionStrategy = s.executionStrategy === 'implement' ? 'analyze' : (s.executionStrategy === 'analyze' ? 'tdd' : 'implement')"
+                  class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold select-none cursor-pointer transition-colors border shrink-0"
+                  :class="[
+                    s.executionStrategy === 'analyze' ? 'bg-amber-500/10 text-amber-700 border-amber-500/30' :
+                    s.executionStrategy === 'tdd' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' :
+                    'bg-[#D96B27]/10 text-[#D96B27] border-[#D96B27]/30'
+                  ]"
+                  :title="'点击切换策略 (当前: ' + s.executionStrategy + ')'"
+                >
+                  <span>{{ s.executionStrategy === 'analyze' ? '🛡️' : s.executionStrategy === 'tdd' ? '🧪' : '⚡' }}</span>
+                  <span>{{ s.executionStrategy === 'analyze' ? '只读审查' : s.executionStrategy === 'tdd' ? 'TDD 闭环' : '直接改代码' }}</span>
+                </button>
+
+                <!-- 当前策略拦截规则实时指示 -->
+                <span class="text-[10px] text-[#71717A] truncate font-mono hidden sm:inline-block">
+                  {{ s.executionStrategy === 'analyze' ? '🛡️ 拦截写盘与非清单深层探索' : s.executionStrategy === 'tdd' ? '🧪 改动后强制运行测试验证' : '⚡ 读写与命令全能力放行' }}
+                </span>
               </div>
 
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 shrink-0">
                 <span class="text-[10px] text-[#A1A1AA] font-mono">{{ s.isStreaming ? '正在流式推理...' : '就绪' }}</span>
                 <button
                   v-if="s.isStreaming"
@@ -351,6 +367,52 @@
         <footer class="h-10 bg-[#FAF8F5] border-t border-black/[0.08] px-4 flex items-center justify-between select-none shrink-0">
           <button @click="s.isConstitutionModalOpen = false; s.openSettingsTab('rules')" class="text-[11px] text-[#D96B27] hover:underline cursor-pointer">⚙️ 前往设置管理规则与技能</button>
           <button @click="s.isConstitutionModalOpen = false" class="px-3 py-1 rounded-lg bg-[#18181B] text-white text-xs font-semibold cursor-pointer">关闭</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- 待确认 Diff 拦截二次确认弹窗 (符合铁律 5: 居中、暖米白、Esc退出、显式[X]) -->
+    <div
+      v-if="s.isPendingDiffPromptOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs font-sans"
+      @keydown.esc="s.isPendingDiffPromptOpen = false"
+      tabindex="-1"
+    >
+      <div class="w-[90vw] max-w-md bg-white rounded-2xl shadow-2xl border border-black/[0.1] flex flex-col overflow-hidden">
+        <header class="h-11 bg-[#FAF8F5] border-b border-black/[0.08] px-4 flex items-center justify-between select-none shrink-0">
+          <div class="flex items-center gap-2">
+            <span>📝</span>
+            <h4 class="font-bold text-xs text-[#18181B]">工作区存在待确认代码改动</h4>
+          </div>
+          <button @click="s.isPendingDiffPromptOpen = false" class="p-1 rounded-md text-[#71717A] hover:bg-black/[0.05] cursor-pointer" title="关闭 (Esc)">✕</button>
+        </header>
+        <div class="p-4 text-xs space-y-3">
+          <p class="text-[#52525B] leading-relaxed">
+            当前工作区有 <strong class="text-[#D96B27]">{{ s.pendingDiffFiles.length }}</strong> 个待确认的代码改动文件（如 <code class="font-mono text-[11px] bg-black/[0.04] px-1 py-0.5 rounded">{{ s.pendingDiffFiles.slice(0, 3).join(', ') }}</code> 等）。
+          </p>
+          <div class="p-3 bg-[#FAF8F5] rounded-xl border border-black/[0.06] text-[11px] text-[#71717A] leading-relaxed">
+            💡 <strong>强烈建议</strong>：在开启新一轮推理前，先在右侧 Diff 审查区中处理改动（采纳或放弃），避免后续修改冲掉现有工作区代码。
+          </div>
+        </div>
+        <footer class="h-12 bg-[#FAF8F5] border-t border-black/[0.08] px-4 flex items-center justify-end gap-2 select-none shrink-0">
+          <button
+            @click="s.isPendingDiffPromptOpen = false"
+            class="px-3 py-1.5 rounded-lg border border-black/[0.1] text-xs hover:bg-black/[0.03] cursor-pointer"
+          >
+            取消
+          </button>
+          <button
+            @click="s.forceSendWithPendingDiff = true; s.isPendingDiffPromptOpen = false; s.handleSend()"
+            class="px-3 py-1.5 rounded-lg border border-[#D96B27]/40 text-[#D96B27] hover:bg-[#D96B27]/10 text-xs font-semibold cursor-pointer"
+          >
+            暂不处理，仍然发送
+          </button>
+          <button
+            @click="s.isPendingDiffPromptOpen = false; s.isDiffOpen = true; s.editorView = 'diff'"
+            class="px-3.5 py-1.5 rounded-lg bg-[#D96B27] hover:bg-[#B8551B] text-white text-xs font-bold shadow-xs cursor-pointer"
+          >
+            前往 Diff 审查
+          </button>
         </footer>
       </div>
     </div>

@@ -24,6 +24,7 @@ import (
 	safetyrail "tiancode/plugins/rail/safety"
 	fstool "tiancode/plugins/tool/fs"
 	gittool "tiancode/plugins/tool/git"
+	searchtool "tiancode/plugins/tool/search"
 	terminaltool "tiancode/plugins/tool/terminal"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -193,6 +194,7 @@ func NewApp() *App {
 	_ = reg.Register(openai.NewProvider())
 	_ = reg.Register(gittool.NewTool(wd))
 	_ = reg.Register(fstool.NewTool(sb, sm))
+	_ = reg.Register(searchtool.NewTool(sb))
 	_ = reg.Register(terminaltool.NewTool(wd))
 	_ = reg.Register(safetyrail.New())
 

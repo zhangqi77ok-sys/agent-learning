@@ -15,6 +15,12 @@ import {
 } from '../core/wailsBridge'
 import { renderMarkdown } from '../core/markdown'
 
+export interface EditorTabItem {
+  path: string
+  title: string
+  dirty?: boolean
+}
+
 export const useWorkbenchStore = defineStore('workbench', () => {
 // 1. 活动栏与工作区状态
 const activeActivity = ref('chat')
@@ -578,6 +584,50 @@ async function handleGitCommit() {
 // 4. 真实物理代码 Diff
 const diffReport = ref<DiffReport | null>(null)
 
+const openEditorTabs = ref<EditorTabItem[]>([])
+const fileTreeFilter = ref('')
+const isPendingDiffPromptOpen = ref(false)
+const forceSendWithPendingDiff = ref(false)
+
+const gitStatusMap = computed(() => {
+  const map: Record<string, { code: string; color: string }> = {}
+  for (const f of stagedTreeFiles.value) {
+    if (f.path) map[f.path] = { code: f.type, color: 'text-[#10A37F]' }
+  }
+  for (const f of workingTreeFiles.value) {
+    if (f.path && !map[f.path]) map[f.path] = { code: f.type, color: 'text-[#D96B27]' }
+  }
+  return map
+})
+
+function filterTreeNodes(nodes: FileNode[], query: string): FileNode[] {
+  if (!query) return nodes
+  const q = query.toLowerCase()
+  const res: FileNode[] = []
+  for (const n of nodes) {
+    if (n.is_dir) {
+      const filteredChildren = n.children ? filterTreeNodes(n.children, query) : []
+      if (filteredChildren.length > 0 || n.name.toLowerCase().includes(q)) {
+        expandedFolders[n.path] = true
+        res.push({
+          ...n,
+          children: filteredChildren
+        })
+      }
+    } else {
+      if (n.name.toLowerCase().includes(q) || n.path.toLowerCase().includes(q)) {
+        res.push(n)
+      }
+    }
+  }
+  return res
+}
+
+const displayFileTree = computed(() => {
+  if (!fileTreeFilter.value.trim()) return fileTree.value
+  return filterTreeNodes(fileTree.value, fileTreeFilter.value.trim())
+})
+
 const editorView = ref<'edit' | 'diff'>('edit')
 const editorContent = ref('')
 const editorDirty = ref(false)
@@ -588,6 +638,8 @@ const tabContextMenu = ref<{ x: number; y: number; id: string } | null>(null)
 
 function markEditorDirty() {
   editorDirty.value = true
+  const tab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
+  if (tab) tab.dirty = true
 }
 
 async function loadEditor() {
@@ -599,6 +651,8 @@ async function loadEditor() {
   try {
     editorContent.value = await wailsBridge.readFile(activeDiffFile.value)
     editorDirty.value = false
+    const tab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
+    if (tab) tab.dirty = false
     await refreshDiagnostics(activeDiffFile.value)
   } catch (err) {
     editorContent.value = ''
@@ -627,6 +681,8 @@ async function saveEditor() {
   try {
     await wailsBridge.writeFile(activeDiffFile.value, editorContent.value)
     editorDirty.value = false
+    const tab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
+    if (tab) tab.dirty = false
     await loadDiff()
     await loadGitStatus()
     await refreshDiagnostics(activeDiffFile.value)
@@ -636,11 +692,43 @@ async function saveEditor() {
   }
 }
 
-async function openFileDiff(filePath: string) {
+function openEditorTab(filePath: string, viewMode: 'edit' | 'diff' = 'edit') {
+  if (!filePath) return
+  const title = filePath.split('/').pop() || filePath
+  if (!openEditorTabs.value.some(t => t.path === filePath)) {
+    openEditorTabs.value.push({ path: filePath, title, dirty: false })
+  }
   activeDiffFile.value = filePath
   isDiffOpen.value = true
-  editorView.value = 'edit'
-  await Promise.all([loadDiff(), loadEditor()])
+  editorView.value = viewMode
+  void Promise.all([loadDiff(), loadEditor()])
+}
+
+function switchEditorTab(filePath: string) {
+  if (!filePath || filePath === activeDiffFile.value) return
+  activeDiffFile.value = filePath
+  void Promise.all([loadDiff(), loadEditor()])
+}
+
+function closeEditorTab(filePath: string, event?: MouseEvent) {
+  if (event) event.stopPropagation()
+  const idx = openEditorTabs.value.findIndex(t => t.path === filePath)
+  if (idx === -1) return
+  openEditorTabs.value.splice(idx, 1)
+  if (activeDiffFile.value === filePath) {
+    if (openEditorTabs.value.length > 0) {
+      const nextIdx = Math.min(idx, openEditorTabs.value.length - 1)
+      switchEditorTab(openEditorTabs.value[nextIdx].path)
+    } else {
+      activeDiffFile.value = ''
+      editorContent.value = ''
+      diffReport.value = null
+    }
+  }
+}
+
+async function openFileDiff(filePath: string, viewMode: 'edit' | 'diff' = 'edit') {
+  openEditorTab(filePath, viewMode)
 }
 
 function ensureSessionTab(id: string, title: string) {
@@ -1119,6 +1207,20 @@ async function handleSend() {
     await testMcpAction(mcpHit.id)
     return
   }
+
+  const lowerPrompt = prompt.toLowerCase()
+  if (slash === '/review' || lowerPrompt.startsWith('review') || prompt.includes('审查') || prompt.includes('代码分析')) {
+    if (executionStrategy.value === 'implement') {
+      executionStrategy.value = 'analyze'
+      showToast('已自动切换为【只读分析 (Analyze)】审查策略，优先使用地图与检索')
+    }
+  }
+
+  if (pendingDiffFiles.value.length > 0 && !forceSendWithPendingDiff.value) {
+    isPendingDiffPromptOpen.value = true
+    return
+  }
+  forceSendWithPendingDiff.value = false
 
   if (!selectedModel.value) {
     showToast('请先在设置中添加模型渠道并选择模型，不会使用内置假模型')
@@ -2073,6 +2175,15 @@ function initWorkbench() {
     workspacePath,
     pendingDiffFiles,
     activeConstitution,
-    isConstitutionModalOpen
+    isConstitutionModalOpen,
+    openEditorTabs,
+    openEditorTab,
+    switchEditorTab,
+    closeEditorTab,
+    fileTreeFilter,
+    displayFileTree,
+    gitStatusMap,
+    isPendingDiffPromptOpen,
+    forceSendWithPendingDiff
   }
 })

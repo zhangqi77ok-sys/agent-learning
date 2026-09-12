@@ -53,7 +53,7 @@ func (a *App) GetFileTree(dir string) ([]FileNode, error) {
 			targetDir = filepath.Join(a.workspace, dir)
 		}
 	}
-	return a.buildFileTree(targetDir, 0, 4)
+	return a.buildFileTree(targetDir, 0, 12)
 }
 
 func (a *App) buildFileTree(currentDir string, currentDepth, maxDepth int) ([]FileNode, error) {
@@ -63,7 +63,7 @@ func (a *App) buildFileTree(currentDir string, currentDepth, maxDepth int) ([]Fi
 }
 
 func (a *App) buildFileTreeInternal(currentDir string, currentDepth, maxDepth int, nodeCount *int, visited map[string]bool) ([]FileNode, error) {
-	if *nodeCount >= 500 {
+	if *nodeCount >= 2000 {
 		return nil, nil
 	}
 
@@ -97,7 +97,7 @@ func (a *App) buildFileTreeInternal(currentDir string, currentDepth, maxDepth in
 
 	nodes := make([]FileNode, 0, len(entries))
 	for _, entry := range entries {
-		if *nodeCount >= 500 {
+		if *nodeCount >= 2000 {
 			break
 		}
 		name := entry.Name()
