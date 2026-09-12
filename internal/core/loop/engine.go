@@ -147,6 +147,7 @@ func (e *ExecutionEngine) Execute(ctx context.Context, req *EngineRequest, event
 
 		// 收集本轮模型生成的增量文本、思考与工具调用分片
 		var asstContent strings.Builder
+		var asstThinking strings.Builder
 		toolReassembler := make(map[int]*AssembledToolCall)
 
 		for chunk := range chunkChan {
@@ -158,6 +159,7 @@ func (e *ExecutionEngine) Execute(ctx context.Context, req *EngineRequest, event
 			// 派发流式文本与思考链
 			if chunk.DeltaContent != "" || chunk.Thinking != "" {
 				asstContent.WriteString(chunk.DeltaContent)
+				asstThinking.WriteString(chunk.Thinking)
 				eventChan <- EngineEvent{
 					Type:         EventChunk,
 					DeltaContent: chunk.DeltaContent,
@@ -194,6 +196,9 @@ func (e *ExecutionEngine) Execute(ctx context.Context, req *EngineRequest, event
 		assistantMsg := map[string]any{
 			"role":    "assistant",
 			"content": asstContent.String(),
+		}
+		if think := asstThinking.String(); think != "" {
+			assistantMsg["reasoning_content"] = think
 		}
 		// 收集排序后的所有 tool call 索引，兼容非 0 开始与稀疏索引
 		tcIndices := make([]int, 0, len(toolReassembler))

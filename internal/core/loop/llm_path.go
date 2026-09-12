@@ -79,6 +79,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		}
 
 		var asstContent strings.Builder
+		var asstThinking strings.Builder
 		toolReassembler := make(map[int]*AssembledToolCall)
 		for chunk := range chunkChan {
 			if chunk.Error != nil {
@@ -87,6 +88,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 			}
 			if chunk.DeltaContent != "" || chunk.Thinking != "" {
 				asstContent.WriteString(chunk.DeltaContent)
+				asstThinking.WriteString(chunk.Thinking)
 				eventChan <- EngineEvent{
 					Type:         EventChunk,
 					DeltaContent: chunk.DeltaContent,
@@ -133,9 +135,10 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 			rawToolCalls = append(rawToolCalls, tc)
 		}
 		conversation = append(conversation, llm.Message{
-			Role:      "assistant",
-			Content:   asstContent.String(),
-			ToolCalls: rawToolCalls,
+			Role:             "assistant",
+			Content:          asstContent.String(),
+			ReasoningContent: asstThinking.String(),
+			ToolCalls:        rawToolCalls,
 		})
 
 		for _, tc := range rawToolCalls {
