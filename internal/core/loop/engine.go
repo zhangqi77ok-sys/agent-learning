@@ -108,7 +108,10 @@ func (e *ExecutionEngine) Execute(ctx context.Context, req *EngineRequest, event
 	}
 
 	// 3. 构建多轮上下文队列
-	systemPrompt := "You are Tcode, an elite autonomous AI coding assistant. You have access to local filesystem and git tools to read, write and inspect the codebase. When asked to perform coding tasks, reason step-by-step, call relevant tools to inspect or edit files, and verify your changes before answering."
+	systemPrompt := req.SystemPrompt
+	if systemPrompt == "" {
+		systemPrompt = "你是 湉码 / tiancode 纯原生桌面智能体。你有权调用工具来审查、读取、修改工程代码及运行测试命令。"
+	}
 	messages := []map[string]any{
 		{"role": "system", "content": systemPrompt},
 		{"role": "user", "content": req.Prompt},

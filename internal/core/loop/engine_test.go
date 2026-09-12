@@ -231,3 +231,33 @@ func TestExecutionEngine_SafetyRailBlocks(t *testing.T) {
 		t.Fatal("SafetyRail should block rm -rf")
 	}
 }
+
+func TestExecutionEngine_DirectPathUsesRegisteredProvider(t *testing.T) {
+	reg := host.NewRegistry()
+	prov := &mockProvider{}
+	if err := reg.Register(prov); err != nil {
+		t.Fatal(err)
+	}
+	engine := NewExecutionEngine(reg)
+	ch := make(chan EngineEvent, 30)
+	go func() {
+		_ = engine.Execute(context.Background(), &EngineRequest{
+			Prompt:   "x",
+			APIKey:   "fake-api-key-0123456789abcdef",
+			Endpoint: "https://example.invalid/v1",
+			Model:    "local-model",
+		}, ch)
+	}()
+	gotDone := false
+	for ev := range ch {
+		if ev.Type == EventDone {
+			gotDone = true
+		}
+	}
+	if !gotDone {
+		t.Fatal("expected provider-backed loop to finish")
+	}
+	if prov.calls < 1 {
+		t.Fatal("registered provider was not used")
+	}
+}

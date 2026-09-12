@@ -30,3 +30,4 @@
 - F2 Skill：启用技能的 `prompt` 注入 system prompt；保存不再误写 `content`
 - F3 `/test` `/tdd` 跑真实 TDD；`/diff` 打开真实 Git 抽屉（未连接内核则报错，不假装 main 分支）
 - F4 ListModels / 拉取上游：无 Key 报错，只返回网关真实 `/models`，去掉内置 gpt-4o 目录
+- F5 桌面聊天 Init 已注册 Provider 再 StreamChat，不再绕过插件走裸 `llm.StreamChat`
