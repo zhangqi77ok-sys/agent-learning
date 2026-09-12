@@ -13,8 +13,8 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-//go:embed assets/tcode.exe
-var tcodeBinary []byte
+//go:embed assets/tiancode.exe
+var tiancodeBinary []byte
 
 //go:embed assets/uninstall.exe
 var uninstallerBinary []byte
@@ -176,17 +176,19 @@ func main() {
 		}
 	}
 
-	targetExe := filepath.Join(installDir, "tcode.exe")
+	targetExe := filepath.Join(installDir, "tiancode.exe")
 	uninstallExe := filepath.Join(installDir, "uninstall.exe")
 
 	// 1. 终止旧进程 (仅在非测试模式下执行，避免单元/探活测试误杀正常运行的 Tcode 实例；带 /T 树杀与 0x08000000 零黑框防护)
 	if !isTestingMode {
-		killCmd := exec.Command("taskkill", "/F", "/T", "/IM", "tcode.exe")
-		killCmd.SysProcAttr = &syscall.SysProcAttr{
-			CreationFlags: 0x08000000,
-			HideWindow:    true,
+		for _, im := range []string{"tiancode.exe", "tcode.exe"} {
+			killCmd := exec.Command("taskkill", "/F", "/T", "/IM", im)
+			killCmd.SysProcAttr = &syscall.SysProcAttr{
+				CreationFlags: 0x08000000,
+				HideWindow:    true,
+			}
+			_ = killCmd.Run()
 		}
-		_ = killCmd.Run()
 	}
 
 	// 2. 创建安装目录
@@ -195,9 +197,9 @@ func main() {
 		return
 	}
 
-	// 3. 释放主体 tcode.exe
+	// 3. 释放主体 tiancode.exe
 	_ = os.Remove(targetExe)
-	if err := os.WriteFile(targetExe, tcodeBinary, 0755); err != nil {
+	if err := os.WriteFile(targetExe, tiancodeBinary, 0755); err != nil {
 		messageBox("安装失败", fmt.Sprintf("无法写入应用程序文件: %v", err), MB_ICONERROR)
 		return
 	}

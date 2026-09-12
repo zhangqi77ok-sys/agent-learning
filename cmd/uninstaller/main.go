@@ -52,9 +52,11 @@ func main() {
 	}
 
 	// 1. 尝试结束可能正在运行的进程 (注入 /T 树杀与 0x08000000 杜绝黑框)
-	killCmd := exec.Command("taskkill", "/F", "/T", "/IM", "tcode.exe")
-	killCmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x08000000, HideWindow: true}
-	_ = killCmd.Run()
+	for _, im := range []string{"tiancode.exe", "tcode.exe"} {
+		killCmd := exec.Command("taskkill", "/F", "/T", "/IM", im)
+		killCmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x08000000, HideWindow: true}
+		_ = killCmd.Run()
+	}
 
 	homeDir, _ := os.UserHomeDir()
 	desktop := filepath.Join(homeDir, "Desktop", "湉码.lnk")
@@ -112,7 +114,7 @@ func main() {
 	if isSafeToDelete {
 		batContent = fmt.Sprintf("@echo off\r\nping 127.0.0.1 -n 3 >nul\r\nrmdir /s /q \"%s\"\r\n(goto) 2>nul & del /f /q \"%%~f0\"\r\n", appDir)
 	} else {
-		batContent = fmt.Sprintf("@echo off\r\nping 127.0.0.1 -n 3 >nul\r\ndel /f /q \"%s\\tcode.exe\" \"%s\\uninstall.exe\" \"%s\\tcode.ico\"\r\n(goto) 2>nul & del /f /q \"%%~f0\"\r\n", appDir, appDir, appDir)
+		batContent = fmt.Sprintf("@echo off\r\nping 127.0.0.1 -n 3 >nul\r\ndel /f /q \"%s\\tiancode.exe\" \"%s\\tcode.exe\" \"%s\\uninstall.exe\" \"%s\\tcode.ico\" \"%s\\tiancode.ico\"\r\n(goto) 2>nul & del /f /q \"%%~f0\"\r\n", appDir, appDir, appDir, appDir, appDir)
 	}
 	_ = os.WriteFile(batPath, []byte(batContent), 0755)
 

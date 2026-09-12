@@ -313,7 +313,7 @@
   * 基于 Go 1.22 + Wails v2 + Vue 3.4 纯原生架构，采用 `-tags "desktop,production"` 彻底打通 Windows Edge WebView2 深度融合，去除空壳 Stub 回退，杜绝任何启动红叉异常；
   * 二进制裁剪采用 `-ldflags="-H windowsgui -s -w"`，剥离符号表与调试元信息，二进制体积直降 35%（~9.6MB），且彻底消除了任何控制台 CMD 黑色闪烁黑框；
 * **纯 Go 嵌入式单文件自解压安装向导 (`bin/湉码Studio_Setup_v2.0.0.exe`)**：
-  * 基于 `//go:embed` 深度内嵌主桌面程序 `tcode.exe` 与独立卸载器 `uninstall.exe`，免除外部打包器依赖；
+  * 基于 `//go:embed` 深度内嵌主桌面程序 `tiancode.exe` 与独立卸载器 `uninstall.exe`，免除外部打包器依赖；
   * Win32 原生 API `MessageBoxW` 提供高亲和力安装向导交互；支持 `-silent` 极速静默安装；
   * 遵循现代桌面软件工程规范，自动部署至 `%LOCALAPPDATA%\Programs\湉码Studio`（无需 UAC 提权干扰），全自动创建桌面与开始菜单快捷方式，并完整写入 Windows 注册表卸载中心；
 * **铁律 1.5 物理闭环自动化验证体系**：
@@ -714,13 +714,13 @@ cd ..
 ### 3. 一键编译 Wails 原生桌面程序与单文件安装向导
 ```bash
 # 编译主程序 (带桌面生产标签与 GUI 子系统)
-go build -tags "desktop,production" -ldflags="-H windowsgui -s -w" -o bin/tcode.exe .
+go build -tags "desktop,production" -ldflags="-H windowsgui -s -w" -o bin/tiancode.exe .
 
 # 编译独立卸载程序
 go build -ldflags="-H windowsgui -s -w" -o bin/uninstall.exe ./cmd/uninstaller
 
 # 封装单文件安装向导
-copy bin\tcode.exe cmd\installer\assets\
+copy bin\tiancode.exe cmd\installer\assets\tiancode.exe
 copy bin\uninstall.exe cmd\installer\assets\
 go build -ldflags="-H windowsgui -s -w" -o bin/湉码Studio_Setup_v2.0.0.exe ./cmd/installer
 ```
@@ -737,5 +737,5 @@ Start-Process -FilePath ".\bin\湉码Studio_Setup_v2.0.0.exe" -ArgumentList "-si
 # 弹窗提示默认路径与自定义选择；点击【否】自动唤起 Windows 系统原生资源管理器文件夹浏览选择，无黑框闪烁
 
 # 启动并检查进程探活
-Start-Process -FilePath "$env:LOCALAPPDATA\Programs\湉码Studio\tcode.exe"
+Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Tiancode\tiancode.exe"
 ```

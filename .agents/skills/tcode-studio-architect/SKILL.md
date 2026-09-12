@@ -37,7 +37,7 @@ description: >-
 tiancode/
 ├── web_prototype.html          # 【核心真理源】全功能交互原型 (HTML/Tailwind/原生JS)
 ├── frontend/                   # Vue/Vite 桌面前端单包资产
-│   ├── index.html              # 与 web_prototype.html 1:1 同步
+│   ├── index.html              # Vite 入口（挂载 Vue #app）
 │   └── dist/                   # npm run build 产物 (embed 进 Go 微内核)
 ├── app.go                      # Wails IPC 桥接层 (暴露给前端的所有核心能力)
 ├── main.go                     # Wails 原生桌面窗口入口 (Frameless 沉浸式)
@@ -51,9 +51,9 @@ tiancode/
 │   ├── agent/                  # 子代理集群并发执行器 (TDD 自愈与安全沙箱)
 │   └── telemetry/              # 真实 Token 消耗与 TTFT 耗时度量审计
 └── bin/                        # 本地交付产物目录
-    ├── tcode.exe               # 编译好的 10.07MB 原生绿色运行程序
-    ├── uninstall.exe           # 1.80MB 卸载器
-    └── TcodeStudio_Setup_v2.0.0.exe # 13.69MB 最终 Windows 安装包
+    ├── tiancode.exe            # 原生绿色运行程序
+    ├── uninstall.exe           # 卸载器
+    └── Tiancode_Setup_v2.0.0.exe # Windows 安装包
 ```
 
 ---
@@ -66,7 +66,7 @@ tiancode/
 - **正确编译命令**：
   ```powershell
   # 必须包含 -tags "desktop,production" 与 -ldflags="-H windowsgui -s -w"
-  & E:\pro\tools\go\bin\go.exe build -tags "desktop,production" -ldflags="-H windowsgui -s -w" -o bin/tcode.exe .
+  & E:\pro\tools\go\bin\go.exe build -tags "desktop,production" -ldflags="-H windowsgui -s -w" -o bin/tiancode.exe .
   ```
   *(编译产物约为 10.07 MB，包含完整 WebView2 宿主与原生窗体)*
 
@@ -81,17 +81,17 @@ tiancode/
 
 ### 3. 原生 Windows 独立 EXE 安装包机制
 - 安装包源码位于 `cmd/installer/main.go`；
-- 原理：使用 `//go:embed assets/tcode.exe` 与 `assets/uninstall.exe` 封装单文件向导；
+- 原理：使用 `//go:embed assets/tiancode.exe` 与 `assets/uninstall.exe` 封装单文件向导；
 - 安装位置：`%LOCALAPPDATA%\Programs\Tiancode`（免 UAC 提权）；
 - 自动生成桌面快捷方式 `湉码.lnk` 与开始菜单项；
 - 注册表登记卸载项：`HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Tiancode`；
 - 编译命令：
   ```powershell
   # 1. 复制最新编译好的二进制到 assets
-  Copy-Item -Path bin/tcode.exe -Destination cmd/installer/assets/tcode.exe -Force
+  Copy-Item -Path bin/tiancode.exe -Destination cmd/installer/assets/tiancode.exe -Force
   Copy-Item -Path bin/uninstall.exe -Destination cmd/installer/assets/uninstall.exe -Force
   # 2. 编译打包生成安装包
-  & E:\pro\tools\go\bin\go.exe build -ldflags="-H windowsgui -s -w" -o bin/TcodeStudio_Setup_v2.0.0.exe ./cmd/installer
+  & E:\pro\tools\go\bin\go.exe build -ldflags="-H windowsgui -s -w" -o bin/Tiancode_Setup_v2.0.0.exe ./cmd/installer
   ```
 
 ---
@@ -126,11 +126,11 @@ npm install
   cd frontend && npm run build && cd ..
 
   # 2. 编译 Wails 原生桌面端
-  go build -tags "desktop,production" -ldflags="-H windowsgui -s -w" -o bin/tcode.exe .
+  go build -tags "desktop,production" -ldflags="-H windowsgui -s -w" -o bin/tiancode.exe .
 
   # 3. 更新并打包安装包
-  Copy-Item -Path bin/tcode.exe -Destination cmd/installer/assets/tcode.exe -Force
-  go build -ldflags="-H windowsgui -s -w" -o bin/TcodeStudio_Setup_v2.0.0.exe ./cmd/installer
+  Copy-Item -Path bin/tiancode.exe -Destination cmd/installer/assets/tiancode.exe -Force
+  go build -ldflags="-H windowsgui -s -w" -o bin/Tiancode_Setup_v2.0.0.exe ./cmd/installer
   ```
 
 ---
