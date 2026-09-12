@@ -13,6 +13,7 @@ import (
 	"tiancode/internal/core/loop"
 	"tiancode/internal/core/sandbox"
 	"tiancode/internal/session"
+	safetyrail "tiancode/plugins/rail/safety"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -130,6 +131,7 @@ func (a *App) SendMessage(req ChatRequest) error {
 		currentSession.Model = model
 
 		// 追加用户消息
+		req.Prompt = safetyrail.StripSecretsFromPrompt(req.Prompt)
 		userMsg := session.SessionMessage{
 			ID:      fmt.Sprintf("msg_%d", time.Now().UnixNano()),
 			Role:    "user",
@@ -152,6 +154,7 @@ func (a *App) SendMessage(req ChatRequest) error {
 		if a.extraStore != nil {
 			systemPrompt = appendEnabledPolicies(systemPrompt, a.extraStore.ListSkills(), a.extraStore.ListRules())
 		}
+		systemPrompt = safetyrail.StripSecretsFromPrompt(systemPrompt)
 		// 动态侦测工作区项目技术栈并注入环境上下文
 		stackInfo := sandbox.DetectProjectStack(a.workspace)
 		if stackPrompt := sandbox.FormatStackPrompt(stackInfo); stackPrompt != "" {

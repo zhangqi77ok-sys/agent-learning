@@ -6,6 +6,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import '../core/monacoEnv'
 import * as monaco from 'monaco-editor'
+import { useWorkbenchStore } from '../stores/workbench'
 
 const props = defineProps<{
   modelValue: string
@@ -19,6 +20,7 @@ const emit = defineEmits<{
 }>()
 
 const host = ref<HTMLDivElement | null>(null)
+const bench = useWorkbenchStore()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let applying = false
 
@@ -40,11 +42,11 @@ onMounted(() => {
   editor = monaco.editor.create(host.value, {
     value: props.modelValue || '',
     language: langOf(props.language),
-    theme: 'vs-dark',
+    theme: document.documentElement.dataset.theme === 'dark' ? 'vs-dark' : 'vs',
     automaticLayout: true,
     minimap: { enabled: false },
-    fontSize: 12,
-    fontFamily: "Consolas, 'Fira Code', monospace",
+    fontSize: bench.uiPrefs.monaco_size || 14,
+    fontFamily: `${bench.uiPrefs.monaco_font || 'JetBrains Mono'}, Consolas, monospace`,
     readOnly: !!props.readOnly,
     wordWrap: 'on',
     scrollBeyondLastLine: false
@@ -85,6 +87,14 @@ function applyMarkers() {
 }
 
 watch(() => props.diagnostics, applyMarkers, { deep: true })
+watch(() => [bench.uiPrefs.monaco_font, bench.uiPrefs.monaco_size, bench.uiPrefs.theme], () => {
+  if (!editor) return
+  editor.updateOptions({
+    fontSize: bench.uiPrefs.monaco_size || 14,
+    fontFamily: `${bench.uiPrefs.monaco_font || 'JetBrains Mono'}, Consolas, monospace`
+  })
+  monaco.editor.setTheme(document.documentElement.dataset.theme === 'dark' ? 'vs-dark' : 'vs')
+})
 
 onBeforeUnmount(() => {
   editor?.dispose()

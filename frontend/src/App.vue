@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full w-full bg-[#FAF8F5] text-[#18181B] flex flex-col font-sans select-none overflow-hidden antialiased">
+  <div class="h-full w-full bg-[#FAF8F5] text-[#18181B] flex flex-col font-sans select-none overflow-hidden antialiased tian-root">
     <header style="--wails-draggable:drag" class="h-[38px] min-h-[38px] bg-[#FAF8F5] border-b border-black/[0.08] flex items-center justify-between px-3 z-30 select-none">
       <div style="--wails-draggable:no-drag" class="flex items-center gap-2">
         <div class="w-5 h-5 rounded-md bg-[#18181B] text-white flex items-center justify-center font-bold text-xs shadow-xs">湉</div>
@@ -218,16 +218,27 @@
                   <h3 class="text-xs font-bold text-[#18181B]">Agent 技能库 (Skills)</h3>
                   <p class="text-[11px] text-[#71717A]">已读写 ~/.tiancode/skills.json</p>
                 </div>
-                <button @click="s.isSkillModalOpen = true" class="px-3 py-1.5 rounded-xl bg-[#D96B27] text-white text-xs font-bold shadow-xs hover:bg-[#B8551B] cursor-pointer">
-                  ➕ 创建新技能
-                </button>
+                <div class="flex gap-2">
+                  <button @click="s.isSkillModalOpen = true" class="px-3 py-1.5 rounded-xl bg-[#D96B27] text-white text-xs font-bold shadow-xs hover:bg-[#B8551B] cursor-pointer">
+                    ➕ 创建新技能
+                  </button>
+                </div>
               </div>
 
               <div class="space-y-2">
+                <div class="grid grid-cols-1 gap-2">
+                  <div v-for="tpl in s.skillTemplates" :key="tpl.id" class="p-3 rounded-xl border border-black/[0.08] bg-white flex items-center justify-between">
+                    <div>
+                      <span class="text-xs font-bold text-[#18181B]">{{ tpl.name }}</span>
+                      <div class="text-[11px] text-[#71717A] mt-0.5">{{ tpl.description }}</div>
+                    </div>
+                    <button class="px-2 py-1 rounded-lg bg-[#FAF8F5] border border-black/[0.08] text-[11px] cursor-pointer" @click="s.installSkillTemplateAction(tpl.id)">安装到技能库</button>
+                  </div>
+                </div>
                 <div v-if="s.skills.length === 0" class="p-8 text-center bg-[#FAF8F5] rounded-xl border border-black/[0.06] text-[#71717A] text-xs">
                   <span class="text-2xl block mb-2">🛠️</span>
                   <span class="font-bold text-[#18181B] block mb-1">当前暂无自定义技能</span>
-                  <p class="text-[11px] text-[#A1A1AA]">点击右上角可为智能体扩展专有技术栈提示词与工作流</p>
+                  <p class="text-[11px] text-[#A1A1AA]">可安装上方模板，或创建自定义技能写入 ~/.tiancode/skills.json</p>
                 </div>
                 <div v-for="skill in s.skills" :key="skill.id" class="p-3 rounded-xl border border-black/[0.08] bg-[#FAF8F5] flex items-center justify-between shadow-2xs">
                   <div>
@@ -252,9 +263,14 @@
                   <h3 class="text-xs font-bold text-[#18181B]">软件工程规则与提示词规约</h3>
                   <p class="text-[11px] text-[#71717A]">已读写 ~/.tiancode/rules.json · 自动注入大模型 System Prompt</p>
                 </div>
-                <button @click="s.isRuleModalOpen = true" class="px-3 py-1.5 rounded-xl bg-[#D96B27] text-white text-xs font-bold shadow-xs hover:bg-[#B8551B] cursor-pointer">
-                  ➕ 添加规则
-                </button>
+                <div class="flex gap-2">
+                  <button @click="s.importWorkspaceRulesAction" class="px-3 py-1.5 rounded-xl border border-black/[0.1] text-xs font-medium hover:bg-black/[0.02] cursor-pointer">
+                    从工作区导入 .cursorrules / AGENTS.md / CLAUDE.md
+                  </button>
+                  <button @click="s.isRuleModalOpen = true" class="px-3 py-1.5 rounded-xl bg-[#D96B27] text-white text-xs font-bold shadow-xs hover:bg-[#B8551B] cursor-pointer">
+                    ➕ 添加规则
+                  </button>
+                </div>
               </div>
 
               <div class="space-y-2">
@@ -279,35 +295,85 @@
               </div>
             </div>
 
-            <div v-else-if="s.activeSettingsTab === 'theme'" class="space-y-3">
-              <h3 class="text-xs font-bold text-[#18181B]">外观与工作区</h3>
-              <div class="p-3 rounded-xl bg-[#FAF8F5] border border-black/[0.06] text-xs text-[#52525B] leading-relaxed space-y-2">
-                <p>当前发货主题是陶土暖橙：底色 <span class="font-mono">#FAF8F5</span>，强调色 <span class="font-mono">#D96B27</span>。没有第二套可切换皮肤，因此这里不提供假开关。</p>
-                <p>工作区路径：<span class="font-mono text-[#18181B]">{{ s.workspacePath || '尚未打开项目' }}</span></p>
-                <p>用户数据目录：<span class="font-mono text-[#18181B]">~/.tiancode</span>（渠道、会话、MCP、技能、规则均落盘于此）。</p>
+            <div v-else-if="s.activeSettingsTab === 'theme'" class="space-y-4">
+              <h3 class="text-sm font-bold text-[#18181B]">🎨 外观主题与 Monaco 编辑器偏好</h3>
+              <p class="text-[11px] text-[#71717A]">写入 ~/.tiancode/ui_prefs.json，立即作用于桌面与编辑器</p>
+              <div class="grid grid-cols-3 gap-3 text-xs">
+                <button
+                  v-for="t in [{id:'warm',name:'Warm Neutral',desc:'陶土暖橙与米白'},{id:'dark',name:'Pure Dark',desc:'暗夜高对比'},{id:'system',name:'System Auto',desc:'跟随系统'}]"
+                  :key="t.id"
+                  class="p-3 rounded-xl text-left cursor-pointer border"
+                  :class="s.uiPrefs.theme === t.id ? 'border-2 border-[#D96B27] bg-[#FAF8F5]' : 'border-black/[0.08] bg-white'"
+                  @click="s.uiPrefs.theme = t.id; s.persistUIPrefs()"
+                >
+                  <div class="font-bold">{{ t.name }}</div>
+                  <div class="text-[11px] text-[#71717A]">{{ t.desc }}</div>
+                </button>
               </div>
+              <div class="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label class="font-semibold">Monaco 代码字体</label>
+                  <select v-model="s.uiPrefs.monaco_font" class="w-full h-8 mt-1 px-2 rounded-lg bg-white border border-black/[0.08] font-mono" @change="s.persistUIPrefs()">
+                    <option>JetBrains Mono</option>
+                    <option>Fira Code</option>
+                    <option>Consolas</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="font-semibold">编辑器字号</label>
+                  <select v-model.number="s.uiPrefs.monaco_size" class="w-full h-8 mt-1 px-2 rounded-lg bg-white border border-black/[0.08] font-mono" @change="s.persistUIPrefs()">
+                    <option :value="13">13px</option>
+                    <option :value="14">14px</option>
+                    <option :value="16">16px</option>
+                  </select>
+                </div>
+              </div>
+              <p class="text-[11px] text-[#71717A] font-mono">工作区 {{ s.workspacePath || '尚未打开' }}</p>
             </div>
             <div v-else-if="s.activeSettingsTab === 'sandbox'" class="space-y-3">
-              <h3 class="text-xs font-bold text-[#18181B]">安全沙箱与防线</h3>
-              <div class="p-3 rounded-xl bg-[#FAF8F5] border border-black/[0.06] text-xs text-[#52525B] leading-relaxed space-y-2">
-                <p>Agent 工具调用走 Go 微内核 <span class="font-mono">SafetyRail</span>：写文件、执行命令、Git 操作在内核侧校验，而不是前端开关。</p>
-                <p>发送消息前会选择执行策略：只读分析会拦截写盘与命令；直接改代码 / TDD 才允许工具写文件。</p>
-                <p>API Key 在 Windows 上用 DPAPI 加密写入 <span class="font-mono">~/.tiancode/channels.json</span>。</p>
+              <h3 class="text-sm font-bold text-[#18181B]">🔒 安全沙箱与命令防御</h3>
+              <p class="text-[11px] text-[#71717A]">状态来自 Go SafetyRail / Sandbox，不是前端假开关</p>
+              <div class="p-3 rounded-xl bg-white border border-black/[0.08] flex items-center justify-between text-xs">
+                <div>
+                  <div class="font-bold">工作区路径沙箱保护</div>
+                  <div class="text-[11px] text-[#71717A]">禁止读写当前工程目录以外路径 · {{ s.sandboxStatus.workspace || s.workspacePath }}</div>
+                </div>
+                <span class="font-bold" :class="s.sandboxStatus.path_isolation ? 'text-[#10A37F]' : 'text-amber-600'">{{ s.sandboxStatus.path_isolation ? '已开启' : '未绑定工作区' }}</span>
+              </div>
+              <div class="p-3 rounded-xl bg-white border border-black/[0.08] flex items-center justify-between text-xs">
+                <div>
+                  <div class="font-bold">高危命令阻断</div>
+                  <div class="text-[11px] text-[#71717A]">rm -rf、format、shutdown 等由 SafetyRail 拦截</div>
+                </div>
+                <span class="font-bold text-[#10A37F]">已开启</span>
+              </div>
+              <div class="p-3 rounded-xl bg-white border border-black/[0.08] flex items-center justify-between text-xs">
+                <div>
+                  <div class="font-bold">环境变量与密钥剥离</div>
+                  <div class="text-[11px] text-[#71717A]">发往模型前抹除 sk- / ghp_ / password=</div>
+                </div>
+                <span class="font-bold text-[#10A37F]">已开启</span>
               </div>
             </div>
             <div v-else-if="s.activeSettingsTab === 'about'" class="space-y-3">
-              <h3 class="text-xs font-bold text-[#18181B]">关于 湉码</h3>
-              <div class="p-3 rounded-xl bg-[#FAF8F5] border border-black/[0.06] text-xs text-[#52525B] leading-relaxed space-y-2">
-                <p><strong class="text-[#18181B]">湉码 / tiancode</strong> · Wails v2 + Go 微内核 + Vue 3。</p>
-                <p>仓库：<span class="font-mono">github.com/zhangqi77ok-sys/tiancode</span></p>
-                <p>本页只陈述真实能力：流式对话、会话树、Git 分支/快照、终端、MCP stdio、技能/规则注入、Go AST 扫描。</p>
+              <h3 class="text-sm font-bold text-[#18181B]">ℹ️ 关于 湉码</h3>
+              <div class="p-4 rounded-2xl bg-white border border-black/[0.08] space-y-3 text-xs">
+                <div class="font-bold text-sm">{{ s.runtimeInfo.product }} v{{ s.runtimeInfo.version }}</div>
+                <div class="grid grid-cols-2 gap-2 text-[11px] text-[#71717A] font-mono">
+                  <div>OS：{{ s.runtimeInfo.os }} {{ s.runtimeInfo.arch }}</div>
+                  <div>{{ s.runtimeInfo.webview }}</div>
+                  <div>{{ s.runtimeInfo.go_version }}</div>
+                  <div>数据目录：{{ s.runtimeInfo.data_dir }}</div>
+                </div>
                 <div class="pt-2 border-t border-black/[0.06] font-mono text-[11px] space-y-1">
                   <p>Token 累计：{{ s.usageMetrics.total_tokens }}</p>
                   <p>调用次数：{{ s.usageMetrics.total_calls }}</p>
                   <p>估算费用（非账单）：{{ s.usageMetrics.estimated_cost }}</p>
-                  <p>活跃会话计数：{{ s.usageMetrics.active_sessions }}</p>
-                  <p>更新时间：{{ s.usageMetrics.last_updated_time || '尚无记录' }}</p>
                 </div>
+              </div>
+              <div class="flex gap-2">
+                <button class="px-3 py-1.5 rounded-lg bg-[#FAF8F5] border border-black/[0.08] text-xs cursor-pointer" @click="s.checkUpdatesAction">检查更新</button>
+                <button class="px-3 py-1.5 rounded-lg bg-[#FAF8F5] border border-black/[0.08] text-xs cursor-pointer" @click="s.exportDiagnosticsAction">导出系统诊断</button>
               </div>
             </div>
           </main>
@@ -454,6 +520,10 @@
           <div>
             <label class="block font-medium text-[#71717A] mb-1">API Key</label>
             <input v-model="s.channelForm.api_key" type="password" class="w-full px-2.5 py-1.5 rounded-lg border border-black/[0.1] focus:outline-none focus:border-[#D96B27]">
+          </div>
+          <div>
+            <label class="block font-medium text-[#71717A] mb-1">额外模型标签（逗号分隔，写入渠道 extra_models）</label>
+            <input v-model="s.channelForm.extra_models" type="text" class="w-full px-2.5 py-1.5 rounded-lg border border-black/[0.1] focus:outline-none focus:border-[#D96B27]" placeholder="deepseek-v4-flash, glm-5.3">
           </div>
           <button @click="s.fetchModelsAction" class="w-full py-1.5 rounded-lg border border-[#D96B27] text-[#D96B27] text-xs font-bold hover:bg-[#D96B27]/10 cursor-pointer">
             🔄 真实自动获取上游模型 (/v1/models)
@@ -728,6 +798,14 @@ button:active {
 }
 .markdown-body ol {
   list-style-type: decimal;
+}
+html[data-theme='dark'] .tian-root {
+  background: #18181B !important;
+  color: #FAFAFA !important;
+}
+html[data-theme='dark'] .tian-root header,
+html[data-theme='dark'] .tian-root .bg-\[\#FAF8F5\] {
+  background: #27272A !important;
 }
 </style>
 

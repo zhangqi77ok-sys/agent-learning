@@ -9,6 +9,7 @@ export interface ChannelConfig {
   endpoint: string
   api_key?: string
   model: string
+  extra_models?: string[]
   latency: string
   updated_at: number
 }
@@ -641,6 +642,66 @@ export const wailsBridge = {
       return
     }
     throw new Error('microkernel not connected: DeleteRule unavailable')
+  },
+
+  async getUIPrefs(): Promise<{ theme: string; monaco_font: string; monaco_size: number }> {
+    const app = getApp()
+    if (app?.GetUIPrefs) return await app.GetUIPrefs()
+    return { theme: 'warm', monaco_font: 'JetBrains Mono', monaco_size: 14 }
+  },
+
+  async saveUIPrefs(p: { theme: string; monaco_font: string; monaco_size: number }): Promise<void> {
+    const app = getApp()
+    if (app?.SaveUIPrefs) {
+      await app.SaveUIPrefs(p)
+      return
+    }
+    throw new Error('microkernel not connected: SaveUIPrefs unavailable')
+  },
+
+  async importWorkspaceRules(): Promise<number> {
+    const app = getApp()
+    if (app?.ImportWorkspaceRules) return await app.ImportWorkspaceRules()
+    throw new Error('microkernel not connected: ImportWorkspaceRules unavailable')
+  },
+
+  async getSandboxStatus(): Promise<{ path_isolation: boolean; dangerous_command: boolean; secret_strip: boolean; workspace: string }> {
+    const app = getApp()
+    if (app?.GetSandboxStatus) return await app.GetSandboxStatus()
+    return { path_isolation: false, dangerous_command: true, secret_strip: true, workspace: '' }
+  },
+
+  async getRuntimeInfo(): Promise<{ product: string; version: string; os: string; arch: string; go_version: string; workspace: string; data_dir: string; webview: string }> {
+    const app = getApp()
+    if (app?.GetRuntimeInfo) return await app.GetRuntimeInfo()
+    return { product: '湉码', version: '2.0.0', os: '', arch: '', go_version: '', workspace: '', data_dir: '', webview: '' }
+  },
+
+  async exportDiagnostics(): Promise<string> {
+    const app = getApp()
+    if (app?.ExportDiagnostics) return await app.ExportDiagnostics()
+    throw new Error('microkernel not connected: ExportDiagnostics unavailable')
+  },
+
+  async checkForUpdates(): Promise<string> {
+    const app = getApp()
+    if (app?.CheckForUpdates) return await app.CheckForUpdates()
+    throw new Error('microkernel not connected: CheckForUpdates unavailable')
+  },
+
+  async listSkillTemplates(): Promise<SkillConfig[]> {
+    const app = getApp()
+    if (app?.ListSkillTemplates) return await app.ListSkillTemplates()
+    return []
+  },
+
+  async installSkillTemplate(id: string): Promise<void> {
+    const app = getApp()
+    if (app?.InstallSkillTemplate) {
+      await app.InstallSkillTemplate(id)
+      return
+    }
+    throw new Error('microkernel not connected: InstallSkillTemplate unavailable')
   },
 
   async getFileTree(dir: string = ''): Promise<FileNode[]> {

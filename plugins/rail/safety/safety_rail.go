@@ -40,7 +40,11 @@ func (r *Rail) Health(context.Context) v1.HealthStatus {
 }
 
 func (r *Rail) OnBeforeObserve(context.Context, string) error { return nil }
-func (r *Rail) OnBeforeReason(context.Context, string, *string) error {
+func (r *Rail) OnBeforeReason(_ context.Context, _ string, prompt *string) error {
+	if prompt == nil {
+		return nil
+	}
+	*prompt = StripSecretsFromPrompt(*prompt)
 	return nil
 }
 

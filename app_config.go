@@ -12,6 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"os"
+	"path/filepath"
+	goruntime "runtime"
+
 	"tiancode/internal/config"
 	"tiancode/internal/network"
 )
@@ -245,4 +249,133 @@ func (a *App) FetchUpstreamModels(endpoint, apiKey string) ([]string, error) {
 		res = append(res, m.ID)
 	}
 	return res, nil
+}
+
+type RuntimeInfo struct {
+	Product    string `json:"product"`
+	Version    string `json:"version"`
+	OS         string `json:"os"`
+	Arch       string `json:"arch"`
+	GoVersion  string `json:"go_version"`
+	Workspace  string `json:"workspace"`
+	DataDir    string `json:"data_dir"`
+	WebView    string `json:"webview"`
+}
+
+type SandboxStatus struct {
+	PathIsolation     bool `json:"path_isolation"`
+	DangerousCommand  bool `json:"dangerous_command"`
+	SecretStrip       bool `json:"secret_strip"`
+	Workspace         string `json:"workspace"`
+}
+
+func (a *App) GetUIPrefs() config.UIPrefs {
+	if a.extraStore == nil {
+		return config.DefaultUIPrefs()
+	}
+	return a.extraStore.GetUIPrefs()
+}
+
+func (a *App) SaveUIPrefs(p config.UIPrefs) error {
+	if a.extraStore == nil {
+		return fmt.Errorf("extra store not initialized")
+	}
+	return a.extraStore.SaveUIPrefs(p)
+}
+
+func (a *App) ImportWorkspaceRules() (int, error) {
+	if a.extraStore == nil {
+		return 0, fmt.Errorf("extra store not initialized")
+	}
+	return a.extraStore.ImportWorkspaceRules(a.workspace)
+}
+
+func (a *App) GetSandboxStatus() SandboxStatus {
+	return SandboxStatus{
+		PathIsolation:    a.sandbox != nil,
+		DangerousCommand: true,
+		SecretStrip:      true,
+		Workspace:        a.workspace,
+	}
+}
+
+func (a *App) GetRuntimeInfo() RuntimeInfo {
+	return RuntimeInfo{
+		Product:   "湉码 / tiancode",
+		Version:   "2.0.0",
+		OS:        goruntime.GOOS,
+		Arch:      goruntime.GOARCH,
+		GoVersion: goruntime.Version(),
+		Workspace: a.workspace,
+		DataDir:   config.UserDataDir(),
+		WebView:   "Microsoft Edge WebView2",
+	}
+}
+
+func (a *App) ExportDiagnostics() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	desktop := filepath.Join(home, "Desktop")
+	if st, err := os.Stat(desktop); err != nil || !st.IsDir() {
+		desktop = home
+	}
+	out := filepath.Join(desktop, "tiancode-diagnostics.json")
+	info := a.GetRuntimeInfo()
+	payload, _ := json.MarshalIndent(map[string]any{
+		"runtime":   info,
+		"channels":  len(a.ListChannels()),
+		"mcps":      len(a.ListMCPs()),
+		"skills":    len(a.ListSkills()),
+		"rules":     len(a.ListRules()),
+		"sandbox":   a.GetSandboxStatus(),
+	}, "", "  ")
+	if err := os.WriteFile(out, payload, 0644); err != nil {
+		return "", err
+	}
+	return out, nil
+}
+
+func (a *App) CheckForUpdates() (string, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/repos/zhangqi77ok-sys/tiancode/releases/latest", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", "tiancode")
+	client := &http.Client{Timeout: 8 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var data struct {
+		TagName string `json:"tag_name"`
+		HTMLURL string `json:"html_url"`
+		Name    string `json:"name"`
+	}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return "", err
+	}
+	if data.TagName == "" {
+		return "仓库尚无 GitHub Release；当前发货版本 2.0.0", nil
+	}
+	return fmt.Sprintf("最新 Release: %s %s", data.TagName, data.HTMLURL), nil
+}
+
+func (a *App) ListSkillTemplates() []config.SkillConfig {
+	return config.BuiltinSkillTemplates()
+}
+
+func (a *App) InstallSkillTemplate(id string) error {
+	for _, t := range config.BuiltinSkillTemplates() {
+		if t.ID == id {
+			return a.SaveSkill(t)
+		}
+	}
+	return fmt.Errorf("unknown skill template %s", id)
 }

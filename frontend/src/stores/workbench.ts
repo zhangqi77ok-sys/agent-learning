@@ -140,9 +140,66 @@ const availableModels = computed(() => {
   })
   channels.value.forEach(c => {
     if (c.model && c.model.trim()) set.add(c.model.trim())
+    ;(c.extra_models || []).forEach((m) => {
+      if (m && m.trim()) set.add(m.trim())
+    })
   })
   return Array.from(set)
 })
+
+const uiPrefs = reactive({ theme: 'warm', monaco_font: 'JetBrains Mono', monaco_size: 14 })
+const sandboxStatus = reactive({ path_isolation: false, dangerous_command: true, secret_strip: true, workspace: '' })
+const runtimeInfo = reactive({ product: '湉码', version: '2.0.0', os: '', arch: '', go_version: '', workspace: '', data_dir: '', webview: '' })
+const skillTemplates = ref<SkillConfig[]>([])
+const extraModelsInput = ref('')
+
+function applyTheme(theme: string) {
+  const dark = theme === 'dark' || (theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.dataset.theme = dark ? 'dark' : 'warm'
+}
+
+async function persistUIPrefs() {
+  await wailsBridge.saveUIPrefs({
+    theme: uiPrefs.theme,
+    monaco_font: uiPrefs.monaco_font,
+    monaco_size: uiPrefs.monaco_size
+  })
+  applyTheme(uiPrefs.theme)
+  showToast('✓ 外观偏好已写入 ~/.tiancode/ui_prefs.json')
+}
+
+async function importWorkspaceRulesAction() {
+  try {
+    const n = await wailsBridge.importWorkspaceRules()
+    await loadSettingsData()
+    showToast(n > 0 ? `✓ 已从工作区导入 ${n} 条规则` : '工作区根目录没有 .cursorrules / AGENTS.md / CLAUDE.md')
+  } catch (err) {
+    showToast('导入规则失败: ' + err)
+  }
+}
+
+async function installSkillTemplateAction(id: string) {
+  await wailsBridge.installSkillTemplate(id)
+  await loadSettingsData()
+  showToast('✓ 技能模板已写入 ~/.tiancode/skills.json')
+}
+
+async function checkUpdatesAction() {
+  try {
+    showToast(await wailsBridge.checkForUpdates())
+  } catch (err) {
+    showToast('检查更新失败: ' + err)
+  }
+}
+
+async function exportDiagnosticsAction() {
+  try {
+    const p = await wailsBridge.exportDiagnostics()
+    showToast('✓ 诊断已导出: ' + p)
+  } catch (err) {
+    showToast('导出失败: ' + err)
+  }
+}
 
 async function loadSessionsList() {
   try {
@@ -1137,7 +1194,8 @@ const channelForm = reactive({
   id: '',
   name: '',
   endpoint: '',
-  api_key: ''
+  api_key: '',
+  extra_models: ''
 })
 
 async function loadSettingsData() {
@@ -1146,6 +1204,12 @@ async function loadSettingsData() {
     mcps.value = await wailsBridge.listMCPs()
     skills.value = await wailsBridge.listSkills()
     rules.value = await wailsBridge.listRules()
+    const prefs = await wailsBridge.getUIPrefs()
+    Object.assign(uiPrefs, prefs)
+    applyTheme(uiPrefs.theme)
+    Object.assign(sandboxStatus, await wailsBridge.getSandboxStatus())
+    Object.assign(runtimeInfo, await wailsBridge.getRuntimeInfo())
+    skillTemplates.value = await wailsBridge.listSkillTemplates()
     const primary = channels.value.find(c => c.primary)
     if (primary && primary.model) {
       selectedModel.value = primary.model
@@ -1197,6 +1261,7 @@ function openAddChannelModal() {
   channelForm.name = ''
   channelForm.endpoint = ''
   channelForm.api_key = ''
+  channelForm.extra_models = ''
   isChannelModalOpen.value = true
 }
 
@@ -1205,6 +1270,7 @@ function editChannel(ch: ChannelConfig) {
   channelForm.name = ch.name
   channelForm.endpoint = ch.endpoint
   channelForm.api_key = ch.api_key || ''
+  channelForm.extra_models = (ch.extra_models || []).join(', ')
   isChannelModalOpen.value = true
 }
 
@@ -1243,6 +1309,7 @@ async function saveChannelAction() {
     endpoint: channelForm.endpoint,
     api_key: channelForm.api_key,
     model: selectedModel.value,
+    extra_models: channelForm.extra_models.split(/[,，\s]+/).map((x) => x.trim()).filter(Boolean),
     latency: '未测速',
     updated_at: Date.now()
   })
@@ -1894,6 +1961,16 @@ function initWorkbench() {
     triggerUpload,
     unpinProject,
     unstageFileAction,
+    uiPrefs,
+    persistUIPrefs,
+    sandboxStatus,
+    runtimeInfo,
+    skillTemplates,
+    extraModelsInput,
+    importWorkspaceRulesAction,
+    installSkillTemplateAction,
+    checkUpdatesAction,
+    exportDiagnosticsAction,
     usageMetrics,
     visibleMessages,
     upstreamFetchedModels,

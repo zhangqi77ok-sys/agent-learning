@@ -51,6 +51,15 @@ export function GetStructuredDiff(arg1:string):Promise<diff.DiffReport>;
 
 export function GetUsageMetrics():Promise<telemetry.UsageMetrics>;
 
+export function GetUIPrefs():Promise<config.UIPrefs>;
+export function SaveUIPrefs(arg1:config.UIPrefs):Promise<void>;
+export function ImportWorkspaceRules():Promise<number>;
+export function GetSandboxStatus():Promise<main.SandboxStatus>;
+export function GetRuntimeInfo():Promise<main.RuntimeInfo>;
+export function ExportDiagnostics():Promise<string>;
+export function CheckForUpdates():Promise<string>;
+export function ListSkillTemplates():Promise<Array<config.SkillConfig>>;
+export function InstallSkillTemplate(arg1:string):Promise<void>;
 export function GetWorkspace():Promise<string>;
 
 export function GitCheckoutBranch(arg1:string):Promise<void>;

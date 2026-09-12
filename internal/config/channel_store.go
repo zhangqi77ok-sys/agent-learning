@@ -20,8 +20,9 @@ type ChannelConfig struct {
 	APIKey    string `json:"api_key,omitempty"`
 	APIKeyEnc string `json:"api_key_enc,omitempty"`
 	Model     string `json:"model"`
-	Latency   string `json:"latency"` // e.g. "85ms"
-	UpdatedAt int64  `json:"updated_at"`
+	Latency     string   `json:"latency"` // e.g. "85ms"
+	ExtraModels []string `json:"extra_models,omitempty"`
+	UpdatedAt   int64    `json:"updated_at"`
 }
 
 // ChannelStore 真实的渠道磁盘存储管理器

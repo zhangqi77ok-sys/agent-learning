@@ -82,6 +82,42 @@ export function GetUsageMetrics() {
   return window['go']['main']['App']['GetUsageMetrics']();
 }
 
+export function GetUIPrefs() {
+  return window['go']['main']['App']['GetUIPrefs']();
+}
+
+export function SaveUIPrefs(arg1) {
+  return window['go']['main']['App']['SaveUIPrefs'](arg1);
+}
+
+export function ImportWorkspaceRules() {
+  return window['go']['main']['App']['ImportWorkspaceRules']();
+}
+
+export function GetSandboxStatus() {
+  return window['go']['main']['App']['GetSandboxStatus']();
+}
+
+export function GetRuntimeInfo() {
+  return window['go']['main']['App']['GetRuntimeInfo']();
+}
+
+export function ExportDiagnostics() {
+  return window['go']['main']['App']['ExportDiagnostics']();
+}
+
+export function CheckForUpdates() {
+  return window['go']['main']['App']['CheckForUpdates']();
+}
+
+export function ListSkillTemplates() {
+  return window['go']['main']['App']['ListSkillTemplates']();
+}
+
+export function InstallSkillTemplate(arg1) {
+  return window['go']['main']['App']['InstallSkillTemplate'](arg1);
+}
+
 export function GetWorkspace() {
   return window['go']['main']['App']['GetWorkspace']();
 }
