@@ -293,4 +293,77 @@ func TestApp_GitUnstage_NoHeadRepo(t *testing.T) {
 	}
 }
 
+func TestApp_SearchWorkspace(t *testing.T) {
+	// 创建第 1 个临时工作区并写入深层文件
+	tmp1, err := os.MkdirTemp("", "tcode_search_ws1_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp1)
+
+	deepDir := filepath.Join(tmp1, "internal", "deep")
+	if err := os.MkdirAll(deepDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	deepFile := filepath.Join(deepDir, "secret_module.go")
+	content := "package deep\n\n// MagicTokenForSearchTest\nfunc Secret() string { return \"ok\" }\n"
+	if err := os.WriteFile(deepFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	app := NewApp()
+	if err := app.SetWorkspace(tmp1); err != nil {
+		t.Fatalf("SetWorkspace tmp1 failed: %v", err)
+	}
+
+	// 1. 测试 find：直接检索深层未展开文件名
+	findRes, err := app.SearchWorkspace("find", "secret_module.go", 10)
+	if err != nil {
+		t.Fatalf("SearchWorkspace find failed: %v", err)
+	}
+	if len(findRes) == 0 {
+		t.Fatalf("expected find to return at least 1 match, got 0")
+	}
+	foundPath := filepath.ToSlash(findRes[0].Path)
+	if !strings.Contains(foundPath, "secret_module.go") {
+		t.Errorf("expected found path to contain secret_module.go, got: %s", foundPath)
+	}
+
+	// 2. 测试 grep：内容检索，必须返回行号与行内容
+	grepRes, err := app.SearchWorkspace("grep", "MagicTokenForSearchTest", 10)
+	if err != nil {
+		t.Fatalf("SearchWorkspace grep failed: %v", err)
+	}
+	if len(grepRes) == 0 {
+		t.Fatalf("expected grep to return at least 1 match, got 0")
+	}
+	if grepRes[0].Line != 3 {
+		t.Errorf("expected match at line 3, got: %d", grepRes[0].Line)
+	}
+	if !strings.Contains(grepRes[0].Content, "MagicTokenForSearchTest") {
+		t.Errorf("expected match content to contain MagicTokenForSearchTest, got: %s", grepRes[0].Content)
+	}
+
+	// 3. 测试切换工作区后 search 算子热重载
+	tmp2, err := os.MkdirTemp("", "tcode_search_ws2_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp2)
+
+	if err := app.SetWorkspace(tmp2); err != nil {
+		t.Fatalf("SetWorkspace tmp2 failed: %v", err)
+	}
+
+	// tmp2 中不应搜出 tmp1 的文件
+	findRes2, err := app.SearchWorkspace("find", "secret_module.go", 10)
+	if err != nil {
+		t.Fatalf("SearchWorkspace find on tmp2 failed: %v", err)
+	}
+	if len(findRes2) != 0 {
+		t.Errorf("expected 0 matches for secret_module.go in tmp2, got: %d", len(findRes2))
+	}
+}
+
+
 

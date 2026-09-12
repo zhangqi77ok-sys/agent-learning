@@ -120,9 +120,9 @@
 
 **完成定义**
 
-- [ ] 文件树未展开 `internal/core/loop` 时，搜索 `llm_path.go` 能出结果并打开。  
-- [ ] grep `DenyByStrategy` 能返回路径:行号。  
-- [ ] 换工作区后搜索根是新目录（WP 回归 A3）。
+- [x] 文件树未展开 `internal/core/loop` 时，搜索 `llm_path.go` 能出结果并打开。  
+- [x] grep `DenyByStrategy` 能返回路径:行号。  
+- [x] 换工作区后搜索根是新目录（WP 回归 A3）。
 
 ---
 

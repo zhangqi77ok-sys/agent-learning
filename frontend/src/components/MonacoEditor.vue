@@ -12,6 +12,7 @@ const props = defineProps<{
   modelValue: string
   language: string
   readOnly?: boolean
+  line?: number
   diagnostics?: { line: number; column: number; severity: string; message: string }[]
 }>()
 
@@ -37,6 +38,13 @@ function langOf(name: string) {
   return 'plaintext'
 }
 
+function revealTargetLine(lineNum?: number) {
+  if (!editor || !lineNum || lineNum < 1) return
+  editor.revealLineInCenter(lineNum)
+  editor.setPosition({ lineNumber: lineNum, column: 1 })
+  editor.focus()
+}
+
 onMounted(() => {
   if (!host.value) return
   editor = monaco.editor.create(host.value, {
@@ -56,6 +64,9 @@ onMounted(() => {
     emit('update:modelValue', editor.getValue())
   })
   applyMarkers()
+  if (props.line) {
+    revealTargetLine(props.line)
+  }
 })
 
 watch(() => props.modelValue, (v) => {
@@ -70,6 +81,10 @@ watch(() => props.language, (l) => {
   if (!editor) return
   const model = editor.getModel()
   if (model) monaco.editor.setModelLanguage(model, langOf(l))
+})
+
+watch(() => props.line, (l) => {
+  revealTargetLine(l)
 })
 
 function applyMarkers() {

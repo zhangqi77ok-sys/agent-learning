@@ -610,7 +610,9 @@ const explorerTab = ref<'tree' | 'search'>('tree')
 const searchQuery = ref('')
 const searchAction = ref<'grep' | 'find'>('find')
 const searchResults = ref<SearchMatch[]>([])
+const searchError = ref('')
 const isSearching = ref(false)
+const targetEditorLine = ref<number | undefined>(undefined)
 
 async function runWorkspaceSearch(action?: 'grep' | 'find', query?: string) {
   if (action) searchAction.value = action
@@ -618,13 +620,16 @@ async function runWorkspaceSearch(action?: 'grep' | 'find', query?: string) {
   const q = searchQuery.value.trim()
   if (!q) {
     searchResults.value = []
+    searchError.value = ''
     return
   }
   explorerTab.value = 'search'
   isSearching.value = true
+  searchError.value = ''
   try {
     searchResults.value = await wailsBridge.searchWorkspace(searchAction.value, q, 50)
   } catch (err) {
+    searchError.value = String(err)
     showToast('检索失败: ' + err)
     searchResults.value = []
   } finally {
@@ -759,8 +764,9 @@ async function saveEditor() {
   }
 }
 
-function openEditorTab(filePath: string, viewMode: 'edit' | 'diff' = 'edit') {
+function openEditorTab(filePath: string, viewMode: 'edit' | 'diff' = 'edit', line?: number) {
   if (!filePath) return
+  targetEditorLine.value = line
   // 如果切换前已有活动标签页，先将当前缓冲区内容落入该标签页对象，防止切走后未保存改动丢失
   if (activeDiffFile.value) {
     const currentTab = openEditorTabs.value.find(t => t.path === activeDiffFile.value)
@@ -2369,6 +2375,8 @@ function initWorkbench() {
     searchQuery,
     searchAction,
     searchResults,
+    searchError,
+    targetEditorLine,
     isSearching,
     runWorkspaceSearch,
     searchFromFilter

@@ -112,14 +112,19 @@
               <div v-if="s.isSearching" class="p-6 text-center text-[#71717A] text-[11px]">
                 🔍 正在检索工作区...
               </div>
-              <div v-else-if="s.searchResults.length === 0" class="p-6 text-center text-[#A1A1AA] text-[11px]">
-                {{ s.searchQuery ? '未找到匹配项' : '输入关键词检索全工程' }}
+              <div v-else-if="s.searchResults.length === 0" class="p-6 text-center text-[11px]">
+                <div v-if="s.searchError" class="text-red-500 font-semibold mb-1">
+                  ⚠️ 检索异常: {{ s.searchError }}
+                </div>
+                <div v-else class="text-[#A1A1AA]">
+                  {{ s.searchQuery ? `未找到匹配项: "${s.searchQuery}"` : '输入关键词检索全工程' }}
+                </div>
               </div>
               <div
                 v-else
                 v-for="(res, idx) in s.searchResults"
                 :key="idx"
-                @click="s.openEditorTab(res.path)"
+                @click="s.openEditorTab(res.path, 'edit', res.line)"
                 class="p-1.5 rounded hover:bg-white cursor-pointer border border-transparent hover:border-black/[0.06] transition-colors group"
                 :title="res.path + (res.line ? ':' + res.line : '')"
               >
@@ -209,6 +214,7 @@
             v-model="s.editorContent"
             :language="s.activeDiffFile"
             :diagnostics="s.editorDiagnostics"
+            :line="s.targetEditorLine"
             @update:modelValue="s.markEditorDirty"
           />
           <div v-else class="h-full flex items-center justify-center text-xs text-[#A1A1AA]">从左侧文件树打开文件即可编辑</div>
