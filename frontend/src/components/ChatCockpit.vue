@@ -50,7 +50,13 @@
             </div>
           </div>
 
-          <template v-for="msg in s.currentSession.messages" :key="msg.id">
+          <button
+            v-if="s.hiddenHistoryCount > 0"
+            type="button"
+            class="self-center text-[11px] text-[#D96B27] underline cursor-pointer"
+            @click="s.revealFullHistory"
+          >显示更早的 {{ s.hiddenHistoryCount }} 条（默认只渲染最近 80 条）</button>
+          <template v-for="msg in s.visibleMessages" :key="msg.id">
             <!-- 用户提问气泡 -->
             <div v-if="msg.role === 'user'" class="flex justify-end">
               <div class="max-w-[80%] bg-[#F4EFEA] text-[#18181B] px-4 py-3 rounded-2xl rounded-tr-sm border border-black/[0.06] shadow-2xs text-xs leading-relaxed whitespace-pre-line">

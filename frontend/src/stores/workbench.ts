@@ -70,6 +70,22 @@ const filteredSessions = computed(() => {
   return sessions.value.filter(s => (s.tag || '') === activeTag.value)
 })
 
+const historyCap = 80
+const showFullHistory = ref(false)
+const hiddenHistoryCount = computed(() => {
+  const n = (currentSession.value.messages || []).length
+  if (showFullHistory.value || n <= historyCap) return 0
+  return n - historyCap
+})
+const visibleMessages = computed(() => {
+  const msgs = currentSession.value.messages || []
+  if (showFullHistory.value || msgs.length <= historyCap) return msgs
+  return msgs.slice(-historyCap)
+})
+function revealFullHistory() {
+  showFullHistory.value = true
+}
+
 const upstreamFetchedModels = ref<string[]>([])
 
 const availableModels = computed(() => {
@@ -94,6 +110,7 @@ async function loadSessionsList() {
 }
 
 async function selectSession(id: string) {
+  showFullHistory.value = false
   currentSessionId.value = id
   try {
     const sess = await wailsBridge.getSession(id)
@@ -959,6 +976,8 @@ function initWorkbench() {
     handleGitCommit,
     handleGlobalKeydown,
     handleSend,
+    hiddenHistoryCount,
+    revealFullHistory,
     historyIndex,
     initWorkbench,
     injectNodeToPrompt,
@@ -1029,6 +1048,7 @@ function initWorkbench() {
     toggleTerminalDrawer,
     triggerUpload,
     unstageFileAction,
+    visibleMessages,
     upstreamFetchedModels,
     workingTreeFiles,
     workspaceName,
