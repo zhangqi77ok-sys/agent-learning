@@ -6,6 +6,8 @@
 
 仓库：https://github.com/zhangqi77ok-sys/tiancode
 
+工程任务板（新功能按序落地、禁止 Demo）：[`docs/ROADMAP.md`](docs/ROADMAP.md)
+
 ### 活路径 vs 规划中（避免按错栈施工）
 
 **当前发货栈**：Wails v2 + Go 微内核 + Vue 3（`app.go` / `internal/` / `frontend/src`）。聊天主循环走 `internal/core/loop.ExecutionEngine`，工具经 `host.Registry`，安全闸门是 `plugins/rail/safety`。配置目录 `~/.tiancode`（首次启动会从 `~/.tcode` 迁移）。
