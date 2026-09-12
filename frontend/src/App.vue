@@ -232,6 +232,9 @@
                   <p class="text-[11px] text-[#71717A]">已读写 ~/.tiancode/skills.json</p>
                 </div>
                 <div class="flex gap-2">
+                  <button @click="s.importSkillFileAction" class="px-3 py-1.5 rounded-xl bg-white border border-black/[0.1] text-[#18181B] text-xs font-semibold hover:bg-black/[0.03] cursor-pointer" title="选择本地 SKILL.md 或 Markdown 文件导入">
+                    📥 导入 SKILL.md
+                  </button>
                   <button @click="s.isSkillModalOpen = true" class="px-3 py-1.5 rounded-xl bg-[#D96B27] text-white text-xs font-bold shadow-xs hover:bg-[#B8551B] cursor-pointer">
                     ➕ 创建新技能
                   </button>

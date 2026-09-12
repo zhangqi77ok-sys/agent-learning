@@ -640,6 +640,18 @@ export const wailsBridge = {
     throw new Error('microkernel not connected: DeleteSkill unavailable')
   },
 
+  async importSkillFromDialog(): Promise<SkillConfig | null> {
+    const app = getApp()
+    if (app?.ImportSkillFromDialog) return await app.ImportSkillFromDialog()
+    return null
+  },
+
+  async importSkillMarkdown(filePath: string): Promise<SkillConfig | null> {
+    const app = getApp()
+    if (app?.ImportSkillMarkdown) return await app.ImportSkillMarkdown(filePath)
+    return null
+  },
+
   async listRules(): Promise<RuleConfig[]> {
     const app = getApp()
     if (app?.ListRules) return await app.ListRules()

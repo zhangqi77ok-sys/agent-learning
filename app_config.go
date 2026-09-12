@@ -18,6 +18,8 @@ import (
 
 	"tiancode/internal/config"
 	"tiancode/internal/network"
+
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (a *App) ListChannels() []config.ChannelConfig {
@@ -138,6 +140,90 @@ func (a *App) SaveSkill(cfg config.SkillConfig) error {
 		return fmt.Errorf("extra store not initialized")
 	}
 	return a.extraStore.SaveSkill(cfg)
+}
+
+// ImportSkillMarkdown 解析本地 SKILL.md 或 Markdown 文件并存入技能库
+func (a *App) ImportSkillMarkdown(filePath string) (*config.SkillConfig, error) {
+	if a.extraStore == nil {
+		return nil, fmt.Errorf("extra store not initialized")
+	}
+	cleanPath := filepath.Clean(strings.TrimSpace(filePath))
+	data, err := os.ReadFile(cleanPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read skill file: %w", err)
+	}
+
+	content := string(data)
+	name := ""
+	desc := ""
+	prompt := content
+
+	trimmed := strings.TrimSpace(content)
+	if strings.HasPrefix(trimmed, "---") {
+		parts := strings.SplitN(trimmed[3:], "---", 2)
+		if len(parts) == 2 {
+			frontmatter := parts[0]
+			prompt = strings.TrimSpace(parts[1])
+			for _, line := range strings.Split(frontmatter, "\n") {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "name:") {
+					name = strings.TrimSpace(strings.TrimPrefix(line, "name:"))
+					name = strings.Trim(name, "\"'")
+				} else if strings.HasPrefix(line, "description:") {
+					desc = strings.TrimSpace(strings.TrimPrefix(line, "description:"))
+					desc = strings.Trim(desc, "\"'")
+				}
+			}
+		}
+	}
+
+	if name == "" {
+		base := filepath.Base(cleanPath)
+		ext := filepath.Ext(base)
+		name = strings.TrimSuffix(base, ext)
+		if strings.EqualFold(name, "skill") {
+			parent := filepath.Base(filepath.Dir(cleanPath))
+			if parent != "" && parent != "." && parent != "/" && parent != "\\" {
+				name = parent
+			}
+		}
+	}
+
+	cfg := config.SkillConfig{
+		ID:          fmt.Sprintf("skill-%d", time.Now().UnixNano()),
+		Name:        name,
+		Description: desc,
+		Prompt:      prompt,
+		Enabled:     true,
+		UpdatedAt:   time.Now().Unix(),
+	}
+
+	if err := a.extraStore.SaveSkill(cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// ImportSkillFromDialog 唤起原生文件选择框并导入 SKILL.md
+func (a *App) ImportSkillFromDialog() (*config.SkillConfig, error) {
+	if a.ctx == nil {
+		return nil, fmt.Errorf("app context not initialized")
+	}
+	filePath, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+		Title:            "选择本地 SKILL.md 技能文件",
+		DefaultDirectory: a.workspace,
+		Filters: []wailsruntime.FileFilter{
+			{DisplayName: "Markdown (*.md)", Pattern: "*.md"},
+			{DisplayName: "所有文件 (*.*)", Pattern: "*.*"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(filePath) == "" {
+		return nil, nil
+	}
+	return a.ImportSkillMarkdown(filePath)
 }
 
 func (a *App) DeleteSkill(id string) error {

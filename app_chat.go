@@ -15,6 +15,9 @@ import (
 	"tiancode/internal/session"
 	safetyrail "tiancode/plugins/rail/safety"
 
+	"os"
+	"path/filepath"
+
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -61,6 +64,54 @@ func appendEnabledPolicies(base string, skills []config.SkillConfig, rules []con
 		}
 	}
 	return base
+}
+
+// expandMentionedFiles 扫描用户 Prompt 中的 @path 标记，若工作区存在对应文件则将其内容安全附入用户消息（最多 8KB/文件）
+func expandMentionedFiles(workspace string, sb *sandbox.Sandbox, prompt string) string {
+	if strings.TrimSpace(prompt) == "" {
+		return prompt
+	}
+
+	words := strings.Fields(prompt)
+	var appendedFiles []string
+	seen := make(map[string]bool)
+
+	for _, w := range words {
+		if !strings.HasPrefix(w, "@") {
+			continue
+		}
+		rawPath := strings.TrimPrefix(w, "@")
+		rawPath = strings.TrimRight(rawPath, ",.?!;:'\"，。？！；：")
+		if rawPath == "" || seen[rawPath] {
+			continue
+		}
+
+		var fileData []byte
+		var readErr error
+		if sb != nil {
+			fileData, readErr = sb.SafeReadFile(rawPath)
+		} else if workspace != "" {
+			fileData, readErr = os.ReadFile(filepath.Join(workspace, rawPath))
+		} else {
+			continue
+		}
+
+		if readErr != nil {
+			continue
+		}
+
+		seen[rawPath] = true
+		content := string(fileData)
+		if len(content) > 8192 {
+			content = content[:8192] + "\n...[文件内容超长已截断，保留前 8KB]..."
+		}
+		appendedFiles = append(appendedFiles, fmt.Sprintf("\n\n--- [引用文件内容: %s] ---\n%s\n--- [引用文件结束: %s] ---", rawPath, content, rawPath))
+	}
+
+	if len(appendedFiles) > 0 {
+		return prompt + strings.Join(appendedFiles, "")
+	}
+	return prompt
 }
 
 func (a *App) SendMessage(req ChatRequest) error {
@@ -132,10 +183,11 @@ func (a *App) SendMessage(req ChatRequest) error {
 
 		// 追加用户消息
 		req.Prompt = safetyrail.StripSecretsFromPrompt(req.Prompt)
+		expandedContent := expandMentionedFiles(a.workspace, a.sandbox, req.Prompt)
 		userMsg := session.SessionMessage{
 			ID:      fmt.Sprintf("msg_%d", time.Now().UnixNano()),
 			Role:    "user",
-			Content: req.Prompt,
+			Content: expandedContent,
 			Time:    time.Now().Format("15:04"),
 		}
 		currentSession.Messages = append(currentSession.Messages, userMsg)

@@ -1171,6 +1171,8 @@ const mentionOpen = ref(false)
 const mentionKind = ref<'at' | 'slash' | ''>('')
 const mentionQuery = ref('')
 const mentionIndex = ref(0)
+const mentionSearchedFiles = ref<string[]>([])
+let searchDebounceTimer: any = null
 
 type MentionItem = { id: string; kind: string; label: string; insert: string }
 
@@ -1190,11 +1192,17 @@ const mentionItems = computed(() => {
     for (const sk of skills.value.filter((s) => s.enabled)) {
       items.push({ id: 'sk-' + sk.id, kind: '技能', label: sk.name, insert: '@' + sk.name })
     }
-    for (const sess of sessions.value.slice(0, 20)) {
-      items.push({ id: 'se-' + sess.id, kind: '会话', label: sess.title, insert: '@' + (sess.title || sess.id) })
+    if (mentionSearchedFiles.value.length > 0) {
+      for (const p of mentionSearchedFiles.value.slice(0, 20)) {
+        items.push({ id: 'fl-' + p, kind: '文件', label: p, insert: '@' + p })
+      }
+    } else {
+      for (const f of flattenFiles(fileTree.value).slice(0, 20)) {
+        items.push({ id: 'fl-' + f.path, kind: '文件', label: f.path, insert: '@' + f.path })
+      }
     }
-    for (const f of flattenFiles(fileTree.value).slice(0, 40)) {
-      items.push({ id: 'fl-' + f.path, kind: '文件', label: f.name, insert: '@' + f.path })
+    for (const sess of sessions.value.slice(0, 5)) {
+      items.push({ id: 'se-' + sess.id, kind: '会话', label: sess.title, insert: '@' + (sess.title || sess.id) })
     }
   }
   if (!q) return items
@@ -1211,9 +1219,20 @@ watch(inputPrompt, (v) => {
     mentionIndex.value = 0
   } else if (at) {
     mentionKind.value = 'at'
-    mentionQuery.value = at[2] || ''
+    const query = at[2] || ''
+    mentionQuery.value = query
     mentionOpen.value = true
     mentionIndex.value = 0
+
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = setTimeout(async () => {
+      try {
+        const matches = await wailsBridge.searchWorkspace('find', query || '.', 20)
+        mentionSearchedFiles.value = matches.map(m => m.path)
+      } catch {
+        mentionSearchedFiles.value = []
+      }
+    }, 120)
   } else {
     mentionOpen.value = false
     mentionKind.value = ''
@@ -1865,6 +1884,18 @@ async function deleteSkillAction(id: string) {
   showToast('✓ 技能已从本地技能库移除')
 }
 
+async function importSkillFileAction() {
+  try {
+    const skill = await wailsBridge.importSkillFromDialog()
+    if (skill) {
+      await loadSettingsData()
+      showToast(`✓ 已成功导入本地技能：${skill.name}`)
+    }
+  } catch (err) {
+    showToast(`导入技能异常: ${err}`)
+  }
+}
+
 async function saveRuleAction() {
   if (!ruleForm.title.trim() || !ruleForm.content.trim()) {
     showToast('请完整填写规则名称与规则内容')
@@ -2318,6 +2349,7 @@ function initWorkbench() {
     isRuleModalOpen,
     isSettingsOpen,
     isSkillModalOpen,
+    importSkillFileAction,
     isStrategyPickerOpen,
     isStreaming,
     isTerminalMaximized,
