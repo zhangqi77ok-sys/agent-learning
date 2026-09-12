@@ -45,12 +45,12 @@ function showToast(msg: string) {
 const sessions = ref<SessionMeta[]>([])
 const activeTag = ref('全部')
 const currentSessionId = ref('')
-const selectedModel = ref('deepseek-chat')
+const selectedModel = ref('')
 
 const currentSession = ref<ChatSession>({
   id: '',
   title: '新工程对话',
-  model: 'deepseek-chat',
+  model: '',
   tag: '',
   created_at: Date.now(),
   updated_at: Date.now(),
@@ -80,8 +80,7 @@ const availableModels = computed(() => {
   channels.value.forEach(c => {
     if (c.model && c.model.trim()) set.add(c.model.trim())
   })
-  if (set.size > 0) return Array.from(set)
-  return ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o', 'claude-3-7-sonnet']
+  return Array.from(set)
 })
 
 async function loadSessionsList() {
@@ -113,7 +112,7 @@ async function createNewSession() {
   const newSess: ChatSession = {
     id: newId,
     title: '新工程对话',
-    model: selectedModel.value || 'deepseek-chat',
+    model: selectedModel.value,
     tag: '',
     created_at: Date.now(),
     updated_at: Date.now(),
@@ -122,7 +121,7 @@ async function createNewSession() {
   await wailsBridge.saveSession(newSess)
   await loadSessionsList()
   await selectSession(newId)
-  showToast('✓ 已新建会话并在 ~/.tcode/sessions/ 持久化')
+  showToast('✓ 已新建会话并持久化')
 }
 
 async function deleteSession(id: string) {
@@ -139,7 +138,7 @@ async function deleteSession(id: string) {
       currentSession.value = {
         id: '',
         title: '新工程对话',
-        model: selectedModel.value || 'deepseek-chat',
+        model: selectedModel.value,
         tag: '',
         created_at: Date.now(),
         updated_at: Date.now(),
@@ -376,6 +375,10 @@ async function triggerUpload() {
 async function handleSend() {
   const prompt = inputPrompt.value.trim()
   if (!prompt || isStreaming.value) return
+  if (!selectedModel.value) {
+    showToast('请先在设置中添加模型渠道并选择模型，不会使用内置假模型')
+    return
+  }
 
   let fullPrompt = prompt
   if (attachedFiles.value.length > 0) {
@@ -594,7 +597,7 @@ async function saveChannelAction() {
     auth_type: 'bearer_token',
     endpoint: channelForm.endpoint,
     api_key: channelForm.api_key,
-    model: selectedModel.value || 'deepseek-chat',
+    model: selectedModel.value,
     latency: '未测速',
     updated_at: Date.now()
   })

@@ -5,7 +5,7 @@
           <div class="p-3 border-b border-black/[0.06] flex items-center justify-between">
             <div class="flex items-center gap-2 min-w-0">
               <span class="text-xs">📦</span>
-              <span class="font-bold text-xs text-[#18181B] truncate">agent-learning</span>
+              <span class="font-bold text-xs text-[#18181B] truncate">{{ s.workspaceName }}</span>
             </div>
             <button
               @click="s.createNewSession"

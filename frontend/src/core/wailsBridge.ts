@@ -608,7 +608,7 @@ export const wailsBridge = {
 
     // 纯前端或非 Wails 环境：Fail-Closed 提示
     if (callbacks.onChunk) {
-      callbacks.onChunk('\n[提示] 当前运行于非 Wails 原生桌面端环境或后端微内核未连接，请在 Tcode 桌面端中运行并配置真实模型渠道。')
+      callbacks.onChunk('\n[提示] 当前不在 湉码 桌面端（Wails 未连接），无法调用真实微内核。')
     }
     if (callbacks.onDone) callbacks.onDone()
     return

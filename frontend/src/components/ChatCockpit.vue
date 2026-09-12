@@ -4,14 +4,21 @@
         <header class="h-10 min-h-[40px] bg-[#FAF8F5] border-b border-black/[0.08] px-3 flex items-center justify-between text-xs select-none z-10 shrink-0">
           <div class="flex items-center gap-2">
             <span class="font-bold text-[#18181B]">{{ s.currentSession.title }}</span>
-            <span class="text-[10px] text-[#71717A] bg-black/[0.04] px-1.5 py-0.2 rounded font-mono">AgentRouter</span>
+            <span class="text-[10px] text-[#71717A] bg-black/[0.04] px-1.5 py-0.2 rounded font-mono">{{ s.selectedModel || '未配置渠道' }}</span>
 
             <select
+              v-if="s.availableModels.length > 0"
               v-model="s.selectedModel"
               class="bg-white border border-black/[0.1] rounded-lg px-2 py-0.8 text-xs font-mono font-medium text-[#10A37F] focus:outline-none focus:border-[#D96B27] cursor-pointer shadow-2xs"
             >
-              <option v-for="m in s.availableModels" :key="m" :value="m">⚡ {{ m }}</option>
+              <option v-for="m in s.availableModels" :key="m" :value="m">{{ m }}</option>
             </select>
+            <button
+              v-else
+              type="button"
+              class="text-[10px] text-[#D96B27] underline cursor-pointer"
+              @click="s.openSettingsTab('models')"
+            >添加渠道</button>
           </div>
 
           <button

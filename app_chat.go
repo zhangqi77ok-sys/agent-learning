@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"tiancode/internal/config"
 	"tiancode/internal/core/loop"
 	"tiancode/internal/core/sandbox"
 	"tiancode/internal/session"
@@ -21,6 +22,28 @@ type ChatRequest struct {
 	Prompt     string `json:"prompt"`
 	Model      string `json:"model"`
 	IsFullAuto bool   `json:"is_full_auto"`
+}
+
+func resolveChatCredentials(primary *config.ChannelConfig, reqModel string) (endpoint, apiKey, model string, err error) {
+	if primary == nil {
+		return "", "", "", fmt.Errorf("未配置任何模型渠道。请在设置中添加真实 endpoint 与 API Key，禁止使用内置假地址")
+	}
+	endpoint = strings.TrimSpace(primary.Endpoint)
+	apiKey = strings.TrimSpace(primary.APIKey)
+	model = strings.TrimSpace(reqModel)
+	if model == "" {
+		model = strings.TrimSpace(primary.Model)
+	}
+	if endpoint == "" {
+		return "", "", "", fmt.Errorf("主渠道未填写 endpoint")
+	}
+	if apiKey == "" {
+		return "", "", "", fmt.Errorf("主渠道未填写 API Key")
+	}
+	if model == "" {
+		return "", "", "", fmt.Errorf("未指定模型：请在对话顶栏选择，或在渠道中填写 model")
+	}
+	return endpoint, apiKey, model, nil
 }
 
 func (a *App) SendMessage(req ChatRequest) error {
@@ -48,28 +71,13 @@ func (a *App) SendMessage(req ChatRequest) error {
 			a.agentMu.Unlock()
 		}()
 
-		// 1. 获取主用渠道凭据
-		primary := a.channelStore.GetPrimary()
-		var endpoint string
-		var apiKey string
-		model := req.Model
-
-		if primary != nil {
-			endpoint = primary.Endpoint
-			apiKey = primary.APIKey
-			if model == "" {
-				model = primary.Model
-			}
+		var primary *config.ChannelConfig
+		if a.channelStore != nil {
+			primary = a.channelStore.GetPrimary()
 		}
-		if endpoint == "" {
-			endpoint = "https://api.openai.com/v1"
-		}
-		if model == "" {
-			model = "deepseek-chat"
-		}
-
-		if apiKey == "" {
-			errMsg := "\n\n[配置错误] 未检测到有效的模型渠道凭据 (API Key)。请在右侧「渠道配置」面板添加并激活您的真实模型服务渠道。"
+		endpoint, apiKey, model, credErr := resolveChatCredentials(primary, req.Model)
+		if credErr != nil {
+			errMsg := "\n\n[配置错误] " + credErr.Error()
 			runtime.EventsEmit(a.ctx, "agent:start", map[string]any{
 				"session_id": req.SessionID,
 				"model":      model,
