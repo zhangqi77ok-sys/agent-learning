@@ -15,12 +15,13 @@ import (
 
 // TestReport TDD 自动化测试验证器结果
 type TestReport struct {
-	Status    string   `json:"status"` // "PASS" | "FAIL"
-	Passed    int      `json:"passed"`
-	Failed    int      `json:"failed"`
-	Duration  string   `json:"duration"`
-	Output    string   `json:"output"`
-	Timestamp int64    `json:"timestamp"`
+	Status      string   `json:"status"` // "PASS" | "FAIL"
+	Passed      int      `json:"passed"`
+	Failed      int      `json:"failed"`
+	FailedTests []string `json:"failed_tests,omitempty"`
+	Duration    string   `json:"duration"`
+	Output      string   `json:"output"`
+	Timestamp   int64    `json:"timestamp"`
 }
 
 // AuditReport 安全沙箱代码审查报告
@@ -140,6 +141,8 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 	totalPassed := 0
 	totalFailed := 0
 	var outputs []string
+	var goRawOut string
+	var npmRawOut string
 
 	// 1. 若存在 Go 模块，执行 go test
 	if hasGoMod {
@@ -155,6 +158,7 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 			}, nil
 		}
 		goOut, goErr := runCmdWithTimeout(ctx, workspace, goExe, "test", "-v", "./...")
+		goRawOut = goOut
 		goPassed := strings.Count(goOut, "--- PASS:")
 		goFailed := strings.Count(goOut, "--- FAIL:")
 		if goErr != nil || goFailed > 0 {
@@ -190,6 +194,7 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 			outputs = append(outputs, fmt.Sprintf("=== [Npm Test 套件] ===\n%s", npmErrReport))
 		} else {
 			npmOut, npmErr := runCmdWithTimeout(ctx, npmDir, npmExe, "test")
+			npmRawOut = npmOut
 			npmPassed := 0
 			npmFailed := 0
 			if npmErr == nil {
@@ -223,14 +228,77 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 		status = "FAIL"
 	}
 
+	failedTests := ExtractFailedTests(goRawOut, npmRawOut)
+	if len(failedTests) > 0 {
+		prefix := fmt.Sprintf("❌ 【失败测试用例清单】(%d 个):\n%s\n\n", len(failedTests), "- "+strings.Join(failedTests, "\n- "))
+		outputStr = prefix + outputStr
+	}
+
 	return TestReport{
-		Status:    status,
-		Passed:    totalPassed,
-		Failed:    totalFailed,
-		Duration:  duration,
-		Output:    outputStr,
-		Timestamp: time.Now().Unix(),
+		Status:      status,
+		Passed:      totalPassed,
+		Failed:      totalFailed,
+		FailedTests: failedTests,
+		Duration:    duration,
+		Output:      outputStr,
+		Timestamp:   time.Now().Unix(),
 	}, nil
+}
+
+// ExtractFailedTests 从 Go test 与 npm/vitest/jest 输出中提取失败用例名称
+func ExtractFailedTests(goOut, npmOut string) []string {
+	failed := make([]string, 0)
+	seen := make(map[string]bool)
+
+	addTest := func(name string) {
+		name = strings.TrimSpace(name)
+		if name != "" && !seen[name] {
+			seen[name] = true
+			failed = append(failed, name)
+		}
+	}
+
+	// 1. Go test 失败用例解析
+	if goOut != "" {
+		for _, line := range strings.Split(goOut, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "--- FAIL:") {
+				parts := strings.Fields(trimmed)
+				if len(parts) >= 3 {
+					addTest(parts[2])
+				}
+			} else if strings.HasPrefix(trimmed, "FAIL:\t") || strings.HasPrefix(trimmed, "FAIL: ") {
+				parts := strings.Fields(trimmed)
+				if len(parts) >= 2 {
+					addTest(parts[1])
+				}
+			}
+		}
+	}
+
+	// 2. npm / vitest / jest 失败用例解析
+	if npmOut != "" {
+		for _, line := range strings.Split(npmOut, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "FAIL ") {
+				parts := strings.Fields(trimmed)
+				if len(parts) >= 2 {
+					addTest(parts[1])
+				}
+			} else if strings.HasPrefix(trimmed, "✕ ") || strings.HasPrefix(trimmed, "✖ ") || strings.HasPrefix(trimmed, "● ") {
+				idx := strings.Index(trimmed, " ")
+				if idx != -1 {
+					testDesc := strings.TrimSpace(trimmed[idx+1:])
+					if rIdx := strings.LastIndex(testDesc, " ("); rIdx != -1 && strings.HasSuffix(testDesc, "ms)") {
+						testDesc = strings.TrimSpace(testDesc[:rIdx])
+					}
+					addTest(testDesc)
+				}
+			}
+		}
+	}
+
+	return failed
 }
 
 // RunSecurityAudit 运行安全沙箱审查器，检测高危代码、未脱敏密钥与系统提权指令

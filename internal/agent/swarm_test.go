@@ -169,3 +169,42 @@ func TestRunSecurityAudit_WorkspaceNamedBuild(t *testing.T) {
 	}
 }
 
+func TestExtractFailedTests(t *testing.T) {
+	goOut := `=== RUN   TestEngine_Pass
+--- PASS: TestEngine_Pass (0.01s)
+=== RUN   TestEngine_FailOne
+--- FAIL: TestEngine_FailOne (0.02s)
+=== RUN   TestEngine_FailTwo
+FAIL:	TestEngine_FailTwo
+FAIL
+FAIL	github.com/tiancode/tcode/internal/loop	0.05s
+`
+	npmOut := `
+FAIL src/components/Chat.test.ts
+  ● Chat > should send message
+    expect(received).toBe(expected)
+  ✕ should handle error properly (25ms)
+  ✖ should auto scroll
+`
+	failed := ExtractFailedTests(goOut, npmOut)
+	if len(failed) != 6 {
+		t.Fatalf("expected 6 failed tests extracted, got %d: %v", len(failed), failed)
+	}
+
+	expected := map[string]bool{
+		"TestEngine_FailOne":           true,
+		"TestEngine_FailTwo":           true,
+		"src/components/Chat.test.ts":  true,
+		"Chat > should send message":   true,
+		"should handle error properly": true,
+		"should auto scroll":           true,
+	}
+
+	for _, name := range failed {
+		if !expected[name] {
+			t.Errorf("unexpected failed test name: %s", name)
+		}
+	}
+}
+
+

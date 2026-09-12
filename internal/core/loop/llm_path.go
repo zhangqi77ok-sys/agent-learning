@@ -56,9 +56,15 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 
 	maxTurns := e.maxLLMTurns
 	if maxTurns < 1 {
-		maxTurns = 100 // 仅作为防死循环的极端兜底上限；主路径完全由模型自主判断（无工具调用即结束）
+		maxTurns = 20 // 兜底防爆上限；正常由 AI 自主判断何时结束（无工具调用即交付完成）
 	}
 	hitCap := false
+	circuitBroken := false
+	circuitBreakReason := ""
+	var lastToolSig string
+	consecutiveIdenticalCalls := 0
+	consecutiveErrors := 0
+
 	for turn := 1; turn <= maxTurns; turn++ {
 		if ctx.Err() != nil {
 			eventChan <- EngineEvent{
@@ -165,6 +171,30 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		})
 
 		for _, tc := range rawToolCalls {
+			sig := fmt.Sprintf("%s:%s", tc.Function.Name, strings.TrimSpace(tc.Function.Arguments))
+			if sig == lastToolSig {
+				consecutiveIdenticalCalls++
+			} else {
+				consecutiveIdenticalCalls = 1
+				lastToolSig = sig
+			}
+
+			if consecutiveIdenticalCalls >= 3 {
+				circuitBroken = true
+				circuitBreakReason = fmt.Sprintf("⚠️ [防死循环熔断] 工具 [%s] 连续发起 3 次完全相同的调用，已触发防脱缰保护。", tc.Function.Name)
+				eventChan <- EngineEvent{
+					Type:         EventChunk,
+					DeltaContent: "\n\n> " + circuitBreakReason + " 请根据已有信息给出最终分析与方案。\n\n",
+				}
+				conversation = append(conversation, llm.Message{
+					Role:       "tool",
+					ToolCallID: tc.ID,
+					Name:       tc.Function.Name,
+					Content:    circuitBreakReason + " 请不要继续重复调用此工具，根据已知信息完成作答。",
+				})
+				break
+			}
+
 			rawArgs := json.RawMessage(tc.Function.Arguments)
 			eventChan <- EngineEvent{
 				Type:       EventToolStart,
@@ -199,16 +229,42 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 				Name:       tc.Function.Name,
 				Content:    toolOutput,
 			})
+
+			if isErr {
+				consecutiveErrors++
+			} else {
+				consecutiveErrors = 0
+			}
+
+			if consecutiveErrors >= 3 {
+				circuitBroken = true
+				circuitBreakReason = fmt.Sprintf("⚠️ [连续失败熔断] 工具调用已连续失败 %d 次，已自动中止继续盲目尝试，避免消耗过多上下文。", consecutiveErrors)
+				eventChan <- EngineEvent{
+					Type:         EventChunk,
+					DeltaContent: "\n\n> " + circuitBreakReason + " 请检查系统环境或输入后重试。\n\n",
+				}
+				break
+			}
+		}
+
+		if circuitBroken {
+			break
 		}
 	}
 
-	if hitCap {
-		eventChan <- EngineEvent{Type: EventHitCap}
-		notice := FormatHitCapNotice(maxTurns)
-		eventChan <- EngineEvent{Type: EventChunk, DeltaContent: notice}
+	if hitCap || circuitBroken {
+		if hitCap {
+			eventChan <- EngineEvent{Type: EventHitCap}
+			notice := FormatHitCapNotice(maxTurns)
+			eventChan <- EngineEvent{Type: EventChunk, DeltaContent: notice}
+		}
+		wrapPrompt := "工具轮次已达上限。请不要再调用任何工具，用已经拿到的结果给出当前结论、未完成项和下一步建议。"
+		if circuitBroken {
+			wrapPrompt = fmt.Sprintf("工具执行已触发安全熔断（%s）。请不要再调用任何工具，用已经拿到的结果给出当前结论、问题定位和修复建议。", circuitBreakReason)
+		}
 		conversation = append(conversation, llm.Message{
 			Role:    "user",
-			Content: "工具轮次已达上限。请不要再调用任何工具，用已经拿到的结果给出当前结论、未完成项和下一步建议。",
+			Content: wrapPrompt,
 		})
 		msgsBytes, err := json.Marshal(conversation)
 		if err == nil && ctx.Err() == nil {

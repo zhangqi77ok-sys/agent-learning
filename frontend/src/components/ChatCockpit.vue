@@ -261,20 +261,24 @@
                 </button>
                 <div class="h-3.5 w-px bg-black/[0.1] mx-0.5 shrink-0"></div>
 
-                <!-- 可切换策略药丸 -->
-                <button
-                  @click="s.executionStrategy = s.executionStrategy === 'implement' ? 'analyze' : (s.executionStrategy === 'analyze' ? 'tdd' : 'implement')"
-                  class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold select-none cursor-pointer transition-colors border shrink-0"
-                  :class="[
-                    s.executionStrategy === 'analyze' ? 'bg-amber-500/10 text-amber-700 border-amber-500/30' :
-                    s.executionStrategy === 'tdd' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' :
-                    'bg-[#D96B27]/10 text-[#D96B27] border-[#D96B27]/30'
-                  ]"
-                  :title="'点击切换策略 (当前: ' + s.executionStrategy + ')'"
-                >
-                  <span>{{ s.executionStrategy === 'analyze' ? '🛡️' : s.executionStrategy === 'tdd' ? '🧪' : '⚡' }}</span>
-                  <span>{{ s.executionStrategy === 'analyze' ? '只读审查' : s.executionStrategy === 'tdd' ? 'TDD 闭环' : '直接改代码' }}</span>
-                </button>
+                <!-- 明确策略选择器，杜绝误触进入 implement 可写模式 -->
+                <div class="relative flex items-center shrink-0">
+                  <select
+                    v-model="s.executionStrategy"
+                    class="text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer outline-none transition-colors appearance-none pr-5.5 shadow-2xs"
+                    :class="[
+                      s.executionStrategy === 'analyze' ? 'bg-amber-500/10 text-amber-700 border-amber-500/30' :
+                      s.executionStrategy === 'tdd' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' :
+                      'bg-[#D96B27]/10 text-[#D96B27] border-[#D96B27]/30'
+                    ]"
+                    title="选择执行策略（安全只读 / TDD 验证 / 全能力放行）"
+                  >
+                    <option value="analyze">🛡️ 只读审查 (拦截写盘)</option>
+                    <option value="tdd">🧪 TDD 闭环 (强制跑测)</option>
+                    <option value="implement">⚡ 直接改代码 (全读写)</option>
+                  </select>
+                  <span class="pointer-events-none absolute right-2 text-[9px] text-[#71717A]">▼</span>
+                </div>
 
                 <!-- 当前策略拦截规则实时指示 -->
                 <span class="text-[10px] text-[#71717A] truncate font-mono hidden sm:inline-block">

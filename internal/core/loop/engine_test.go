@@ -369,3 +369,99 @@ func TestExecutionEngine_DirectPathUsesRegisteredProvider(t *testing.T) {
 		t.Fatal("registered provider was not used")
 	}
 }
+
+type loopConsecutiveErrorProvider struct {
+	turn int
+}
+
+func (m *loopConsecutiveErrorProvider) ID() string          { return "mock.errors" }
+func (m *loopConsecutiveErrorProvider) Name() string        { return "Error Provider" }
+func (m *loopConsecutiveErrorProvider) Version() string     { return "1.0.0" }
+func (m *loopConsecutiveErrorProvider) Type() v1.PluginType { return v1.TypeProvider }
+func (m *loopConsecutiveErrorProvider) Init(ctx context.Context, cfg json.RawMessage) error {
+	return nil
+}
+func (m *loopConsecutiveErrorProvider) Start(ctx context.Context) error { return nil }
+func (m *loopConsecutiveErrorProvider) Stop(ctx context.Context) error  { return nil }
+func (m *loopConsecutiveErrorProvider) Health(ctx context.Context) v1.HealthStatus {
+	return v1.HealthStatus{Healthy: true}
+}
+func (m *loopConsecutiveErrorProvider) Ping(ctx context.Context) (time.Duration, error) {
+	return 10 * time.Millisecond, nil
+}
+func (m *loopConsecutiveErrorProvider) ListModels(ctx context.Context) ([]v1.ModelDescriptor, error) {
+	return nil, nil
+}
+func (m *loopConsecutiveErrorProvider) StreamChat(ctx context.Context, req *v1.ChatRequest) (<-chan v1.StreamChunk, error) {
+	ch := make(chan v1.StreamChunk, 2)
+	m.turn++
+	ch <- v1.StreamChunk{
+		ToolCalls: []v1.ToolCallChunk{
+			{
+				Index:          0,
+				ID:             "err_call",
+				Name:           "missing_tool_" + string(rune('0'+m.turn)),
+				ArgumentsDelta: `{"arg":"val"}`,
+			},
+		},
+	}
+	close(ch)
+	return ch, nil
+}
+
+func TestExecutionEngine_CircuitBreaker_DuplicateCalls(t *testing.T) {
+	reg := host.NewRegistry()
+	prov := &loopInfiniteProvider{}
+	if err := reg.Register(prov); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	engine := NewExecutionEngine(reg)
+	eventChan := make(chan EngineEvent, 80)
+	go func() {
+		_ = engine.Execute(context.Background(), &EngineRequest{
+			Model:    "mock-model",
+			Prompt:   "test duplicate breaker",
+			APIKey:   "k",
+			Endpoint: "http://127.0.0.1:9",
+		}, eventChan)
+	}()
+	var chunks strings.Builder
+	for ev := range eventChan {
+		if ev.Type == EventChunk {
+			chunks.WriteString(ev.DeltaContent)
+		}
+	}
+	got := chunks.String()
+	if !strings.Contains(got, "防死循环熔断") {
+		t.Fatalf("expected duplicate tool call circuit breaker triggered, got %q", got)
+	}
+}
+
+func TestExecutionEngine_CircuitBreaker_ConsecutiveErrors(t *testing.T) {
+	reg := host.NewRegistry()
+	prov := &loopConsecutiveErrorProvider{}
+	if err := reg.Register(prov); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	engine := NewExecutionEngine(reg)
+	eventChan := make(chan EngineEvent, 80)
+	go func() {
+		_ = engine.Execute(context.Background(), &EngineRequest{
+			Model:    "mock-model",
+			Prompt:   "test error breaker",
+			APIKey:   "k",
+			Endpoint: "http://127.0.0.1:9",
+		}, eventChan)
+	}()
+	var chunks strings.Builder
+	for ev := range eventChan {
+		if ev.Type == EventChunk {
+			chunks.WriteString(ev.DeltaContent)
+		}
+	}
+	got := chunks.String()
+	if !strings.Contains(got, "连续失败熔断") {
+		t.Fatalf("expected consecutive errors circuit breaker triggered, got %q", got)
+	}
+}
+

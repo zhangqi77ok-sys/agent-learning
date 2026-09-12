@@ -141,13 +141,13 @@
             </div>
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold text-[#71717A] uppercase">快照 (stash)</span>
-                <button @click="s.createSnapshotAction" class="text-[10px] text-[#D96B27] cursor-pointer">＋ 保存</button>
+                <span class="text-[10px] font-bold text-[#71717A] uppercase">Git 暂存储藏 (STASH)</span>
+                <button @click="s.createSnapshotAction" class="text-[10px] text-[#D96B27] cursor-pointer hover:underline" title="执行 git stash 暂存当前未提交的工作区变更">＋ 储藏 (Stash)</button>
               </div>
-              <div v-if="s.gitSnapshots.length === 0" class="text-[10px] text-[#A1A1AA]">没有快照</div>
+              <div v-if="s.gitSnapshots.length === 0" class="text-[10px] text-[#A1A1AA]">无暂存记录</div>
               <div v-for="snap in s.gitSnapshots" :key="snap.id" class="flex items-center justify-between p-1.5 rounded bg-black/[0.02]">
-                <span class="truncate font-mono text-[10px]">{{ snap.message || snap.id }} · {{ snap.time }}</span>
-                <button @click="s.restoreSnapshotAction(snap.id)" class="text-[10px] text-[#D96B27] cursor-pointer shrink-0">还原</button>
+                <span class="truncate font-mono text-[10px] text-[#52525B]">{{ snap.message || snap.id }} · {{ snap.time }}</span>
+                <button @click="s.restoreSnapshotAction(snap.id)" class="text-[10px] text-[#D96B27] cursor-pointer shrink-0 hover:underline" title="执行 git stash pop 恢复修改">恢复 (Pop)</button>
               </div>
             </div>
             <div v-if="s.isGitLoading" class="p-6 text-center text-[#A1A1AA] text-xs flex flex-col items-center justify-center gap-2">

@@ -506,9 +506,9 @@ async function createSnapshotAction() {
   try {
     await wailsBridge.gitCreateSnapshot('checkpoint')
     await loadGitExtras()
-    showToast('✓ 已创建工作区快照')
+    showToast('✓ 已暂存当前工作区修改 (git stash)')
   } catch (err) {
-    showToast('创建快照失败: ' + err)
+    showToast('储藏暂存失败: ' + err)
   }
 }
 
@@ -516,9 +516,9 @@ async function restoreSnapshotAction(id: string) {
   try {
     await wailsBridge.gitRestoreSnapshot(id)
     await loadGitStatus()
-    showToast('✓ 已还原快照')
+    showToast('✓ 已恢复暂存修改 (git stash pop)')
   } catch (err) {
-    showToast('还原快照失败: ' + err)
+    showToast('恢复暂存失败: ' + err)
   }
 }
 
@@ -1302,9 +1302,12 @@ async function handleSend() {
       const report = await wailsBridge.runTDDValidation()
       const snippet = (report.output || '').slice(0, 120)
       if (report.status === 'PASS') {
-        showToast(`✓ TDD PASS passed=${report.passed} ${snippet}`)
+        showToast(`✓ TDD 全部通过 (${report.passed} passed)`)
       } else {
-        showToast(`TDD ${report.status} failed=${report.failed} ${snippet}`)
+        const failSummary = report.failed_tests && report.failed_tests.length > 0
+          ? `失败用例: ${report.failed_tests.join(', ')}`
+          : (report.output || '').slice(0, 100)
+        showToast(`❌ TDD 验证未通过 (${report.failed} failed) · ${failSummary}`)
       }
     } catch (err) {
       showToast('TDD 无法执行: ' + err)
@@ -1502,6 +1505,56 @@ const mcps = ref<MCPServerConfig[]>([])
 const skills = ref<SkillConfig[]>([])
 const rules = ref<RuleConfig[]>([])
 const pingLoadingMap = reactive<Record<string, boolean>>({})
+
+const primaryChannel = computed(() => channels.value.find(c => c.primary))
+
+const modelHealthStatus = computed<{
+  state: 'streaming' | 'online' | 'standby' | 'offline' | 'unconfigured'
+  text: string
+  dotClass: string
+  badgeClass: string
+}>(() => {
+  if (isStreaming.value) {
+    return {
+      state: 'streaming',
+      text: '推理中',
+      dotClass: 'bg-[#D96B27] animate-pulse',
+      badgeClass: 'bg-[#D96B27]/10 text-[#D96B27]'
+    }
+  }
+  const p = primaryChannel.value
+  if (!p || !p.endpoint) {
+    return {
+      state: 'unconfigured',
+      text: '未配置渠道',
+      dotClass: 'bg-zinc-400',
+      badgeClass: 'bg-zinc-100 text-zinc-600'
+    }
+  }
+  if (p.status === 'offline') {
+    return {
+      state: 'offline',
+      text: '离线/异常',
+      dotClass: 'bg-red-500',
+      badgeClass: 'bg-red-50 text-red-600'
+    }
+  }
+  if (p.status === 'online') {
+    const latStr = p.latency && p.latency !== '未测速' ? `在线 · ${p.latency}` : '在线'
+    return {
+      state: 'online',
+      text: latStr,
+      dotClass: 'bg-[#10A37F]',
+      badgeClass: 'bg-[#10A37F]/10 text-[#10A37F]'
+    }
+  }
+  return {
+    state: 'standby',
+    text: '待测速',
+    dotClass: 'bg-amber-500',
+    badgeClass: 'bg-amber-50 text-amber-700'
+  }
+})
 
 const channelForm = reactive({
   id: '',
@@ -2221,6 +2274,8 @@ function initWorkbench() {
     openSettingsTab,
     pingAllChannels,
     pingLoadingMap,
+    primaryChannel,
+    modelHealthStatus,
     projects,
     regenerateLast,
     projectTree,

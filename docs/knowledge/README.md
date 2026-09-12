@@ -59,6 +59,7 @@
 | **45** | **开发者全局检索打通、策略跳过守卫与 V1 边界矩阵对齐** | 工作区检索 / 策略状态机 / TDD双栈实测 / 交付验收 | 开发者专属工作区 grep/find 双模检索视窗与 Monaco 聚焦跳转、策略推荐弹窗跳过逻辑收敛至安全只读、implement 模式前置检索硬性约束、混合架构前端断言测试脚本实测与 120s 防超时、非核心功能 [实验特性] β 标注与 V1 特性边界矩阵全面重构对齐 | [45-human-workspace-search-strategy-guard-and-v1-matrix-alignment.md](./45-human-workspace-search-strategy-guard-and-v1-matrix-alignment.md) |
 | **46** | **剥离形式主义外壳、主界面五大极简入口与设置中枢真实化治理** | UI去伪存真 / 认知负荷削减 / 极简活动栏 / 真实设置中枢 | 活动栏收敛至五大核心真实入口（对话/文件/Git/终端/设置）、终端抽屉移除前端伪Trace流水账、顶栏移除虚浮宪法徽章、Ctrl+K与/指令剔除实验性及弱匹配项、设置安全防线剔除三行硬编码假开关改真说明、关于页剥离假费用与无效更新并将实验特性下沉二级收纳 | [46-de-bloating-ui-entries-and-honest-settings-hub.md](./46-de-bloating-ui-entries-and-honest-settings-hub.md) |
 | **47** | **终结固定轮次硬限制、确立 AI 自主判断任务结束与防爆安全兜底** | 自主执行回路 / 终态决策契约 / 防爆保险丝 / ReAct状态机 | 废止24轮固定人为硬上限、确立0工具调用即模型自主完成的交付语义、在提示词中刚性注入AI全流程自主控制权、微内核上限提升至100退居极端死循环安全熔断兜底与TaskModel自主执行模式适配 | [47-ai-autonomous-task-completion-and-runaway-safety-fuse.md](./47-ai-autonomous-task-completion-and-runaway-safety-fuse.md) |
+| **48** | **控件错名治理、防脱缰智能熔断器与 TDD 结构化失败提取** | 控件诚实正名 / 智能熔断器 / 防死循环 / TDD失败清单提取 | 将「微内核快照」正名为「Git 暂存储藏 (Stash)」、将「代码工作区」正名为「文件与编辑器」、顶栏模型就绪绿灯强绑定网络真实探活、渠道移除虚假auth_type、策略切换升级为原生防误触安全选择器；loop内核落地20轮硬上限+连续3次相同工具重复调用硬熔断+连续3次工具执行报错熔断；提取并置顶双栈TDD失败用例清单 | [48-control-naming-honesty-and-runaway-circuit-breakers.md](./48-control-naming-honesty-and-runaway-circuit-breakers.md) |
 
 ---
 

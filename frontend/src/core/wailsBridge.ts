@@ -742,7 +742,7 @@ export const wailsBridge = {
     return { branch: '', staged: [], working: [], untracked: [] }
   },
 
-  async runTDDValidation(): Promise<{ status: string; passed: number; failed: number; output: string }> {
+  async runTDDValidation(): Promise<{ status: string; passed: number; failed: number; failed_tests?: string[]; output: string }> {
     const app = getApp()
     if (app?.RunTDDValidation) return await app.RunTDDValidation()
     throw new Error('microkernel not connected: RunTDDValidation unavailable')

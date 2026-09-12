@@ -75,7 +75,7 @@ func NewExecutionEngine(reg *host.Registry) *ExecutionEngine {
 	return &ExecutionEngine{
 		registry:    reg,
 		maxSteps:    15,
-		maxLLMTurns: 100, // 仅作为极端死循环防爆安全兜底保险丝；正常执行完全由 AI 自主判断何时结束（无工具调用即代表完成交付）
+		maxLLMTurns: 20, // 兜底防爆上限；正常由 AI 自主判断何时结束（无工具调用即交付完成），熔断器防止死循环消耗 Token
 	}
 }
 

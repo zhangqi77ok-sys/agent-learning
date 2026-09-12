@@ -16,9 +16,12 @@
           <span class="text-[10px] text-[#71717A] bg-black/[0.04] px-1.5 py-0.2 rounded-full font-mono">{{ s.gitBranchLabel }}</span>
         </button>
         <div class="h-3 w-[1px] bg-black/[0.08] mx-1"></div>
-        <div class="flex items-center gap-1.5 text-[11px] text-[#10A37F] font-medium bg-[#10A37F]/10 px-2 py-0.5 rounded-full">
-          <span class="w-1.5 h-1.5 rounded-full bg-[#10A37F]" :class="{ 'animate-pulse': s.isStreaming }"></span>
-          <span>{{ s.selectedModel }} · {{ s.isStreaming ? '推理中' : '就绪' }}</span>
+        <div
+          :class="['flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors', s.modelHealthStatus.badgeClass]"
+          :title="s.primaryChannel ? `${s.primaryChannel.name} (${s.primaryChannel.endpoint}) · 延迟: ${s.primaryChannel.latency || '未测速'}` : '未配置主模型渠道，请前往设置配置'"
+        >
+          <span :class="['w-1.5 h-1.5 rounded-full', s.modelHealthStatus.dotClass]"></span>
+          <span>{{ s.selectedModel || '未选择模型' }} · {{ s.modelHealthStatus.text }}</span>
         </div>
       </div>
 
@@ -29,7 +32,7 @@
         title="全局快速命令 (Ctrl+K)"
       >
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <span class="text-[11px] font-medium">快速检索分支、文件与算子...</span>
+        <span class="text-[11px] font-medium">快捷跳转文件、会话或面板...</span>
         <kbd class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white text-[#71717A] border border-black/[0.08]">Ctrl+K</kbd>
       </button>
 
@@ -39,7 +42,7 @@
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
           双栏协同
         </button>
-        <button @click="s.setWorkspaceView('editor')" :class="['px-2.5 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer', s.workspaceView === 'editor' ? 'bg-white text-[#D96B27] shadow-2xs font-semibold' : 'text-[#71717A]']">代码工作区</button>
+        <button @click="s.setWorkspaceView('editor')" :class="['px-2.5 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer', s.workspaceView === 'editor' ? 'bg-white text-[#D96B27] shadow-2xs font-semibold' : 'text-[#71717A]']">文件与编辑器</button>
       </div>
 
       <div style="--wails-draggable:no-drag" class="flex items-center gap-2">
@@ -156,8 +159,16 @@
                     <div>
                       <div class="flex items-center gap-2">
                         <span class="text-xs font-bold text-[#18181B]">{{ ch.name }}</span>
-                        <span class="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded font-mono font-bold">{{ ch.status }}</span>
-                        <span class="text-[9px] bg-black/[0.04] text-[#52525B] px-1.5 py-0.2 rounded font-mono">{{ ch.auth_type }}</span>
+                        <span
+                          :class="[
+                            'text-[9px] px-1.5 py-0.2 rounded font-mono font-bold',
+                            ch.status === 'online' ? 'bg-emerald-50 text-emerald-700' :
+                            ch.status === 'offline' ? 'bg-red-50 text-red-600' :
+                            'bg-amber-50 text-amber-700'
+                          ]"
+                        >
+                          {{ ch.status === 'online' ? '在线' : ch.status === 'offline' ? '离线' : '待测速' }}
+                        </span>
                       </div>
                       <div class="text-[11px] text-[#71717A] mt-0.5 font-mono">
                         {{ ch.endpoint }} · 延迟: <strong :class="s.pingLoadingMap[ch.id] ? 'text-amber-500 animate-pulse' : 'text-[#10A37F]'">{{ s.pingLoadingMap[ch.id] ? '测速中...' : ch.latency }}</strong>
