@@ -134,7 +134,7 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 		}, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	totalPassed := 0
@@ -215,7 +215,7 @@ func RunTDDValidation(workspace string) (TestReport, error) {
 	duration := time.Since(start).Round(time.Millisecond).String()
 	outputStr := strings.Join(outputs, "\n\n")
 	if ctx.Err() == context.DeadlineExceeded {
-		outputStr += "\n[超时警告] 测试执行超过 60s 硬超时上限，已被安全中断"
+		outputStr += "\n[超时警告] 测试执行超过 120s 硬超时上限，已被安全中断"
 	}
 
 	status := "PASS"

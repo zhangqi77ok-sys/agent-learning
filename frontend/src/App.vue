@@ -715,7 +715,7 @@
           class="w-full h-8 px-2.5 rounded-lg border border-black/[0.08] text-xs"
         />
         <div class="flex justify-end gap-2 pt-1 border-t border-black/[0.06]">
-          <button class="px-3 py-1 rounded-lg text-xs text-[#71717A] cursor-pointer" @click="s.skipStrategyChoice">跳过并采用直接改代码</button>
+          <button class="px-3 py-1 rounded-lg text-xs text-[#71717A] hover:bg-black/[0.04] cursor-pointer" @click="s.skipStrategyChoice">保持默认只读审查 (analyze)</button>
           <button class="px-4 py-1 rounded-lg bg-[#D96B27] text-white text-xs font-semibold cursor-pointer" @click="s.confirmStrategyAndSend">确定提交选择</button>
         </div>
       </div>

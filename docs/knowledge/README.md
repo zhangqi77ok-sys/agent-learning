@@ -56,6 +56,7 @@
 | **42** | **HTTP 引擎空指针熔断、Git 分支全量注入防御、已删除文件 Diff 状态机与 MCP 空守卫** | 内存安全 / 安全防御 / GitOps / 协议治理 | HTTP 服务未初始化前置熔断防 goroutine panic 崩溃、Git 分支名注入全字符集拦截、已删除文件 Diff 差异展示、丢弃补丁暂存区索引同步与前端配置方法严格 Fail-Closed | [42-http-nil-engine-branch-sanitize-and-diff-deletion.md](./42-http-nil-engine-branch-sanitize-and-diff-deletion.md) |
 | **43** | **工作区搜索算子架构、双栈 TDD 真实探测、递归文件树过滤与编辑器多页签** | 检索算子 / TDD 红绿灯 / 资源管理 / 交互闭环 | 原生 Go 工作区 grep/find 算子终结盲目扫盘、Go+npm 双栈真实测试探测防假绿灯、递归文件树无限深度与模糊过滤、Monaco 多文件标签页与待确认 Diff 发送强阻断 | [43-workspace-search-plugin-dual-stack-tdd-and-editor-tabs.md](./43-workspace-search-plugin-dual-stack-tdd-and-editor-tabs.md) |
 | **44** | **工作区动态重绑定、Tab 内存持久化、TDD 双栈闭环与文件树按需懒加载** | 热插拔重载 / 状态机内存池 / TDD复合架构 / 虚拟文件树 | 切换工作区全量重载 searchtool 与动态绑定 TDD 验证闭环、Monaco 标签页无损内存草稿持久化、关闭脏文件暖色弹窗阻断拦截、TDD 双栈级联执行打破互斥偏见、文件树 1 层受控按需异步下钻防 DOM 爆炸与默认只读审查策略收敛 | [44-workspace-rebind-tab-persistence-dual-stack-tdd-and-lazy-file-tree.md](./44-workspace-rebind-tab-persistence-dual-stack-tdd-and-lazy-file-tree.md) |
+| **45** | **开发者全局检索打通、策略跳过守卫与 V1 边界矩阵对齐** | 工作区检索 / 策略状态机 / TDD双栈实测 / 交付验收 | 开发者专属工作区 grep/find 双模检索视窗与 Monaco 聚焦跳转、策略推荐弹窗跳过逻辑收敛至安全只读、implement 模式前置检索硬性约束、混合架构前端断言测试脚本实测与 120s 防超时、非核心功能 [实验特性] β 标注与 V1 特性边界矩阵全面重构对齐 | [45-human-workspace-search-strategy-guard-and-v1-matrix-alignment.md](./45-human-workspace-search-strategy-guard-and-v1-matrix-alignment.md) |
 
 ---
 

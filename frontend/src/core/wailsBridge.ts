@@ -91,6 +91,12 @@ export interface FileNode {
   loading?: boolean
 }
 
+export interface SearchMatch {
+  path: string
+  line?: number
+  content?: string
+}
+
 export interface TaskModel {
   goal: string
   status: 'idle' | 'running' | 'completed' | 'capped' | 'interrupted' | 'failed' | 'pending_diff' | 'tdd_failed'
@@ -721,6 +727,12 @@ export const wailsBridge = {
   async getFileTree(dir: string = ''): Promise<FileNode[]> {
     const app = getApp()
     if (app?.GetFileTree) return await app.GetFileTree(dir)
+    return []
+  },
+
+  async searchWorkspace(action: 'grep' | 'find', query: string, maxResults: number = 40): Promise<SearchMatch[]> {
+    const app = getApp()
+    if (app?.SearchWorkspace) return await app.SearchWorkspace(action, query, maxResults)
     return []
   },
 

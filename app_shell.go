@@ -244,3 +244,72 @@ func (a *App) CancelAgentStream() {
 		}
 	}
 }
+
+// SearchMatch 人工工作区全盘检索匹配项
+type SearchMatch struct {
+	Path    string `json:"path"`
+	Line    int    `json:"line,omitempty"`
+	Content string `json:"content,omitempty"`
+}
+
+// SearchWorkspace 供前端人工开发者直接调用工作区全盘检索 (grep 内容搜索 或 find 文件名搜索)
+func (a *App) SearchWorkspace(action, query string, maxResults int) ([]SearchMatch, error) {
+	if a.registry == nil {
+		return nil, fmt.Errorf("registry not initialized")
+	}
+	searchTool, ok := a.registry.GetTool("tool.search")
+	if !ok {
+		return nil, fmt.Errorf("search tool not registered")
+	}
+	if maxResults <= 0 {
+		maxResults = 50
+	}
+	rawArgs, _ := json.Marshal(map[string]any{
+		"action":      action,
+		"query":       query,
+		"max_results": maxResults,
+	})
+	res, err := searchTool.Execute(context.Background(), rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	if res == nil || res.IsError {
+		errMsg := "search failed"
+		if res != nil {
+			errMsg = res.Content
+		}
+		return nil, fmt.Errorf("%s", errMsg)
+	}
+
+	matches := make([]SearchMatch, 0)
+	lines := strings.Split(res.Content, "\n")
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l == "" || strings.HasPrefix(l, "共找到") || strings.HasPrefix(l, "未在工作区") || strings.HasPrefix(l, "未找到名称") {
+			continue
+		}
+		if action == "find" {
+			matches = append(matches, SearchMatch{Path: l})
+		} else {
+			parts := strings.SplitN(l, ":", 3)
+			if len(parts) == 3 {
+				var lineNum int
+				fmt.Sscanf(parts[1], "%d", &lineNum)
+				matches = append(matches, SearchMatch{
+					Path:    parts[0],
+					Line:    lineNum,
+					Content: strings.TrimSpace(parts[2]),
+				})
+			} else if len(parts) == 2 {
+				matches = append(matches, SearchMatch{
+					Path:    parts[0],
+					Content: strings.TrimSpace(parts[1]),
+				})
+			} else {
+				matches = append(matches, SearchMatch{Path: l})
+			}
+		}
+	}
+	return matches, nil
+}
+

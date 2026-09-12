@@ -644,6 +644,24 @@
 
 ---
 
+### 49. 开发者工作区全真检索、策略跳过守卫、实验特性诚实标注与 V1 边界矩阵对齐 (Human Search, Strategy Guard, Lab Badging & Matrix Realignment)
+* **开发者工作区一等全局检索视窗 (`app_shell.go`, `DiffWorkspace.vue`, `workbench.ts`)**：
+  - 彻底终结“大模型有 `search_workspace` 算子而人类开发者抓瞎”的体验鸿沟；在左侧侧边栏引入 **📁 目录 (Tree)** 与 **🔍 检索 (Search)** 双页签自由切换；
+  - 严格通过微内核 `host.Registry.GetTool("tool.search")` 统一步入，提供 **`grep` (代码/文本内容精确匹配)** 与 **`find` (文件名通配查找)**；
+  - 检索结果以高亮卡片呈现真实相对路径、匹配行号与代码片段；点击结果一键在 Monaco 编辑器中打开目标文件并高亮聚焦该行；在文件树筛选未命中时，提供一键跳转全局检索的快捷指引；
+* **策略跳过死循环修复与实现前置检索约束 (`frontend/src/App.vue` & `internal/core/loop/strategy.go`)**：
+  - 彻底修复策略选择器中点击「跳过」反而激活直接改代码（implement）导致用户陷入循环的逻辑漏洞；点击「跳过」严格坚守默认安全底线——**保持默认只读审查 (`analyze`)**；
+  - 在 `implement` 策略的系统提示词中注入刚性约束：“修改代码前必须先检索定位：优先使用 search_workspace (grep/find) 或 read_file 查明现有上下文与代码定义，严禁在未检索或未阅读目标文件的情况下盲改盲写！”；
+* **非核心/单语言特性诚实打标 `[实验特性]` (`ActivityBar.vue`)**：
+  - 对非主路径与仅限单语言的辅助功能（Token 用量看板、Go AST 知识图谱）在活动栏与悬停气泡中显式前置 **`[实验特性]`**，并追加 **`β`** 徽标，杜绝在主界面向开发者过度承诺未成熟特性；
+* **真实双栈 TDD 测试脚本闭环与执行超时防护 (`frontend/package.json` & `internal/agent/swarm.go`)**：
+  - 在 `frontend/package.json` 中配置原生断言测试脚本 `"test": "node scripts/assert-relative-assets.mjs"`，使得双栈级联 TDD 在 湉码 自身仓库中真正能跑通前端资产测试，拒绝“空脚本假装有前端测试”；
+  - 将 TDD 级联测试超时上限由 60 秒扩展至 120 秒，彻底防御 Windows 平台下并发冷编译与测试耗时导致的意外超时假失败；
+* **V1 特性边界矩阵诚实全面重构 (`docs/V1_FEATURE_BOUNDARY_MATRIX.md`)**：
+  - 彻底打破“只写了代码就标 🟢 达标交付”的自欺欺人假象；依照“主路径可稳定独立完成、失败有交代、不靠用户猜”的硬性验收标准，将处于半成品态的链路（对话工作流、策略状态机、工作区检索、文件树、Monaco、Diff 暂存、Git 流程、TDD 验证、MCP/设置）如实标记为 **🟡 半成品**；仅保留单文件安装器/密钥持久化与沙箱安全为 **🟢 可用**，用量监控与代码图谱下沉为 **🔴 实验特性**。
+
+---
+
 
 ## 🎨 四、视觉与人机工程学规范
 

@@ -47,7 +47,7 @@ func ApplyStrategy(strategy, note string, tools []llm.ToolDef, system string) ([
 		system += "\n[执行策略 tdd (测试驱动开发)] 先运行或补齐前置测试，再改最小实现，直到测试全绿通过。"
 		system += "\n【TDD 完成判定铁律】测试失败则任务状态绝对不是完成，严禁在测试未通过时宣称任务完成；必须继续分析失败原因并修复代码直至测试全部通过。"
 	default:
-		system += "\n[执行策略 implement (功能实现)] 允许读写文件并执行必要命令完成任务。优先使用 search_workspace (grep/find) 定位代码，探索代码时遵循「先检索/看地图再精准下钻」原则，严禁盲目全库递归遍历。"
+		system += "\n[执行策略 implement (功能实现)] 允许读写文件并执行必要命令完成任务。修改代码前必须先检索定位：优先使用 search_workspace (grep/find) 或 read_file 查明现有上下文与代码定义，严禁在未检索或未阅读目标文件的情况下盲改盲写；探索代码时遵循「先检索/看地图再精准下钻」原则，严禁盲目全库递归遍历。"
 	}
 	if note != "" {
 		system += "\n[用户附加约束] " + note

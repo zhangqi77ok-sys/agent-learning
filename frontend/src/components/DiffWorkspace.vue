@@ -5,34 +5,134 @@
         :class="s.workspaceView === 'editor' ? 'flex-1 min-w-0' : 'w-[46vw] min-w-[420px] max-w-[820px]'"
         class="border-l border-black/[0.08] bg-[#FAF8F5] flex select-none z-10 shrink-0 font-sans"
       >
-        <!-- 左侧工作区文件树 (支持无限深度与文件名过滤) -->
-        <div class="w-52 min-w-[12rem] border-r border-black/[0.08] flex flex-col overflow-hidden bg-[#F4EFEA]">
+        <!-- 左侧工作区文件树与全盘检索面板 (Explorer & Workspace Search) -->
+        <div class="w-60 min-w-[14rem] border-r border-black/[0.08] flex flex-col overflow-hidden bg-[#F4EFEA]">
+          <!-- 顶栏：项目名称 + 视图切换 (目录树 vs 全盘检索) -->
           <div class="h-10 min-h-[40px] px-2.5 border-b border-black/[0.08] flex items-center justify-between text-[11px] font-bold">
-            <span class="truncate" :title="s.workspacePath">{{ s.workspaceName }}</span>
+            <div class="flex items-center gap-1.5 min-w-0">
+              <button
+                @click="s.explorerTab = 'tree'"
+                :class="['px-1.5 py-0.5 rounded text-[10px] cursor-pointer font-medium transition-colors', s.explorerTab === 'tree' ? 'bg-white shadow-2xs text-[#D96B27] font-bold' : 'text-[#71717A] hover:text-[#18181B]']"
+                title="目录文件树"
+              >
+                📁 目录
+              </button>
+              <button
+                @click="s.explorerTab = 'search'"
+                :class="['px-1.5 py-0.5 rounded text-[10px] cursor-pointer font-medium transition-colors', s.explorerTab === 'search' ? 'bg-white shadow-2xs text-[#D96B27] font-bold' : 'text-[#71717A] hover:text-[#18181B]']"
+                title="工作区全盘检索 (grep/find)"
+              >
+                🔍 检索
+              </button>
+            </div>
             <div class="flex items-center gap-1">
-              <button class="cursor-pointer text-[#71717A] hover:text-[#18181B] p-1 rounded" @click="s.loadFileTree" title="刷新文件树">↻</button>
+              <button
+                v-if="s.explorerTab === 'tree'"
+                class="cursor-pointer text-[#71717A] hover:text-[#18181B] p-1 rounded text-xs"
+                @click="s.loadFileTree"
+                title="刷新文件树"
+              >↻</button>
             </div>
           </div>
-          <!-- 文件名快速过滤输入框 -->
-          <div class="p-1.5 border-b border-black/[0.06] bg-[#FAF8F5]">
-            <input
-              v-model="s.fileTreeFilter"
-              type="text"
-              placeholder="过滤文件 (如 .go, .vue)..."
-              class="w-full h-6 px-2 rounded-md bg-white text-[10px] font-mono border border-black/[0.08] focus:border-[#D96B27] focus:outline-none placeholder:text-[#A1A1AA]"
-            />
-          </div>
-          <div class="flex-1 overflow-y-auto p-1 text-[11px] font-mono space-y-0.5">
-            <div v-if="s.displayFileTree.length === 0" class="p-4 text-center text-[#A1A1AA] text-[10px]">
-              {{ s.fileTreeFilter ? '无匹配文件' : '工作区为空' }}
+
+          <!-- 模式一：目录树 -->
+          <template v-if="s.explorerTab === 'tree'">
+            <!-- 文件名快速过滤输入框 -->
+            <div class="p-1.5 border-b border-black/[0.06] bg-[#FAF8F5]">
+              <div class="flex items-center gap-1">
+                <input
+                  v-model="s.fileTreeFilter"
+                  @keydown.enter="s.searchFromFilter"
+                  type="text"
+                  placeholder="过滤已加载节点 / 回车全盘搜..."
+                  class="flex-1 h-6 px-2 rounded-md bg-white text-[10px] font-mono border border-black/[0.08] focus:border-[#D96B27] focus:outline-none placeholder:text-[#A1A1AA]"
+                />
+                <button
+                  v-if="s.fileTreeFilter"
+                  @click="s.searchFromFilter"
+                  class="px-1.5 h-6 rounded bg-[#D96B27] text-white text-[10px] font-medium cursor-pointer shrink-0"
+                  title="在全工程中搜索此关键词"
+                >全盘搜</button>
+              </div>
             </div>
-            <FileTreeNode
-              v-for="node in s.displayFileTree"
-              :key="node.path"
-              :node="node"
-              :depth="0"
-            />
-          </div>
+            <div class="flex-1 overflow-y-auto p-1 text-[11px] font-mono space-y-0.5">
+              <div v-if="s.displayFileTree.length === 0" class="p-4 text-center text-[#A1A1AA] text-[10px]">
+                <p>{{ s.fileTreeFilter ? '已加载节点中无匹配' : '工作区为空' }}</p>
+                <button
+                  v-if="s.fileTreeFilter"
+                  @click="s.searchFromFilter"
+                  class="mt-2 text-[#D96B27] underline text-[10px] cursor-pointer"
+                >
+                  🔍 在全工程中搜索 "{{ s.fileTreeFilter }}"
+                </button>
+              </div>
+              <FileTreeNode
+                v-for="node in s.displayFileTree"
+                :key="node.path"
+                :node="node"
+                :depth="0"
+              />
+            </div>
+          </template>
+
+          <!-- 模式二：全局代码与文件检索 (Search for Humans) -->
+          <template v-else>
+            <div class="p-2 border-b border-black/[0.06] bg-[#FAF8F5] flex flex-col gap-1.5">
+              <div class="flex items-center gap-1">
+                <input
+                  v-model="s.searchQuery"
+                  @keydown.enter="s.runWorkspaceSearch()"
+                  type="text"
+                  placeholder="输入关键词并回车搜索..."
+                  class="flex-1 h-7 px-2 rounded-md bg-white text-[11px] font-mono border border-black/[0.08] focus:border-[#D96B27] focus:outline-none placeholder:text-[#A1A1AA]"
+                />
+                <button
+                  @click="s.runWorkspaceSearch()"
+                  :disabled="s.isSearching"
+                  class="px-2.5 h-7 rounded-md bg-[#D96B27] hover:bg-[#C25A1D] text-white text-xs font-medium cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  {{ s.isSearching ? '...' : '搜索' }}
+                </button>
+              </div>
+              <div class="flex items-center gap-2 text-[10px] text-[#71717A]">
+                <span>模式:</span>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="radio" v-model="s.searchAction" value="find" class="accent-[#D96B27]" />
+                  <span>文件名 (find)</span>
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="radio" v-model="s.searchAction" value="grep" class="accent-[#D96B27]" />
+                  <span>代码内容 (grep)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 检索结果列表 -->
+            <div class="flex-1 overflow-y-auto p-1.5 space-y-1 text-xs font-mono">
+              <div v-if="s.isSearching" class="p-6 text-center text-[#71717A] text-[11px]">
+                🔍 正在检索工作区...
+              </div>
+              <div v-else-if="s.searchResults.length === 0" class="p-6 text-center text-[#A1A1AA] text-[11px]">
+                {{ s.searchQuery ? '未找到匹配项' : '输入关键词检索全工程' }}
+              </div>
+              <div
+                v-else
+                v-for="(res, idx) in s.searchResults"
+                :key="idx"
+                @click="s.openEditorTab(res.path)"
+                class="p-1.5 rounded hover:bg-white cursor-pointer border border-transparent hover:border-black/[0.06] transition-colors group"
+                :title="res.path + (res.line ? ':' + res.line : '')"
+              >
+                <div class="flex items-center justify-between gap-1 text-[11px]">
+                  <span class="font-bold text-[#18181B] truncate group-hover:text-[#D96B27]">{{ res.path }}</span>
+                  <span v-if="res.line" class="text-[10px] text-[#71717A] font-mono shrink-0">L{{ res.line }}</span>
+                </div>
+                <div v-if="res.content" class="text-[10px] text-[#71717A] font-mono truncate mt-0.5 opacity-90 pl-1 border-l border-black/[0.1]">
+                  {{ res.content }}
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
 
         <div class="flex-1 flex flex-col justify-between min-w-0">

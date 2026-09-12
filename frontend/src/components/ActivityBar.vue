@@ -27,17 +27,19 @@
           <button
             @click="s.activeActivity = 'usage'; s.loadUsageMetrics()"
             :class="['relative w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.activeActivity === 'usage' ? 'bg-white shadow-2xs text-[#D96B27]' : 'text-[#71717A] hover:text-[#18181B] hover:bg-white/60']"
-            title="Token 消耗大盘"
+            title="[实验特性] 本地 Token 估算大盘"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span class="absolute right-1 bottom-1 text-[8px] font-mono text-[#A1A1AA] bg-black/[0.05] px-0.5 rounded leading-none">β</span>
             <span v-if="s.activeActivity === 'usage'" class="absolute -left-1 top-2.5 w-1 h-5 bg-[#D96B27] rounded-r-full"></span>
           </button>
           <button
             @click="s.openKnowledgeGraphModal"
-            class="w-10 h-10 rounded-xl flex items-center justify-center text-[#71717A] hover:text-[#18181B] hover:bg-white/60 transition-all cursor-pointer"
-            title="工作区 Go AST 拓扑"
+            class="relative w-10 h-10 rounded-xl flex items-center justify-center text-[#71717A] hover:text-[#18181B] hover:bg-white/60 transition-all cursor-pointer"
+            title="[实验特性] Go AST 架构拓扑 (只读辅助)"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <span class="absolute right-1 bottom-1 text-[8px] font-mono text-[#A1A1AA] bg-black/[0.05] px-0.5 rounded leading-none">β</span>
           </button>
           <button
             @click="s.openSettingsTab('mcp')"

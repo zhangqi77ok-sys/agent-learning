@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/assert-relative-assets.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node scripts/assert-relative-assets.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

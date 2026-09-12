@@ -11,7 +11,8 @@ import {
   type SkillConfig,
   type RuleConfig,
   type GraphNode,
-  type DiagnosticItem
+  type DiagnosticItem,
+  type SearchMatch
 } from '../core/wailsBridge'
 import { renderMarkdown } from '../core/markdown'
 
@@ -604,6 +605,39 @@ const openEditorTabs = ref<EditorTabItem[]>([])
 const fileTreeFilter = ref('')
 const isPendingDiffPromptOpen = ref(false)
 const forceSendWithPendingDiff = ref(false)
+
+const explorerTab = ref<'tree' | 'search'>('tree')
+const searchQuery = ref('')
+const searchAction = ref<'grep' | 'find'>('find')
+const searchResults = ref<SearchMatch[]>([])
+const isSearching = ref(false)
+
+async function runWorkspaceSearch(action?: 'grep' | 'find', query?: string) {
+  if (action) searchAction.value = action
+  if (query !== undefined) searchQuery.value = query
+  const q = searchQuery.value.trim()
+  if (!q) {
+    searchResults.value = []
+    return
+  }
+  explorerTab.value = 'search'
+  isSearching.value = true
+  try {
+    searchResults.value = await wailsBridge.searchWorkspace(searchAction.value, q, 50)
+  } catch (err) {
+    showToast('检索失败: ' + err)
+    searchResults.value = []
+  } finally {
+    isSearching.value = false
+  }
+}
+
+function searchFromFilter() {
+  if (!fileTreeFilter.value.trim()) return
+  searchQuery.value = fileTreeFilter.value.trim()
+  searchAction.value = 'find'
+  void runWorkspaceSearch()
+}
 
 const gitStatusMap = computed(() => {
   const map: Record<string, { code: string; color: string }> = {}
@@ -2288,6 +2322,13 @@ function initWorkbench() {
     displayFileTree,
     gitStatusMap,
     isPendingDiffPromptOpen,
-    forceSendWithPendingDiff
+    forceSendWithPendingDiff,
+    explorerTab,
+    searchQuery,
+    searchAction,
+    searchResults,
+    isSearching,
+    runWorkspaceSearch,
+    searchFromFilter
   }
 })
