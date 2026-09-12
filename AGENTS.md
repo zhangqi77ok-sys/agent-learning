@@ -39,7 +39,8 @@
 ### 【铁律 0.9: 后续施工只认一份合同】
 1. 原型缺口与工作包顺序以 **`docs/AI_IMPLEMENTATION_CONTRACT.md`** 为准；旧 PRD / `docs/knowledge` / Tauri-Python 计划不是施工依据。
 2. WP-1 → WP-10 完成后，安全整改只认 **`docs/REVIEW_REMEDIATION_HANDOFF.md`**（WP-R1…R6），禁止与合同重复施工。
-3. 禁止跳号做 Swarm、OAuth、SSE、图谱主功能。未满足完成定义不得声称完成，不得把半成品标成达标。
+3. 对话中途选择题与危险命令一次授权只认 **`docs/HITL_CONTRACT.md`**（WP-H1 / WP-H2）。禁止 toast 冒充人机决策。
+4. 禁止跳号做 Swarm、OAuth、SSE、图谱主功能。未满足完成定义不得声称完成，不得把半成品标成达标。
 
 ---
 

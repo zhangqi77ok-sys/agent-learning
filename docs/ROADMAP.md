@@ -8,6 +8,8 @@
 
 **安全/质量整改（合同补充卷 WP-R1…R6）**：[`docs/REVIEW_REMEDIATION_HANDOFF.md`](./REVIEW_REMEDIATION_HANDOFF.md)
 
+**人机协同（对话中选择题 / 危险命令允许一次 WP-H1…H2）**：[`docs/HITL_CONTRACT.md`](./HITL_CONTRACT.md)
+
 ## 正在做 / 下一波（按序）
 
 | ID | 功能 | 解决什么 | 验收 |
