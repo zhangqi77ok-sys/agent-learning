@@ -197,6 +197,42 @@ func TestStore_CustomIDListing(t *testing.T) {
 	}
 }
 
+func TestStore_TagRoundTrip(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "tcode_test_tag_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+	s := &Store{baseDir: tempDir}
+	sess := ChatSession{
+		ID:        "sess_tag_1",
+		Title:     "带标签",
+		Tag:       "核心架构",
+		Workspace: `C:\proj`,
+		UpdatedAt: 2000,
+		Messages:  []SessionMessage{{ID: "m1", Role: "user", Content: "hi"}},
+	}
+	if err := s.Save(sess); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get("sess_tag_1")
+	if err != nil || got.Tag != "核心架构" {
+		t.Fatalf("get tag: %+v %v", got, err)
+	}
+	metas := s.List(`C:\proj`)
+	if len(metas) != 1 || metas[0].Tag != "核心架构" {
+		t.Fatalf("list tag: %+v", metas)
+	}
+	got.Tag = ""
+	if err := s.Save(*got); err != nil {
+		t.Fatal(err)
+	}
+	again, _ := s.Get("sess_tag_1")
+	if again.Tag != "" {
+		t.Fatalf("expected cleared tag, got %q", again.Tag)
+	}
+}
+
 func TestStore_List_OrderedByUpdatedAt(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "tcode_test_ordered_*")
 	if err != nil {

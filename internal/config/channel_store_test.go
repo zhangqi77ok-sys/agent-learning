@@ -30,6 +30,31 @@ func TestChannelStore_ZeroDemo_CleanEmptyState(t *testing.T) {
 	}
 }
 
+func TestChannelStore_SaveUpdatesSameID(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "tcode_test_ch_upd_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+	store := &ChannelStore{
+		filePath: filepath.Join(tempDir, "channels.json"),
+		channels: make([]ChannelConfig, 0),
+	}
+	if err := store.Save(ChannelConfig{ID: "ch_1", Name: "a", Endpoint: "https://x", APIKey: "k1", Model: "m1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(ChannelConfig{ID: "ch_1", Name: "b", Endpoint: "https://y", APIKey: "k2", Model: "m2"}); err != nil {
+		t.Fatal(err)
+	}
+	list := store.List()
+	if len(list) != 1 {
+		t.Fatalf("expected 1 channel after update, got %d", len(list))
+	}
+	if list[0].Name != "b" || list[0].Endpoint != "https://y" || list[0].Model != "m2" {
+		t.Fatalf("not updated: %+v", list[0])
+	}
+}
+
 func TestAtomicWriteConfig_CreatesParentDir(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "tcode_test_extra_cfg_*")
 	if err != nil {

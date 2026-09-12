@@ -963,6 +963,12 @@ async function handleSend() {
     toggleTerminalDrawer(true)
     return
   }
+  const mcpHit = mcps.value.find((m) => slash === '/' + m.name || slash === '/' + m.id)
+  if (mcpHit) {
+    inputPrompt.value = ''
+    await testMcpAction(mcpHit.id)
+    return
+  }
 
   if (!selectedModel.value) {
     showToast('请先在设置中添加模型渠道并选择模型，不会使用内置假模型')

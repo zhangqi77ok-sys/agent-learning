@@ -7,6 +7,21 @@ import (
 	"testing"
 )
 
+func TestListBranches_NotARepo_NoFakeMain(t *testing.T) {
+	tmp, err := os.MkdirTemp("", "gitops_norepo_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+	branches, current, err := ListBranches(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(branches) != 0 || current != "" {
+		t.Fatalf("expected empty branches, got %v %q", branches, current)
+	}
+}
+
 func TestIsValidBranchName(t *testing.T) {
 	valid := []string{"main", "feature/login", "fix-123", "v1.0.0", "dev_test"}
 	for _, b := range valid {

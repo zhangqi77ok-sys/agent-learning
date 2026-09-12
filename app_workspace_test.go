@@ -48,6 +48,55 @@ func TestApp_SetAndGetWorkspace(t *testing.T) {
 	}
 }
 
+func TestApp_SuggestCommitMessage_FromGitStatus(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "tcode_suggest_commit_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	run := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tmpDir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	run("init")
+	run("config", "user.name", "t")
+	run("config", "user.email", "t@t.t")
+	if err := os.WriteFile(filepath.Join(tmpDir, "hello.go"), []byte("package h\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	app := NewApp()
+	if err := app.SetWorkspace(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	msg, err := app.SuggestCommitMessage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(msg, "hello.go") {
+		t.Fatalf("expected filename in message, got %q", msg)
+	}
+}
+
+func TestApp_GitPull_NotARepo(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "tcode_pull_norepo_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	app := NewApp()
+	if err := app.SetWorkspace(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	_, err = app.GitPull()
+	if err == nil {
+		t.Fatal("expected git pull to fail outside a repo")
+	}
+}
+
 func TestApp_GetUsageMetrics_NilSessionStore(t *testing.T) {
 	app := &App{
 		sessionStore: nil,

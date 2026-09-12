@@ -34,6 +34,20 @@ func TestApplyStrategy_AnalyzeDropsExec(t *testing.T) {
 	}
 }
 
+func TestApplyStrategy_TDDKeepsExecAndPrompt(t *testing.T) {
+	tools := []llm.ToolDef{
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "fs_control"}},
+		{Type: "function", Function: llm.ToolFunctionDef{Name: "exec_command"}},
+	}
+	out, sys := ApplyStrategy("tdd", "", tools, "base")
+	if len(out) != 2 {
+		t.Fatalf("tdd should keep tools, got %d", len(out))
+	}
+	if !strings.Contains(sys, "tdd") || !strings.Contains(sys, "测试") {
+		t.Fatalf("sys=%s", sys)
+	}
+}
+
 func TestDenyByStrategy_BlocksWrite(t *testing.T) {
 	deny, _ := DenyByStrategy("analyze", "exec_command", nil)
 	if !deny {
