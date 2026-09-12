@@ -8,7 +8,7 @@ import (
 
 func TestStdioClient_TimeoutControl(t *testing.T) {
 	// 启动一个 sleep 命令测试超时机制
-	client := NewStdioClient("powershell", []string{"-Command", "Start-Sleep -Seconds 5"}, ".")
+	client := NewStdioClient("powershell", []string{"-Command", "Start-Sleep -Seconds 5"}, ".", nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
@@ -21,7 +21,7 @@ func TestStdioClient_TimeoutControl(t *testing.T) {
 }
 
 func TestStdioClient_RestartAndStopChan(t *testing.T) {
-	client := NewStdioClient("powershell", []string{"-Command", "Start-Sleep -Seconds 1"}, ".")
+	client := NewStdioClient("powershell", []string{"-Command", "Start-Sleep -Seconds 1"}, ".", nil)
 	// 首次 Stop，关闭 stopChan
 	_ = client.Stop()
 
@@ -43,7 +43,7 @@ func TestStdioClient_RestartAndStopChan(t *testing.T) {
 }
 
 func TestStdioClient_SendRequestNilResDefense(t *testing.T) {
-	client := NewStdioClient("powershell", []string{"-Command", "Start-Sleep -Seconds 1"}, ".")
+	client := NewStdioClient("powershell", []string{"-Command", "Start-Sleep -Seconds 1"}, ".", nil)
 	// 模拟挂起请求并在 Stop 时清理
 	ch := make(chan *JSONRPCMessage, 1)
 	client.pending.Store(int64(999), ch)
@@ -69,7 +69,7 @@ func TestStdioClient_SendRequestNilResDefense(t *testing.T) {
 
 func TestStdioClient_ReadLoopExitWakesPending(t *testing.T) {
 	// 启动一个立即退出的进程
-	client := NewStdioClient("powershell", []string{"-Command", "exit 0"}, ".")
+	client := NewStdioClient("powershell", []string{"-Command", "exit 0"}, ".", nil)
 	ch := make(chan *JSONRPCMessage, 1)
 	client.pending.Store(int64(1001), ch)
 

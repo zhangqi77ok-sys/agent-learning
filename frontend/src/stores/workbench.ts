@@ -1801,9 +1801,13 @@ async function deleteMcpAction(id: string) {
 async function testMcpAction(id: string) {
   try {
     const r = await wailsBridge.testMCPServer(id)
-    showToast((r.status || 'OK') + ' · 工具 ' + (r.tool_count || 0) + ' · ' + (r.latency || ''))
+    if (r.status === 'ERROR' || r.error) {
+      showToast(`❌ MCP 探活失败 [${r.name}]: ${r.error}`)
+    } else {
+      showToast((r.status || 'OK') + ' · 工具 ' + (r.tool_count || 0) + ' · ' + (r.latency || ''))
+    }
   } catch (err) {
-    showToast('MCP 探活失败: ' + err)
+    showToast('MCP 探活异常: ' + err)
   }
 }
 
@@ -1822,6 +1826,7 @@ const mcpForm = reactive({
   args: [] as string[]
 })
 const mcpArgsInput = ref('')
+const mcpEnvInput = ref('')
 
 const skillForm = reactive({
   name: '',
@@ -1840,12 +1845,26 @@ async function saveMcpAction() {
     return
   }
   const args = mcpArgsInput.value.trim() ? mcpArgsInput.value.trim().split(/\s+/) : []
+  
+  const envMap: Record<string, string> = {}
+  if (mcpEnvInput.value.trim()) {
+    mcpEnvInput.value.split('\n').forEach(line => {
+      const parts = line.split('=')
+      if (parts.length >= 2) {
+        const k = parts[0].trim()
+        const v = parts.slice(1).join('=').trim()
+        if (k) envMap[k] = v
+      }
+    })
+  }
+
   await wailsBridge.saveMCP({
     id: 'mcp_' + Date.now(),
     name: mcpForm.name.trim(),
     type: mcpForm.type,
     command: mcpForm.command.trim(),
     args: args,
+    env: envMap,
     enabled: true,
     updated_at: Date.now()
   })
@@ -1853,6 +1872,7 @@ async function saveMcpAction() {
   mcpForm.name = ''
   mcpForm.command = ''
   mcpArgsInput.value = ''
+  mcpEnvInput.value = ''
   await loadSettingsData()
   showToast('✓ MCP 服务已成功注册并保存')
 }
@@ -2365,6 +2385,7 @@ function initWorkbench() {
     loadSettingsData,
     moveCommandPalette,
     mcpArgsInput,
+    mcpEnvInput,
     mcpForm,
     mcps,
     mentionIndex,

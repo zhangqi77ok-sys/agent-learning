@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -20,6 +22,7 @@ type StdioClient struct {
 	command   string
 	args      []string
 	workspace string
+	env       map[string]string
 
 	cmd    *exec.Cmd
 	stdin  io.WriteCloser
@@ -31,17 +34,28 @@ type StdioClient struct {
 	stopChan chan struct{}
 	mu       sync.Mutex
 	started  bool
+
+	lastStderr strings.Builder
 }
 
 // NewStdioClient 创建 Stdio 客户端实例
-func NewStdioClient(command string, args []string, workspace string) *StdioClient {
+func NewStdioClient(command string, args []string, workspace string, env map[string]string) *StdioClient {
 	return &StdioClient{
 		command:   command,
 		args:      args,
 		workspace: workspace,
+		env:       env,
 		stopChan:  make(chan struct{}),
 	}
 }
+
+// LastStderr 返回最近捕获的 stderr 输出
+func (c *StdioClient) LastStderr() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.lastStderr.String()
+}
+
 
 // Start 拉起外部进程并完成 MCP Initialize 协议握手
 func (c *StdioClient) Start(ctx context.Context) error {
@@ -60,6 +74,13 @@ func (c *StdioClient) Start(ctx context.Context) error {
 
 	cmd := exec.Command(c.command, c.args...)
 	cmd.Dir = c.workspace
+
+	if len(c.env) > 0 {
+		cmd.Env = os.Environ()
+		for k, v := range c.env {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -105,7 +126,14 @@ func (c *StdioClient) Start(ctx context.Context) error {
 	go func(r io.Reader) {
 		buf := make([]byte, 4096)
 		for {
-			_, err := r.Read(buf)
+			n, err := r.Read(buf)
+			if n > 0 {
+				c.mu.Lock()
+				if c.lastStderr.Len() < 8192 {
+					c.lastStderr.Write(buf[:n])
+				}
+				c.mu.Unlock()
+			}
 			if err != nil {
 				break
 			}
@@ -128,17 +156,20 @@ func (c *StdioClient) Start(ctx context.Context) error {
 	resp, err := c.sendRequest(ctx, "initialize", initBytes)
 	if err != nil {
 		_ = c.Stop()
-		return fmt.Errorf("mcp initialize failed: %w", err)
+		time.Sleep(50 * time.Millisecond) // 等待 stderr 排水
+		return fmt.Errorf("mcp initialize failed: %w. stderr: %s", err, strings.TrimSpace(c.LastStderr()))
 	}
 
 	if resp == nil {
 		_ = c.Stop()
-		return fmt.Errorf("mcp initialize failed: received nil response from server")
+		time.Sleep(50 * time.Millisecond)
+		return fmt.Errorf("mcp initialize failed: received nil response from server. stderr: %s", strings.TrimSpace(c.LastStderr()))
 	}
 
 	if resp.Error != nil {
 		_ = c.Stop()
-		return fmt.Errorf("mcp initialize error from server: %s", resp.Error.Message)
+		time.Sleep(50 * time.Millisecond)
+		return fmt.Errorf("mcp initialize error from server: %s. stderr: %s", resp.Error.Message, strings.TrimSpace(c.LastStderr()))
 	}
 
 	// 2. 发送 notifications/initialized

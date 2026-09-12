@@ -639,6 +639,10 @@
             <label class="block font-medium text-[#71717A] mb-1">启动参数 (以空格隔开)</label>
             <input v-model="s.mcpArgsInput" placeholder="-y @modelcontextprotocol/server-filesystem D:/workspace" type="text" class="w-full px-2.5 py-1.5 rounded-lg border border-black/[0.1] focus:outline-none focus:border-[#D96B27]">
           </div>
+          <div>
+            <label class="block font-medium text-[#71717A] mb-1">环境变量 (每行 KEY=VALUE)</label>
+            <textarea v-model="s.mcpEnvInput" placeholder="API_KEY=xxx\nDB_PASS=yyy" rows="3" class="w-full px-2.5 py-1.5 rounded-lg border border-black/[0.1] focus:outline-none focus:border-[#D96B27] resize-none"></textarea>
+          </div>
         </div>
         <div class="flex justify-end gap-2 pt-2 border-t border-black/[0.06]">
           <button @click="s.isMcpModalOpen = false" class="px-3 py-1 rounded-lg border border-black/[0.1] text-xs cursor-pointer">取消</button>

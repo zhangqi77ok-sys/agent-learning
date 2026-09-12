@@ -40,7 +40,7 @@ func (m *Manager) TestServer(ctx context.Context, cfg config.MCPServerConfig) (M
 
 	var client Client
 	if cfg.Type == "stdio" || cfg.Type == "" {
-		client = NewStdioClient(cfg.Command, cfg.Args, m.workspace)
+		client = NewStdioClient(cfg.Command, cfg.Args, m.workspace, cfg.Env)
 	} else {
 		return MCPTestResult{
 			ID:      cfg.ID,
@@ -97,7 +97,7 @@ func (m *Manager) TestServer(ctx context.Context, cfg config.MCPServerConfig) (M
 func (m *Manager) StartServer(ctx context.Context, cfg config.MCPServerConfig) error {
 	var client Client
 	if cfg.Type == "stdio" || cfg.Type == "" {
-		client = NewStdioClient(cfg.Command, cfg.Args, m.workspace)
+		client = NewStdioClient(cfg.Command, cfg.Args, m.workspace, cfg.Env)
 	} else {
 		return fmt.Errorf("unsupported transport: %s", cfg.Type)
 	}
