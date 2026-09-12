@@ -22,34 +22,51 @@
         </div>
       </div>
 
-      <div class="hidden md:flex items-center gap-2 text-[11px] text-[#A1A1AA]">
-        <span>按 <kbd class="px-1.5 py-0.5 rounded bg-black/[0.04] border border-black/[0.08] font-mono text-[10px] text-[#52525B]">Ctrl+K</kbd> 快速检索分支、文件与算子</span>
+      <button
+        style="--wails-draggable:no-drag"
+        @click="s.openCommandPalette()"
+        class="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/[0.04] hover:bg-black/[0.07] border border-black/[0.06] text-xs text-[#71717A] cursor-pointer shadow-2xs"
+        title="全局快速命令 (Ctrl+K)"
+      >
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="text-[11px] font-medium">快速检索分支、文件与算子...</span>
+        <kbd class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white text-[#71717A] border border-black/[0.08]">Ctrl+K</kbd>
+      </button>
+
+      <div style="--wails-draggable:no-drag" class="flex items-center p-0.5 bg-black/[0.05] rounded-xl text-xs font-medium">
+        <button @click="s.setWorkspaceView('chat')" :class="['px-2.5 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer', s.workspaceView === 'chat' ? 'bg-white text-[#D96B27] shadow-2xs font-semibold' : 'text-[#71717A]']">智能对话</button>
+        <button @click="s.setWorkspaceView('split')" :class="['px-2.5 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer', s.workspaceView === 'split' ? 'bg-white text-[#D96B27] shadow-2xs font-semibold' : 'text-[#71717A]']">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+          双栏协同
+        </button>
+        <button @click="s.setWorkspaceView('editor')" :class="['px-2.5 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer', s.workspaceView === 'editor' ? 'bg-white text-[#D96B27] shadow-2xs font-semibold' : 'text-[#71717A]']">代码工作区</button>
       </div>
 
       <div style="--wails-draggable:no-drag" class="flex items-center gap-2">
         <button
-          @click="s.openKnowledgeGraphModal"
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-[#18181B] bg-white border border-black/[0.08] shadow-2xs hover:bg-black/[0.03] transition-all cursor-pointer"
-        >
-          <span class="text-[#D96B27]">🕸️</span><span>项目知识图谱</span>
-        </button>
-        <button
           @click="s.toggleTerminalDrawer()"
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-[#18181B] bg-white border border-black/[0.08] shadow-2xs hover:bg-black/[0.03] transition-all cursor-pointer"
-          title="唤起/收起集成终端抽屉 (Ctrl+`)"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-[#52525B] bg-white border border-black/[0.08] shadow-2xs hover:bg-black/[0.03] cursor-pointer"
         >
-          <span class="text-[#D96B27] font-mono font-bold">$_</span><span>终端</span>
+          <span class="font-mono font-bold text-[#18181B]">$_</span><span>终端抽屉</span>
         </button>
         <button
           @click="s.isSettingsOpen = true"
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-[#18181B] bg-white border border-black/[0.08] shadow-2xs hover:bg-black/[0.03] transition-all cursor-pointer"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-[#18181B] bg-white border border-black/[0.08] shadow-2xs hover:bg-black/[0.03] cursor-pointer"
         >
-          <span class="text-[#D96B27]">⚙️</span><span>设置</span>
+          <svg class="w-3.5 h-3.5 text-[#D96B27]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>模型与设置</span>
         </button>
-        <div class="flex items-center gap-1 border-l border-black/[0.08] pl-2">
-          <button @click="wailsBridge.windowMinimise()" class="w-6 h-6 rounded flex items-center justify-center hover:bg-black/[0.05] text-[#71717A] cursor-pointer" title="最小化">-</button>
-          <button @click="wailsBridge.windowToggleMaximise()" class="w-6 h-6 rounded flex items-center justify-center hover:bg-black/[0.05] text-[#71717A] cursor-pointer" title="最大化/还原">□</button>
-          <button @click="wailsBridge.windowClose()" class="w-6 h-6 rounded flex items-center justify-center hover:bg-red-500 hover:text-white text-[#71717A] cursor-pointer" title="关闭">✕</button>
+        <div class="h-3 w-[1px] bg-black/[0.08]"></div>
+        <div class="flex items-center gap-1">
+          <button @click="wailsBridge.windowMinimise()" class="w-6 h-6 rounded flex items-center justify-center hover:bg-black/[0.05] text-[#71717A] cursor-pointer" title="最小化">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button @click="wailsBridge.windowToggleMaximise()" class="w-6 h-6 rounded flex items-center justify-center hover:bg-black/[0.05] text-[#71717A] cursor-pointer" title="最大化/还原">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          </button>
+          <button @click="wailsBridge.windowClose()" class="w-6 h-6 rounded flex items-center justify-center hover:bg-red-500 hover:text-white text-[#71717A] cursor-pointer" title="关闭">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       </div>
     </header>
@@ -58,7 +75,7 @@
       <LeftDrawer />
       <div class="flex-1 flex flex-col overflow-hidden relative">
         <div class="flex-1 flex overflow-hidden relative">
-          <ChatCockpit />
+          <ChatCockpit v-show="s.workspaceView !== 'editor'" />
           <DiffWorkspace />
         </div>
         <TerminalDrawer />

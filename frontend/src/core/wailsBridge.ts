@@ -464,6 +464,12 @@ export const wailsBridge = {
     throw new Error('microkernel not connected: GitPull unavailable')
   },
 
+  async suggestCommitMessage(): Promise<string> {
+    const app = getApp()
+    if (app?.SuggestCommitMessage) return await app.SuggestCommitMessage()
+    throw new Error('microkernel not connected: SuggestCommitMessage unavailable')
+  },
+
   async gitPush(): Promise<string> {
     const app = getApp()
     if (app?.GitPush) return await app.GitPush()

@@ -1,68 +1,69 @@
 <template>
-<nav class="w-12 bg-[#FAF8F5] border-r border-black/[0.08] flex flex-col justify-between py-3 items-center z-20 shrink-0 select-none">
-        <div class="flex flex-col gap-2 items-center w-full">
+<nav class="w-[48px] min-w-[48px] bg-[#EFEAE4] border-r border-black/[0.08] flex flex-col justify-between items-center py-2 z-20 shrink-0 select-none">
+        <div class="flex flex-col items-center gap-2 w-full">
           <button
             @click="s.activeActivity = 'chat'"
-            :class="['w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.activeActivity === 'chat' ? 'bg-white shadow-2xs text-[#D96B27] border border-black/[0.06]' : 'text-[#71717A] hover:bg-black/[0.04]']"
-            title="对话工作台"
+            :class="['relative w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.activeActivity === 'chat' ? 'bg-white shadow-2xs text-[#D96B27]' : 'text-[#71717A] hover:text-[#18181B] hover:bg-white/60']"
+            title="AI 对话工作台"
           >
-            <span class="text-base">💬</span>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span v-if="s.activeActivity === 'chat'" class="absolute -left-1 top-2.5 w-1 h-5 bg-[#D96B27] rounded-r-full"></span>
           </button>
           <button
             @click="s.switchToFileActivity"
-            :class="['w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.activeActivity === 'files' ? 'bg-white shadow-2xs text-[#D96B27] border border-black/[0.06]' : 'text-[#71717A] hover:bg-black/[0.04]']"
-            title="工程文件树"
+            :class="['relative w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.isDiffOpen && s.workspaceView !== 'chat' ? 'bg-white shadow-2xs text-[#D96B27]' : 'text-[#71717A] hover:text-[#18181B] hover:bg-white/60']"
+            title="工程文件资源管理器"
           >
-            <span class="text-base">📁</span>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           </button>
           <button
             @click="s.switchToGitActivity"
-            :class="['w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.activeActivity === 'git' ? 'bg-white shadow-2xs text-[#D96B27] border border-black/[0.06]' : 'text-[#71717A] hover:bg-black/[0.04]']"
-            title="Git 版本控制"
+            :class="['relative w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.activeActivity === 'git' ? 'bg-white shadow-2xs text-[#D96B27]' : 'text-[#71717A] hover:text-[#18181B] hover:bg-white/60']"
+            title="Git 变更与代码审查"
           >
-            <span class="text-base">🌿</span>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+            <span v-if="s.activeActivity === 'git'" class="absolute -left-1 top-2.5 w-1 h-5 bg-[#D96B27] rounded-r-full"></span>
           </button>
           <button
             @click="s.activeActivity = 'usage'; s.loadUsageMetrics()"
-            :class="['w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.activeActivity === 'usage' ? 'bg-white shadow-2xs text-[#D96B27] border border-black/[0.06]' : 'text-[#71717A] hover:bg-black/[0.04]']"
-            title="Token 用量"
+            :class="['relative w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer', s.activeActivity === 'usage' ? 'bg-white shadow-2xs text-[#D96B27]' : 'text-[#71717A] hover:text-[#18181B] hover:bg-white/60']"
+            title="Token 消耗大盘"
           >
-            <span class="text-base">📊</span>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span v-if="s.activeActivity === 'usage'" class="absolute -left-1 top-2.5 w-1 h-5 bg-[#D96B27] rounded-r-full"></span>
           </button>
           <button
             @click="s.openKnowledgeGraphModal"
-            class="w-9 h-9 rounded-xl flex items-center justify-center text-[#71717A] hover:bg-black/[0.04] transition-all cursor-pointer"
-            title="项目 AST 拓扑"
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-[#71717A] hover:text-[#18181B] hover:bg-white/60 transition-all cursor-pointer"
+            title="工作区 Go AST 拓扑"
           >
-            <span class="text-base">🕸️</span>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
           </button>
           <button
             @click="s.openSettingsTab('mcp')"
-            class="w-9 h-9 rounded-xl flex items-center justify-center text-[#71717A] hover:bg-black/[0.04] transition-all cursor-pointer"
-            title="MCP 与技能扩展"
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-[#71717A] hover:text-[#18181B] hover:bg-white/60 transition-all cursor-pointer"
+            title="MCP 与技能"
           >
-            <span class="text-base">🧩</span>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           </button>
           <button
             @click="s.toggleTerminalDrawer()"
-            :class="['w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer font-mono font-bold text-xs', s.isTerminalOpen ? 'bg-white shadow-2xs text-[#D96B27] border border-black/[0.06]' : 'text-[#71717A] hover:bg-black/[0.04]']"
-            title="唤起/收起集成终端抽屉 (Ctrl+`)"
+            :class="['w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer font-mono font-bold text-xs', s.isTerminalOpen ? 'bg-white shadow-2xs text-[#D96B27]' : 'text-[#71717A] hover:text-[#18181B] hover:bg-white/60']"
+            title="集成终端 (Ctrl+`)"
           >
             <span>$_</span>
           </button>
         </div>
 
-        <div class="flex flex-col gap-2 items-center w-full">
+        <div class="flex flex-col items-center gap-2 w-full">
           <button
             @click="s.isSettingsOpen = true"
-            class="w-9 h-9 rounded-xl flex items-center justify-center text-[#71717A] hover:bg-black/[0.04] transition-all cursor-pointer"
-            title="设置"
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-[#71717A] hover:text-[#18181B] hover:bg-white/60 transition-all cursor-pointer"
+            title="系统设置"
           >
-            <span class="text-base">⚙️</span>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
-          <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-[#D96B27] to-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-2xs">
-            湉
-          </div>
+          <div class="w-9 h-9 rounded-full bg-[#D96B27]/15 text-[#D96B27] flex items-center justify-center font-bold text-xs">湉</div>
         </div>
       </nav>
 </template>
@@ -71,4 +72,3 @@
 import { useWorkbenchStore } from '../stores/workbench'
 const s = useWorkbenchStore()
 </script>
-

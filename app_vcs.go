@@ -271,6 +271,80 @@ func (a *App) GitPull() (string, error) {
 	return string(out), nil
 }
 
+func (a *App) gitOutput(args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = a.workspace
+	if attr := windowsSysProcAttr(); attr != nil {
+		cmd.SysProcAttr = attr
+	}
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+func conventionalCommitFromPorcelain(porcelain string) string {
+	lines := strings.Split(strings.TrimSpace(porcelain), "\n")
+	names := make([]string, 0, 6)
+	kind := "chore"
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		code := ""
+		path := line
+		if len(line) >= 3 {
+			code = strings.TrimSpace(line[:2])
+			path = strings.TrimSpace(line[2:])
+		}
+		base := filepath.Base(path)
+		if base != "" && base != "." && len(names) < 4 {
+			names = append(names, base)
+		}
+		switch {
+		case strings.Contains(code, "A") || strings.HasPrefix(line, "??"):
+			if kind == "chore" {
+				kind = "feat"
+			}
+		case strings.Contains(code, "D"):
+			if kind == "chore" {
+				kind = "fix"
+			}
+		case strings.Contains(code, "M"):
+			if kind == "chore" {
+				kind = "fix"
+			}
+		}
+	}
+	if len(names) == 0 {
+		return kind + ": update workspace"
+	}
+	return kind + ": " + strings.Join(names, ", ")
+}
+
+// SuggestCommitMessage 根据 git status / diff --stat 生成 Conventional Commit，不是套话。
+func (a *App) SuggestCommitMessage() (string, error) {
+	porcelain, err := a.gitOutput("status", "--porcelain")
+	if err != nil {
+		return "", fmt.Errorf("%s", strings.TrimSpace(porcelain))
+	}
+	if strings.TrimSpace(porcelain) == "" {
+		return "", fmt.Errorf("工作区没有可提交的改动")
+	}
+	msg := conventionalCommitFromPorcelain(porcelain)
+	stat, _ := a.gitOutput("diff", "--stat", "HEAD")
+	stat = strings.TrimSpace(stat)
+	if stat != "" {
+		last := stat
+		if i := strings.LastIndex(stat, "\n"); i >= 0 {
+			last = strings.TrimSpace(stat[i+1:])
+		}
+		if last != "" && !strings.Contains(msg, last) {
+			msg = msg + " (" + last + ")"
+		}
+	}
+	return msg, nil
+}
+
 func (a *App) GitPush() (string, error) {
 	cmd := exec.Command("git", "push")
 	cmd.Dir = a.workspace

@@ -39,10 +39,10 @@
           </div>
 
           <button
-            @click="s.isDiffOpen = !s.isDiffOpen"
+            @click="s.setWorkspaceView(s.isDiffOpen ? 'chat' : 'split')"
             class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-black/[0.08] text-xs text-[#52525B] hover:text-[#18181B] hover:bg-black/[0.02] shadow-2xs transition-all cursor-pointer"
           >
-            <span>{{ s.isDiffOpen ? '收起代码' : '展开代码' }}</span>
+            <span>{{ s.isDiffOpen ? '收起代码面板' : '💻 代码面板' }}</span>
           </button>
         </header>
 

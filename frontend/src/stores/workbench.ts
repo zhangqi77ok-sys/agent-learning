@@ -18,6 +18,22 @@ export const useWorkbenchStore = defineStore('workbench', () => {
 // 1. 活动栏与工作区状态
 const activeActivity = ref('chat')
 const isDiffOpen = ref(true)
+const workspaceView = ref<'chat' | 'split' | 'editor'>('split')
+
+function setWorkspaceView(v: 'chat' | 'split' | 'editor') {
+  workspaceView.value = v
+  isDiffOpen.value = v !== 'chat'
+  if (v !== 'chat') void loadFileTree()
+}
+
+async function suggestCommitMessage() {
+  try {
+    commitMessage.value = await wailsBridge.suggestCommitMessage()
+    showToast('✓ 已根据 git status / diff --stat 生成提交说明')
+  } catch (err) {
+    showToast('无法生成提交说明: ' + err)
+  }
+}
 const activeDiffFile = ref('')
 const isSettingsOpen = ref(false)
 const isKnowledgeGraphOpen = ref(false)
@@ -419,8 +435,7 @@ async function restoreSnapshotAction(id: string) {
 
 function switchToFileActivity() {
   activeActivity.value = 'chat'
-  isDiffOpen.value = true
-  void loadFileTree()
+  setWorkspaceView('split')
 }
 
 async function gitPullAction() {
@@ -1756,6 +1771,7 @@ function initWorkbench() {
     onTabDragStart,
     onTabDrop,
     openTabMenu,
+    openCommandPalette,
     openAddChannelModal,
     openFileDiff,
     openKnowledgeGraphModal,
@@ -1788,6 +1804,7 @@ function initWorkbench() {
     selectedModel,
     sessions,
     skipStrategyChoice,
+    setWorkspaceView,
     setSessionTag,
     setPrimaryChannel,
     showToast,
@@ -1799,6 +1816,7 @@ function initWorkbench() {
     strategyNote,
     stagedTreeFiles,
     stopGenerationAction,
+    suggestCommitMessage,
     submitTerminalCommand,
     testMcpAction,
     tabContextMenu,
@@ -1820,6 +1838,7 @@ function initWorkbench() {
     usageMetrics,
     visibleMessages,
     upstreamFetchedModels,
+    workspaceView,
     workingTreeFiles,
     workspaceName,
     workspacePath

@@ -2,7 +2,8 @@
 <!-- 右侧 Monaco Diff 审查工作区 (Diff Workspace) -->
       <section
         v-show="s.isDiffOpen"
-        class="w-[46vw] min-w-[420px] max-w-[820px] border-l border-black/[0.08] bg-[#FAF8F5] flex select-none z-10 shrink-0 font-sans"
+        :class="s.workspaceView === 'editor' ? 'flex-1 min-w-0' : 'w-[46vw] min-w-[420px] max-w-[820px]'"
+        class="border-l border-black/[0.08] bg-[#FAF8F5] flex select-none z-10 shrink-0 font-sans"
       >
         <div class="w-44 min-w-[10rem] border-r border-black/[0.08] flex flex-col overflow-hidden bg-[#F4EFEA]">
           <div class="h-10 min-h-[40px] px-2 border-b border-black/[0.08] flex items-center justify-between text-[11px] font-bold">

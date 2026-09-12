@@ -226,10 +226,14 @@
             </div>
 
             <div class="pt-2 border-t border-black/[0.06] space-y-2">
-              <input v-model="s.commitMessage" @keyup.enter="s.handleGitCommit" type="text" placeholder="提交信息 (Commit message)..." class="w-full px-2.5 py-1.5 rounded-lg border border-black/[0.1] text-xs focus:outline-none focus:border-[#D96B27]">
-              <button @click="s.handleGitCommit" class="w-full py-1.5 rounded-lg bg-[#D96B27] text-white text-xs font-semibold shadow-xs hover:bg-[#B8551B] cursor-pointer">
-                ✓ 提交到本地仓库 (Commit)
-              </button>
+              <div class="relative">
+                <textarea v-model="s.commitMessage" rows="2" placeholder="提交信息 (Ctrl+Enter 提交)..." class="w-full p-2 text-xs font-mono rounded-lg border border-black/[0.08] focus:outline-none focus:border-[#D96B27] resize-none" @keydown.ctrl.enter="s.handleGitCommit"></textarea>
+                <button @click="s.suggestCommitMessage" class="absolute right-2 bottom-2 px-1.5 py-0.5 rounded text-[10px] bg-[#FAF8F5] border border-black/[0.06] text-[#71717A] hover:text-[#D96B27] cursor-pointer" title="根据 git status / diff --stat 生成 Conventional Commit">从 Diff 生成</button>
+              </div>
+              <div class="flex items-center gap-1">
+                <button @click="s.handleGitCommit" class="flex-1 py-1.5 rounded-lg bg-[#18181B] hover:bg-[#D96B27] text-white text-xs cursor-pointer">✓ 提交更改</button>
+                <button @click="s.gitPushAction" class="px-2 py-1.5 rounded-lg bg-[#18181B] hover:bg-[#D96B27] text-white text-xs cursor-pointer" title="git push">↑</button>
+              </div>
             </div>
           </div>
         </div>
