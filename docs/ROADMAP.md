@@ -6,6 +6,8 @@
 
 **后续 AI 只认这份施工合同（原型缺口工作包 WP-1…WP-10）**：[`docs/AI_IMPLEMENTATION_CONTRACT.md`](./AI_IMPLEMENTATION_CONTRACT.md)
 
+**安全/质量整改（合同补充卷 WP-R1…R6）**：[`docs/REVIEW_REMEDIATION_HANDOFF.md`](./REVIEW_REMEDIATION_HANDOFF.md)
+
 ## 正在做 / 下一波（按序）
 
 | ID | 功能 | 解决什么 | 验收 |
