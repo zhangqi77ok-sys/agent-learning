@@ -80,25 +80,39 @@
           </button>
         </header>
 
-        <!-- 待采纳代码变更提示条 (改文件默认带出 Diff，人点接受才算完成) -->
-        <div v-if="s.pendingDiffFiles.length > 0" class="bg-[#D96B27]/10 border-b border-[#D96B27]/20 px-3 py-1.5 flex items-center justify-between text-xs shrink-0 select-none">
-          <div class="flex items-center gap-2 text-[#B8551B] min-w-0">
+        <!-- 待采纳代码变更提示条 (已写入工作区，请审查 Diff，人点接受才算完成) -->
+        <div v-if="s.pendingDiffFiles.length > 0" class="bg-[#D96B27]/10 border-b border-[#D96B27]/20 px-3 py-1.5 flex items-center justify-between text-xs shrink-0 select-none gap-2">
+          <div class="flex items-center gap-2 text-[#B8551B] min-w-0 flex-1">
             <span class="animate-pulse">⚠️</span>
-            <span class="font-semibold">文件已修改待审查（人点接受才算完成）：</span>
-            <span class="font-mono truncate text-[11px]">{{ s.pendingDiffFiles.join(', ') }}</span>
+            <span class="font-semibold shrink-0">已写入工作区，请审查 Diff：</span>
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              <button
+                v-for="f in s.pendingDiffFiles"
+                :key="f"
+                @click="s.openFileDiff(f, 'diff')"
+                type="button"
+                class="font-mono text-[11px] px-1.5 py-0.5 rounded border transition-colors cursor-pointer shrink-0"
+                :class="s.activeDiffFile === f ? 'bg-[#D96B27] text-white border-[#D96B27] font-bold shadow-2xs' : 'bg-white/80 hover:bg-white text-[#D96B27] border-[#D96B27]/30'"
+                :title="'点击审查 ' + f + ' 的 Diff'"
+              >
+                {{ f }}
+              </button>
+            </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <button
-              @click="s.openFileDiff(s.pendingDiffFiles[0])"
-              class="px-2 py-0.5 rounded bg-white border border-[#D96B27]/30 text-[11px] font-medium text-[#D96B27] hover:bg-[#D96B27]/10 cursor-pointer"
+              @click="s.revertAllPendingDiffFilesAction"
+              class="px-2 py-0.5 rounded bg-white border border-red-200 text-[11px] font-medium text-red-600 hover:bg-red-50 cursor-pointer shadow-2xs transition-all"
+              title="放弃工作区中全部待确认文件的改动 (Git Checkout)"
             >
-              审查 Diff
+              全部放弃
             </button>
             <button
-              @click="s.stageFileAction"
-              class="px-2 py-0.5 rounded bg-[#10A37F] text-white text-[11px] font-semibold hover:bg-[#0D8C6D] cursor-pointer"
+              @click="s.stageAllPendingDiffFilesAction"
+              class="px-2 py-0.5 rounded bg-[#10A37F] text-white text-[11px] font-semibold hover:bg-[#0D8C6D] cursor-pointer shadow-2xs transition-all"
+              title="采纳全部待确认文件的改动并暂存 (Git Stage)"
             >
-              ✓ 采纳变更
+              ✓ 全部采纳
             </button>
           </div>
         </div>

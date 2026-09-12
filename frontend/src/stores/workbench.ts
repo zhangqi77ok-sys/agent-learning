@@ -868,7 +868,7 @@ async function saveAndCloseEditorTab(filePath: string) {
   forceCloseEditorTab(filePath)
 }
 
-async function openFileDiff(filePath: string, viewMode: 'edit' | 'diff' = 'edit') {
+async function openFileDiff(filePath: string, viewMode: 'edit' | 'diff' = 'diff') {
   openEditorTab(filePath, viewMode)
 }
 
@@ -1042,6 +1042,72 @@ async function stageFileAction() {
     }
   } catch (err) {
     showToast(`采纳文件变更异常: ${err}`)
+  }
+}
+
+async function revertAllPendingDiffFilesAction() {
+  if (pendingDiffFiles.value.length === 0) return
+  const filesToRevert = [...pendingDiffFiles.value]
+  const failedFiles: string[] = []
+
+  for (const f of filesToRevert) {
+    try {
+      await wailsBridge.revertFile(f)
+      pendingDiffFiles.value = pendingDiffFiles.value.filter(x => x !== f)
+    } catch (err) {
+      failedFiles.push(`${f}: ${err}`)
+    }
+  }
+
+  if (currentSession.value?.task) {
+    currentSession.value.task.pending_diff_files = [...pendingDiffFiles.value]
+    if (pendingDiffFiles.value.length === 0 && currentSession.value.task.status === 'pending_diff') {
+      currentSession.value.task.status = 'completed'
+    }
+    void wailsBridge.saveSession(currentSession.value)
+  }
+
+  await loadDiff()
+  await loadGitStatus()
+
+  if (failedFiles.length > 0) {
+    showToast(`⚠️ 部分文件撤回失败: ${failedFiles.join('; ')}`)
+  } else {
+    showToast(`✓ 已全部放弃并撤回 ${filesToRevert.length} 个文件的改动`)
+    isDiffOpen.value = false
+  }
+}
+
+async function stageAllPendingDiffFilesAction() {
+  if (pendingDiffFiles.value.length === 0) return
+  const filesToStage = [...pendingDiffFiles.value]
+  const failedFiles: string[] = []
+
+  for (const f of filesToStage) {
+    try {
+      await wailsBridge.gitStage(f)
+      pendingDiffFiles.value = pendingDiffFiles.value.filter(x => x !== f)
+    } catch (err) {
+      failedFiles.push(`${f}: ${err}`)
+    }
+  }
+
+  if (currentSession.value?.task) {
+    currentSession.value.task.pending_diff_files = [...pendingDiffFiles.value]
+    if (pendingDiffFiles.value.length === 0 && currentSession.value.task.status === 'pending_diff') {
+      currentSession.value.task.status = 'completed'
+    }
+    void wailsBridge.saveSession(currentSession.value)
+  }
+
+  await loadDiff()
+  await loadGitStatus()
+
+  if (failedFiles.length > 0) {
+    showToast(`⚠️ 部分文件采纳失败: ${failedFiles.join('; ')}`)
+  } else {
+    showToast(`✓ 已成功采纳并暂存全部 ${filesToStage.length} 个文件变更`)
+    isDiffOpen.value = false
   }
 }
 
@@ -1460,12 +1526,9 @@ async function handleSend() {
           if (!pendingDiffFiles.value.includes(file)) {
             pendingDiffFiles.value.push(file)
           }
-          activeDiffFile.value = file
-          isDiffOpen.value = true
-          editorView.value = 'diff'
-          void loadDiff(file)
+          openEditorTab(file, 'diff')
           void loadGitStatus()
-          showToast(`Agent 修改了文件 ${file}，已调出代码 Diff 供审查`)
+          showToast(`已写入工作区，请审查 Diff：${file}`)
         },
         onDiagnostic(file, errors) {
           if (!file || file === activeDiffFile.value) {
@@ -2289,6 +2352,7 @@ function initWorkbench() {
     restoreSnapshotAction,
     revertAllWorking,
     revertFileAction,
+    revertAllPendingDiffFilesAction,
     revertPath,
     runCommandPaletteItem,
     ruleForm,
@@ -2316,6 +2380,7 @@ function initWorkbench() {
     skills,
     stageAllWorking,
     stageFileAction,
+    stageAllPendingDiffFilesAction,
     stagePath,
     strategyNote,
     stagedTreeFiles,
