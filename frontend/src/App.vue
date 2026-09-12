@@ -32,7 +32,7 @@
         title="全局快速命令 (Ctrl+K)"
       >
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <span class="text-[11px] font-medium">快捷跳转文件、会话或面板...</span>
+        <span class="text-[11px] font-medium">跳转：设置 / 会话 / 已打开文件</span>
         <kbd class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white text-[#71717A] border border-black/[0.08]">Ctrl+K</kbd>
       </button>
 
@@ -167,8 +167,9 @@
                             'bg-amber-50 text-amber-700'
                           ]"
                         >
-                          {{ ch.status === 'online' ? '在线' : ch.status === 'offline' ? '离线' : '待测速' }}
+                          {{ ch.status === 'online' ? '在线' : ch.status === 'offline' ? '离线' : '未测速' }}
                         </span>
+                        <span class="text-[9px] bg-black/[0.04] text-[#52525B] px-1.5 py-0.2 rounded font-mono">Bearer Token</span>
                       </div>
                       <div class="text-[11px] text-[#71717A] mt-0.5 font-mono">
                         {{ ch.endpoint }} · 延迟: <strong :class="s.pingLoadingMap[ch.id] ? 'text-amber-500 animate-pulse' : 'text-[#10A37F]'">{{ s.pingLoadingMap[ch.id] ? '测速中...' : ch.latency }}</strong>
@@ -719,7 +720,7 @@
           v-model="s.commandPaletteQuery"
           type="text"
           autofocus
-          placeholder="检索会话、文件、设置、终端…"
+          placeholder="跳转：设置 / 会话 / 已打开文件…"
           class="w-full px-4 py-3 text-sm border-b border-black/[0.08] focus:outline-none"
           @keydown.down.prevent="s.moveCommandPalette(1)"
           @keydown.up.prevent="s.moveCommandPalette(-1)"

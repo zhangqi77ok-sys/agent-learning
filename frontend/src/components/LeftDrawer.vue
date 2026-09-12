@@ -141,7 +141,7 @@
             </div>
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold text-[#71717A] uppercase">Git 暂存储藏 (STASH)</span>
+                <span class="text-[10px] font-bold text-[#71717A] uppercase">Stash（储藏）</span>
                 <button @click="s.createSnapshotAction" class="text-[10px] text-[#D96B27] cursor-pointer hover:underline" title="执行 git stash 暂存当前未提交的工作区变更">＋ 储藏 (Stash)</button>
               </div>
               <div v-if="s.gitSnapshots.length === 0" class="text-[10px] text-[#A1A1AA]">无暂存记录</div>

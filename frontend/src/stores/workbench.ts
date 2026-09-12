@@ -1550,7 +1550,7 @@ const modelHealthStatus = computed<{
   }
   return {
     state: 'standby',
-    text: '待测速',
+    text: '未探活',
     dotClass: 'bg-amber-500',
     badgeClass: 'bg-amber-50 text-amber-700'
   }
