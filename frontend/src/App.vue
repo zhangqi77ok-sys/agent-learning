@@ -744,16 +744,21 @@
 
     <div
       v-if="s.isStrategyPickerOpen"
-      class="fixed inset-0 z-[65] flex items-center justify-center bg-black/45"
-      @click.self="s.isStrategyPickerOpen = false"
+      class="fixed inset-0 z-[65] flex items-center justify-center bg-black/45 backdrop-blur-xs font-sans"
+      @keydown.esc="s.closeStrategyPicker"
+      @click.self="s.closeStrategyPicker"
+      tabindex="-1"
     >
       <div class="w-[min(720px,92vw)] bg-white rounded-2xl border border-black/[0.1] shadow-2xl p-4 space-y-3">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-sm font-bold text-[#18181B]">架构策略决策确认</h4>
-            <p class="text-[11px] text-[#71717A]">选择会改内核工具权限，不是装饰。只读分析会拦截写文件和执行命令。</p>
+            <h4 class="text-sm font-bold text-[#18181B]">架构执行策略确认</h4>
+            <p class="text-[11px] text-[#71717A]">选择会改内核工具权限：只读拦写盘；TDD 写后跑测试；直接改代码会写磁盘。</p>
           </div>
-          <span class="text-[9px] text-[#D96B27] bg-[#D96B27]/10 px-1.5 py-0.5 rounded font-mono font-bold">待用户决策</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[9px] text-[#D96B27] bg-[#D96B27]/10 px-1.5 py-0.5 rounded font-mono font-bold">待用户决策</span>
+            <button @click="s.closeStrategyPicker" class="p-1 rounded-md text-[#71717A] hover:bg-black/[0.05] cursor-pointer" title="关闭 (Esc)">✕</button>
+          </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
           <button
@@ -761,8 +766,8 @@
             :key="opt.id"
             type="button"
             class="text-left p-3 rounded-xl cursor-pointer transition-all"
-            :class="s.executionStrategy === opt.id ? 'border-2 border-[#D96B27] bg-white shadow-xs' : 'border border-black/[0.08] opacity-85 hover:opacity-100'"
-            @click="s.executionStrategy = opt.id"
+            :class="s.selectedStrategyDraft === opt.id ? 'border-2 border-[#D96B27] bg-white shadow-xs ring-2 ring-[#D96B27]/15' : 'border border-black/[0.08] opacity-85 hover:opacity-100'"
+            @click="s.selectedStrategyDraft = opt.id"
           >
             <div class="flex items-center justify-between gap-1">
               <div class="flex items-center gap-1.5 font-bold text-xs text-[#18181B]">
@@ -782,7 +787,7 @@
         />
         <div class="flex justify-end gap-2 pt-1 border-t border-black/[0.06]">
           <button class="px-3 py-1 rounded-lg text-xs text-[#71717A] hover:bg-black/[0.04] cursor-pointer" @click="s.skipStrategyChoice">保持默认只读审查 (analyze)</button>
-          <button class="px-4 py-1 rounded-lg bg-[#D96B27] text-white text-xs font-semibold cursor-pointer" @click="s.confirmStrategyAndSend">确定提交选择</button>
+          <button class="px-4 py-1 rounded-lg bg-[#D96B27] text-white text-xs font-semibold cursor-pointer shadow-2xs hover:bg-[#B8551B]" @click="s.confirmStrategyAndSend">确定提交选择</button>
         </div>
       </div>
     </div>

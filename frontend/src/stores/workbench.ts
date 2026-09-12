@@ -1312,49 +1312,65 @@ const executionStrategies = [
   {
     id: 'analyze',
     letter: 'A',
-    title: '只读审查（先看地图）',
+    title: '只读审查（拦截写盘）',
     badge: '只读·硬闸',
-    desc: '首轮硬闸先看地图（仅限清单与宏观文档，阻断深层读取）；全程拦截命令执行与写盘。'
+    desc: '只读拦写盘；首轮硬闸引导先检索或看根清单；全程阻断写盘与命令执行。'
   },
   {
     id: 'implement',
     letter: 'B',
-    title: '直接改代码',
+    title: '直接改代码（会写磁盘）',
     badge: '可写',
-    desc: '允许读写工作区并执行必要命令。适合已经想清楚、要落地补丁的任务。'
+    desc: '直接改代码会写磁盘；允许读写工作区并执行必要命令；首轮硬闸引导先定位再深钻。'
   },
   {
     id: 'tdd',
     letter: 'C',
-    title: 'TDD 闭环',
+    title: 'TDD 闭环（写后跑测试）',
     badge: '测试',
-    desc: '允许改代码，但系统提示强制先测后改，测试失败不得宣称完成。'
+    desc: 'TDD 写后跑测试；修改后自动触发工作区测试，测试未全绿阻断宣称完成。'
   }
 ] as const
 
 const executionStrategy = ref<'analyze' | 'implement' | 'tdd'>('analyze')
+const selectedStrategyDraft = ref<'analyze' | 'implement' | 'tdd'>('analyze')
 const strategyNote = ref('')
 const isStrategyPickerOpen = ref(false)
 const strategyPickerArmed = ref(false)
 const pendingSendPrompt = ref('')
 
 function openStrategyPicker() {
+  selectedStrategyDraft.value = executionStrategy.value
   isStrategyPickerOpen.value = true
 }
 
-function skipStrategyChoice() {
-  executionStrategy.value = 'analyze'
-  confirmStrategyAndSend()
+function closeStrategyPicker() {
+  isStrategyPickerOpen.value = false
+  pendingSendPrompt.value = ''
+  selectedStrategyDraft.value = executionStrategy.value
 }
 
-function confirmStrategyAndSend() {
+function skipStrategyChoice() {
+  selectedStrategyDraft.value = 'analyze'
+  executionStrategy.value = 'analyze'
   strategyPickerArmed.value = true
   isStrategyPickerOpen.value = false
   if (pendingSendPrompt.value) {
     inputPrompt.value = pendingSendPrompt.value
     pendingSendPrompt.value = ''
+    void handleSend()
   }
-  void handleSend()
+}
+
+function confirmStrategyAndSend() {
+  executionStrategy.value = selectedStrategyDraft.value
+  strategyPickerArmed.value = true
+  isStrategyPickerOpen.value = false
+  if (pendingSendPrompt.value) {
+    inputPrompt.value = pendingSendPrompt.value
+    pendingSendPrompt.value = ''
+    void handleSend()
+  }
 }
 
 async function handleSend() {
@@ -2371,6 +2387,9 @@ function initWorkbench() {
     selectedAstNode,
     selectedModel,
     sessions,
+    selectedStrategyDraft,
+    openStrategyPicker,
+    closeStrategyPicker,
     skipStrategyChoice,
     setWorkspaceView,
     setSessionTag,

@@ -183,8 +183,8 @@
 
 **完成定义**
 
-- [ ] 单击药丸只开弹窗，不改变策略直到点确定。  
-- [ ] `skipStrategyChoice` 测试或手工：策略仍为 analyze。
+- [x] 单击药丸只开弹窗，不改变策略直到点确定。  
+- [x] `skipStrategyChoice` 测试或手工：策略仍为 analyze。
 
 ---
 
