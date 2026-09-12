@@ -5,21 +5,35 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
 
 var defaultTransport = &http.Transport{
-	TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+	TLSClientConfig:     &tls.Config{InsecureSkipVerify: false}, // Default strict
 	MaxIdleConns:        100,
 	MaxIdleConnsPerHost: 20,
 	IdleConnTimeout:     30 * time.Second,
-	DisableCompression: true,
+	DisableCompression:  true,
+}
+
+var insecureTransport = &http.Transport{
+	TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, // Only for loopback
+	MaxIdleConns:        100,
+	MaxIdleConnsPerHost: 20,
+	IdleConnTimeout:     30 * time.Second,
+	DisableCompression:  true,
 }
 
 var defaultClient = &http.Client{
 	Timeout:   4 * time.Second,
 	Transport: defaultTransport,
+}
+
+var insecureClient = &http.Client{
+	Timeout:   4 * time.Second,
+	Transport: insecureTransport,
 }
 
 // PingTarget 真实发起 HTTP 网络探活并测量往返毫秒延迟
@@ -30,17 +44,31 @@ func PingTarget(targetURL string) (string, error) {
 	}
 
 	// 自动补齐缺失的 HTTP/HTTPS 协议前缀，防止 unsupported protocol scheme 错误
-	// 本地开发测试服务（如 Ollama localhost:11434, 本地网关）智能使用 http://，外部公共渠道使用 https://
 	if !strings.HasPrefix(trimmed, "http://") && !strings.HasPrefix(trimmed, "https://") {
-		lower := strings.ToLower(trimmed)
-		if strings.HasPrefix(lower, "localhost") ||
-			strings.HasPrefix(lower, "127.0.0.1") ||
-			strings.HasPrefix(lower, "0.0.0.0") ||
-			strings.HasPrefix(lower, "[::1]") {
-			trimmed = "http://" + trimmed
+		tempURL := "http://" + trimmed
+		u, err := url.Parse(tempURL)
+		if err == nil {
+			host := strings.ToLower(u.Hostname())
+			if host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0" || host == "::1" {
+				trimmed = "http://" + trimmed
+			} else {
+				trimmed = "https://" + trimmed
+			}
 		} else {
 			trimmed = "https://" + trimmed
 		}
+	}
+
+	u, err := url.Parse(trimmed)
+	if err != nil {
+		return "", err
+	}
+	host := strings.ToLower(u.Hostname())
+	isLocal := host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0" || host == "::1"
+
+	client := defaultClient
+	if isLocal {
+		client = insecureClient
 	}
 
 	start := time.Now()
@@ -52,7 +80,7 @@ func PingTarget(targetURL string) (string, error) {
 	req.Header.Set("Originator", "codex_cli_rs")
 	req.Header.Set("Version", "0.101.0")
 
-	resp, err := defaultClient.Do(req)
+	resp, err := client.Do(req)
 	duration := time.Since(start)
 	if err != nil {
 		return "", fmt.Errorf("ping failed: %w", err)
