@@ -1493,7 +1493,7 @@ async function handleSend() {
   const stratLabel = executionStrategies.find((x) => x.id === executionStrategy.value)?.title || executionStrategy.value
   fullPrompt = `[执行策略 ${executionStrategy.value}: ${stratLabel}]${strategyNote.value.trim() ? '\n[附加约束] ' + strategyNote.value.trim() : ''}\n\n` + fullPrompt
   if (attachedFiles.value.length > 0) {
-    fullPrompt = `[附加关联文件]\n${attachedFiles.value.map(f => `- ${f}`).join('\n')}\n\n${prompt}`
+    fullPrompt = `[附加关联文件]\n${attachedFiles.value.map(f => `@${f}`).join('\n')}\n\n${fullPrompt}`
     attachedFiles.value = []
   }
 
@@ -1830,13 +1830,18 @@ async function deleteMcpAction(id: string) {
 async function testMcpAction(id: string) {
   try {
     const r = await wailsBridge.testMCPServer(id)
+    const mcp = mcps.value.find(m => m.id === id)
     if (r.status === 'ERROR' || r.error) {
-      showToast(`❌ MCP 探活失败 [${r.name}]: ${r.error}`)
+      if (mcp) mcp.last_error = r.error
+      showToast(`❌ MCP 探活失败 [${r.name}]`)
     } else {
+      if (mcp) mcp.last_error = ''
       showToast((r.status || 'OK') + ' · 工具 ' + (r.tool_count || 0) + ' · ' + (r.latency || ''))
     }
   } catch (err) {
-    showToast('MCP 探活异常: ' + err)
+    showToast('MCP 探活异常')
+    const mcp = mcps.value.find(m => m.id === id)
+    if (mcp) mcp.last_error = String(err)
   }
 }
 

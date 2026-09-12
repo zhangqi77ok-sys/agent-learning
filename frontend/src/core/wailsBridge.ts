@@ -23,6 +23,7 @@ export interface MCPServerConfig {
   env?: Record<string, string>
   url?: string
   enabled: boolean
+  last_error?: string
   updated_at: number
 }
 

@@ -204,21 +204,26 @@
                   <span class="font-bold text-[#18181B] block mb-1">当前暂无挂载的 MCP 本地服务</span>
                   <p class="text-[11px] text-[#A1A1AA]">可导入并管理基于 Model Context Protocol 的工具算子服务</p>
                 </div>
-                <div v-for="mcp in s.mcps" :key="mcp.id" class="p-3 rounded-xl border border-black/[0.08] bg-[#FAF8F5] flex items-center justify-between shadow-2xs">
-                  <div>
-                    <div class="flex items-center gap-2">
-                      <span class="text-xs font-bold text-[#18181B]">{{ mcp.name }}</span>
-                      <span class="text-[9px] bg-black/[0.04] text-[#52525B] px-1.5 py-0.2 rounded font-mono">{{ mcp.type }}</span>
+                <div v-for="mcp in s.mcps" :key="mcp.id" class="p-3 rounded-xl border border-black/[0.08] bg-[#FAF8F5] flex flex-col shadow-2xs gap-2">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-[#18181B]">{{ mcp.name }}</span>
+                        <span class="text-[9px] bg-black/[0.04] text-[#52525B] px-1.5 py-0.2 rounded font-mono">{{ mcp.type }}</span>
+                      </div>
+                      <div class="text-[11px] text-[#71717A] mt-0.5 font-mono">{{ mcp.command }} {{ (mcp.args || []).join(' ') }}</div>
                     </div>
-                    <div class="text-[11px] text-[#71717A] mt-0.5 font-mono">{{ mcp.command }} {{ (mcp.args || []).join(' ') }}</div>
+                    <div class="flex items-center gap-2">
+                      <button class="px-2 py-1 rounded-lg bg-white border border-black/[0.08] text-[11px] cursor-pointer" @click="s.testMcpAction(mcp.id)">探活</button>
+                      <button class="px-2 py-1 rounded-lg bg-white border border-red-200 text-[11px] text-red-600 cursor-pointer" @click="s.deleteMcpAction(mcp.id)">删除</button>
+                      <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" v-model="mcp.enabled" @change="s.toggleMcp(mcp)" class="sr-only peer">
+                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#10A37F]"></div>
+                      </label>
+                    </div>
                   </div>
-                  <div class="flex items-center gap-2">
-                    <button class="px-2 py-1 rounded-lg bg-white border border-black/[0.08] text-[11px] cursor-pointer" @click="s.testMcpAction(mcp.id)">探活</button>
-                    <button class="px-2 py-1 rounded-lg bg-white border border-red-200 text-[11px] text-red-600 cursor-pointer" @click="s.deleteMcpAction(mcp.id)">删除</button>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" v-model="mcp.enabled" @change="s.toggleMcp(mcp)" class="sr-only peer">
-                      <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#10A37F]"></div>
-                    </label>
+                  <div v-if="mcp.last_error" class="p-2 rounded-lg bg-red-50 text-red-600 text-[10px] font-mono whitespace-pre-wrap border border-red-100">
+                    {{ mcp.last_error }}
                   </div>
                 </div>
               </div>
