@@ -43,7 +43,32 @@ function showToast(msg: string) {
 
 // 2. 真实会话管理 (读写 ~/.tcode/sessions/)
 const sessions = ref<SessionMeta[]>([])
+const projects = ref<{ path: string; name: string; opened_at: number }[]>([])
+const sessionSearch = ref('')
+const collapsedProjects = reactive<Record<string, boolean>>({})
 const activeTag = ref('全部')
+
+function samePath(a?: string, b?: string) {
+  const n = (p?: string) => (p || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+  return n(a) === n(b)
+}
+
+const projectTree = computed(() => {
+  const q = sessionSearch.value.trim().toLowerCase()
+  const tag = activeTag.value
+  const rows = projects.value.map((p) => {
+    let items = sessions.value.filter((s) => samePath(s.workspace, p.path))
+    if (tag && tag !== '全部') {
+      items = items.filter((s) => (s.tag || '') === tag)
+    }
+    if (q) {
+      items = items.filter((s) => `${s.title} ${s.desc}`.toLowerCase().includes(q))
+    }
+    return { ...p, sessions: items }
+  })
+  if (!q) return rows
+  return rows.filter((r) => r.sessions.length > 0 || samePath(r.path, workspacePath.value))
+})
 const currentSessionId = ref('')
 const selectedModel = ref('')
 
@@ -110,6 +135,73 @@ async function loadSessionsList() {
   }
 }
 
+async function loadProjects() {
+  try {
+    projects.value = await wailsBridge.listProjects()
+  } catch (err) {
+    console.error(err)
+    projects.value = []
+  }
+}
+
+async function applyWorkspace(path: string) {
+  await wailsBridge.setWorkspace(path)
+  workspacePath.value = path
+  await Promise.all([loadFileTree(), loadGitStatus(), loadSessionsList(), loadProjects()])
+}
+
+async function activateSession(id: string, workspace?: string) {
+  if (workspace && !samePath(workspace, workspacePath.value)) {
+    await applyWorkspace(workspace)
+  }
+  await selectSession(id)
+}
+
+async function createSessionInProject(path: string) {
+  if (!samePath(path, workspacePath.value)) {
+    await applyWorkspace(path)
+  }
+  await createNewSession()
+}
+
+async function openProjectFolder() {
+  try {
+    const selected = await wailsBridge.openDirectoryDialog()
+    if (!selected) return
+    await wailsBridge.addProject(selected)
+    await applyWorkspace(selected)
+    const mine = sessions.value.filter((s) => samePath(s.workspace, selected))
+    if (mine.length > 0) {
+      await selectSession(mine[0].id)
+    } else {
+      await createNewSession()
+    }
+  } catch (err: any) {
+    showToast(`打开项目失败: ${err}`)
+  }
+}
+
+async function unpinProject(path: string) {
+  try {
+    await wailsBridge.removeProject(path)
+    await loadProjects()
+    if (samePath(path, workspacePath.value)) {
+      if (projects.value.length > 0) {
+        await applyWorkspace(projects.value[0].path)
+        const mine = sessions.value.filter((s) => samePath(s.workspace, workspacePath.value))
+        if (mine.length > 0) await selectSession(mine[0].id)
+        else await createNewSession()
+      }
+    }
+  } catch (err: any) {
+    showToast(`移除项目失败: ${err}`)
+  }
+}
+
+function toggleProjectCollapse(path: string) {
+  collapsedProjects[path] = !collapsedProjects[path]
+}
+
 async function selectSession(id: string) {
   showFullHistory.value = false
   currentSessionId.value = id
@@ -141,8 +233,9 @@ async function deleteSession(id: string) {
   await wailsBridge.deleteSession(id)
   await loadSessionsList()
   if (currentSessionId.value === id) {
-    if (sessions.value.length > 0) {
-      await selectSession(sessions.value[0].id)
+    const mine = sessions.value.filter((s) => samePath(s.workspace, workspacePath.value))
+    if (mine.length > 0) {
+      await selectSession(mine[0].id)
     } else {
       await createNewSession()
     }
@@ -173,27 +266,7 @@ const workspaceName = computed(() => {
 })
 
 async function chooseWorkspace() {
-  try {
-    const selected = await wailsBridge.openDirectoryDialog()
-    if (selected && selected !== workspacePath.value) {
-      await wailsBridge.setWorkspace(selected)
-      workspacePath.value = selected
-      await Promise.all([
-        loadFileTree(),
-        loadGitStatus(),
-        scanASTGraph(),
-        loadSessionsList()
-      ])
-      if (sessions.value.length > 0) {
-        await selectSession(sessions.value[0].id)
-      } else {
-        await createNewSession()
-      }
-      showToast(`✓ 已成功切换至工作区: ${workspaceName.value}`)
-    }
-  } catch (err: any) {
-    showToast(`切换工作区失败: ${err}`)
-  }
+  await openProjectFolder()
 }
 
 const fileTree = ref<FileNode[]>([])
@@ -942,12 +1015,15 @@ function initWorkbench() {
   window.addEventListener('keydown', handleGlobalKeydown)
   void loadSessionsList()
   void loadSettingsData()
+  void loadProjects()
   void wailsBridge.getWorkspace().then(async (ws) => {
     if (!ws) return
     workspacePath.value = ws
-    await Promise.all([loadFileTree(), loadGitStatus(), loadSessionsList()])
-    if (sessions.value.length > 0) {
-      await selectSession(sessions.value[0].id)
+    await wailsBridge.addProject(ws)
+    await Promise.all([loadFileTree(), loadGitStatus(), loadSessionsList(), loadProjects()])
+    const mine = sessions.value.filter((s) => samePath(s.workspace, ws))
+    if (mine.length > 0) {
+      await selectSession(mine[0].id)
     }
   }).catch((err) => console.error(err))
   return () => window.removeEventListener('keydown', handleGlobalKeydown)
@@ -961,6 +1037,7 @@ function initWorkbench() {
     activeTag,
     activeTerminalTab,
     agentTraceLogs,
+    activateSession,
     applyHunkAction,
     astNodes,
     attachedFiles,
@@ -972,8 +1049,10 @@ function initWorkbench() {
     chooseWorkspace,
     clearTerminalLogs,
     commandHistory,
+    collapsedProjects,
     commitMessage,
     createNewSession,
+    createSessionInProject,
     currentSession,
     currentSessionId,
     currentTerminalBuffer,
@@ -1028,9 +1107,12 @@ function initWorkbench() {
     openAddChannelModal,
     openFileDiff,
     openKnowledgeGraphModal,
+    openProjectFolder,
     openSettingsTab,
     pingAllChannels,
     pingLoadingMap,
+    projects,
+    projectTree,
     renderMarkdown,
     revertFileAction,
     ruleForm,
@@ -1041,6 +1123,7 @@ function initWorkbench() {
     saveSkillAction,
     scanASTGraph,
     scrollToBottomTerminal,
+    sessionSearch,
     selectSession,
     selectedAstNode,
     selectedModel,
@@ -1060,11 +1143,13 @@ function initWorkbench() {
     terminalOutputs,
     terminalScrollRef,
     toastMessage,
+    toggleProjectCollapse,
     toggleMcp,
     toggleRule,
     toggleSkill,
     toggleTerminalDrawer,
     triggerUpload,
+    unpinProject,
     unstageFileAction,
     visibleMessages,
     upstreamFetchedModels,

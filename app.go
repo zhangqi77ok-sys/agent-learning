@@ -169,6 +169,7 @@ type App struct {
 	channelStore     *config.ChannelStore
 	extraStore       *config.ExtraStore
 	sessionStore     *session.Store
+	projectStore     *config.ProjectStore
 	mcpManager       *mcp.Manager
 	terminalCancel   context.CancelFunc
 	terminalMu       sync.Mutex
@@ -196,6 +197,10 @@ func NewApp() *App {
 	chStore, _ := config.NewChannelStore()
 	exStore, _ := config.NewExtraStore()
 	sessStore, _ := session.NewStore()
+	projStore, _ := config.NewProjectStore()
+	if projStore != nil && wd != "" {
+		_ = projStore.Add(wd)
+	}
 
 	mcpMgr := mcp.NewManager(wd)
 	eng := loop.NewExecutionEngine(reg)
@@ -212,6 +217,7 @@ func NewApp() *App {
 		channelStore: chStore,
 		extraStore:   exStore,
 		sessionStore: sessStore,
+		projectStore: projStore,
 		mcpManager:   mcpMgr,
 	}
 }
@@ -357,7 +363,38 @@ func (a *App) SetWorkspace(dir string) error {
 		}()
 	}
 
+	if a.projectStore != nil {
+		_ = a.projectStore.Add(absDir)
+	}
 	return nil
+}
+
+func (a *App) ListProjects() []config.Project {
+	if a.projectStore == nil {
+		return nil
+	}
+	return a.projectStore.List()
+}
+
+func (a *App) AddProject(path string) error {
+	if a.projectStore == nil {
+		return fmt.Errorf("project store not initialized")
+	}
+	return a.projectStore.Add(path)
+}
+
+func (a *App) RemoveProject(path string) error {
+	if a.projectStore == nil {
+		return fmt.Errorf("project store not initialized")
+	}
+	return a.projectStore.Remove(path)
+}
+
+func (a *App) ListAllSessions() []session.SessionMeta {
+	if a.sessionStore == nil {
+		return nil
+	}
+	return a.sessionStore.List("")
 }
 
 // --- 会话历史持久化 (Sessions) ---

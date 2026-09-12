@@ -214,10 +214,37 @@ export const wailsBridge = {
   // 2. 会话历史管理 (真实读写 ~/.tcode/sessions/)
   async listSessions(): Promise<SessionMeta[]> {
     const app = getApp()
+    if (app?.ListAllSessions) {
+      return await app.ListAllSessions()
+    }
     if (app?.ListSessions) {
       return await app.ListSessions()
     }
     return []
+  },
+
+  async listProjects(): Promise<{ path: string; name: string; opened_at: number }[]> {
+    const app = getApp()
+    if (app?.ListProjects) return await app.ListProjects()
+    return []
+  },
+
+  async addProject(path: string): Promise<void> {
+    const app = getApp()
+    if (app?.AddProject) {
+      await app.AddProject(path)
+      return
+    }
+    throw new Error('microkernel not connected: AddProject unavailable')
+  },
+
+  async removeProject(path: string): Promise<void> {
+    const app = getApp()
+    if (app?.RemoveProject) {
+      await app.RemoveProject(path)
+      return
+    }
+    throw new Error('microkernel not connected: RemoveProject unavailable')
   },
 
   async getSession(id: string): Promise<ChatSession | null> {

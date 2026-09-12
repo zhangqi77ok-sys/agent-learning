@@ -2,30 +2,34 @@
 <aside class="w-64 bg-[#FAF8F5] border-r border-black/[0.08] flex flex-col justify-between select-none z-10 shrink-0 font-sans">
         <!-- 抽屉视图 1: 真实会话列表 (Chat Sessions) -->
         <div v-if="s.activeActivity === 'chat'" class="flex flex-col h-full overflow-hidden">
-          <div class="p-3 border-b border-black/[0.06] flex items-center justify-between">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="text-xs">💬</span>
-              <span class="font-bold text-xs text-[#18181B] truncate">对话</span>
-              <span class="text-[10px] text-[#A1A1AA] font-mono">{{ s.sessions.length }}</span>
+          <div class="p-3 border-b border-black/[0.06] flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="text-xs font-bold text-[#18181B] tracking-tight">会话分支</span>
+              <span class="text-[10px] text-[#71717A] bg-black/[0.04] px-1.5 py-0.2 rounded-full font-mono">{{ s.projects.length }} 个项目</span>
             </div>
             <button
-              @click="s.createNewSession"
-              class="text-[10px] text-[#D96B27] bg-[#D96B27]/10 hover:bg-[#D96B27] hover:text-white px-2 py-0.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1"
-              title="新开一条对话（发送第一条消息后才会保存）"
+              @click="s.openProjectFolder"
+              class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-[#18181B] bg-white hover:bg-black/[0.04] border border-black/[0.08] shadow-2xs cursor-pointer shrink-0"
             >
-              <span>＋</span><span>新对话</span>
+              <span>📂</span><span>打开项目</span>
             </button>
           </div>
 
-          <div v-if="s.availableTags.length > 1" class="px-3 pt-2 pb-1 border-b border-black/[0.04]">
-            <div class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 text-[10px]">
+          <div class="p-2.5 space-y-2 border-b border-black/[0.06]">
+            <input
+              v-model="s.sessionSearch"
+              type="text"
+              placeholder="搜索会话标题…"
+              class="w-full h-7 px-2 rounded-lg bg-white text-xs border border-black/[0.08] focus:border-[#D96B27] focus:outline-none placeholder:text-[#A1A1AA]"
+            >
+            <div v-if="s.availableTags.length > 1" class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 text-[10px]">
               <button
                 v-for="tag in s.availableTags"
                 :key="tag"
                 @click="s.activeTag = tag"
                 :class="[
-                  'px-2 py-0.5 rounded-full font-medium transition-all cursor-pointer',
-                  s.activeTag === tag ? 'bg-[#D96B27] text-white' : 'bg-white text-[#71717A] hover:text-[#18181B] border border-black/[0.06]'
+                  'px-2 py-0.5 rounded-full font-medium cursor-pointer',
+                  s.activeTag === tag ? 'bg-[#D96B27] text-white' : 'bg-white text-[#71717A] border border-black/[0.06]'
                 ]"
               >
                 {{ tag === '全部' ? '全部' : '#' + tag }}
@@ -33,37 +37,69 @@
             </div>
           </div>
 
-          <!-- 真实会话卡片列表 (从 ~/.tiancode/sessions/ 动态读取) -->
-          <div class="flex-1 overflow-y-auto p-2 space-y-1.5">
-            <div v-if="s.filteredSessions.length === 0" class="p-6 text-center text-[#A1A1AA] text-xs flex flex-col items-center justify-center gap-2 mt-8">
-              <span class="text-2xl">📭</span>
-              <span>本项目还没有对话</span>
-              <span class="text-[10px] text-[#A1A1AA] max-w-[12rem]">在右侧输入第一条消息后会出现在这里</span>
+          <div class="flex-1 overflow-y-auto p-2 space-y-3">
+            <div v-if="s.projectTree.length === 0" class="p-6 text-center text-[#A1A1AA] text-xs space-y-2">
+              <div>还没有打开的项目</div>
+              <button @click="s.openProjectFolder" class="text-[#D96B27] underline cursor-pointer">打开本地文件夹</button>
             </div>
 
             <div
-              v-for="sess in s.filteredSessions"
-              :key="sess.id"
-              @click="s.selectSession(sess.id)"
-              :class="[
-                'p-2.5 rounded-xl border shadow-xs flex flex-col gap-1 cursor-pointer transition-all',
-                s.currentSessionId === sess.id
-                  ? 'bg-white border-[#D96B27]/40 ring-2 ring-[#D96B27]/10'
-                  : 'bg-white/60 hover:bg-white border-transparent hover:border-black/[0.06]'
-              ]"
+              v-for="proj in s.projectTree"
+              :key="proj.path"
+              class="rounded-xl border border-black/[0.08] bg-white/70 shadow-2xs overflow-hidden"
             >
-              <div class="flex items-center justify-between">
+              <div
+                class="p-2 flex items-center justify-between hover:bg-black/[0.02] cursor-pointer group"
+                @click="s.toggleProjectCollapse(proj.path)"
+              >
                 <div class="flex items-center gap-1.5 min-w-0">
-                  <span class="text-xs">💬</span>
-                  <span class="text-xs font-semibold text-[#18181B] truncate">{{ sess.title }}</span>
+                  <span class="text-[10px] text-[#71717A]">{{ s.collapsedProjects[proj.path] ? '▶' : '▼' }}</span>
+                  <span class="text-xs">📁</span>
+                  <span
+                    class="text-xs font-semibold truncate"
+                    :class="s.workspacePath && proj.path.replace(/\\/g,'/').toLowerCase() === s.workspacePath.replace(/\\/g,'/').toLowerCase() ? 'text-[#D96B27]' : 'text-[#18181B]'"
+                  >{{ proj.name }}</span>
                 </div>
-                <button @click.stop="s.deleteSession(sess.id)" class="text-[#A1A1AA] hover:text-red-500 text-[11px] p-0.5 cursor-pointer" title="删除会话">🗑️</button>
+                <div class="flex items-center gap-0.5 shrink-0" @click.stop>
+                  <button
+                    @click="s.createSessionInProject(proj.path)"
+                    title="在此项目下新建会话"
+                    class="p-1 rounded hover:bg-black/[0.06] text-[#71717A] hover:text-[#D96B27] cursor-pointer text-xs"
+                  >＋</button>
+                  <button
+                    @click="s.unpinProject(proj.path)"
+                    title="从列表移除项目（不删磁盘和历史会话）"
+                    class="p-1 rounded hover:bg-black/[0.06] text-[#A1A1AA] hover:text-red-500 cursor-pointer text-[10px]"
+                  >✕</button>
+                </div>
               </div>
-              <div class="flex items-center justify-between text-[10px] text-[#71717A] mt-0.5">
-                <span v-if="sess.tag" class="bg-[#D96B27]/10 text-[#D96B27] px-1.5 py-0.2 rounded font-medium">#{{ sess.tag }}</span>
-                <span class="font-mono text-[#A1A1AA] ml-auto">{{ sess.time }}</span>
+
+              <div v-show="!s.collapsedProjects[proj.path]" class="p-1 space-y-1 border-t border-black/[0.04] bg-[#FAF8F5]">
+                <div v-if="proj.sessions.length === 0" class="px-2 py-2 text-[10px] text-[#A1A1AA]">
+                  此项目还没有已保存的对话，发送第一条消息后会出现在这里
+                </div>
+                <div
+                  v-for="sess in proj.sessions"
+                  :key="sess.id"
+                  @click="s.activateSession(sess.id, sess.workspace)"
+                  :class="[
+                    'session-item p-2 rounded-lg flex flex-col gap-1 cursor-pointer transition-all border',
+                    s.currentSessionId === sess.id
+                      ? 'bg-white border-[#D96B27]/40 shadow-xs'
+                      : 'hover:bg-white/80 border-transparent hover:border-black/[0.06]'
+                  ]"
+                >
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-xs font-semibold text-[#18181B] truncate">{{ sess.title }}</span>
+                    <button @click.stop="s.deleteSession(sess.id)" class="text-[#A1A1AA] hover:text-red-500 text-[10px] cursor-pointer" title="删除会话">🗑</button>
+                  </div>
+                  <div class="flex items-center gap-1 text-[10px] text-[#71717A]">
+                    <span v-if="sess.tag" class="bg-[#D96B27]/10 text-[#D96B27] px-1 py-0.2 rounded">#{{ sess.tag }}</span>
+                    <span class="truncate flex-1">{{ sess.desc }}</span>
+                    <span class="font-mono text-[#A1A1AA] shrink-0">{{ sess.time }}</span>
+                  </div>
+                </div>
               </div>
-              <div v-if="sess.desc" class="text-[11px] text-[#71717A] truncate mt-0.5">{{ sess.desc }}</div>
             </div>
           </div>
         </div>
