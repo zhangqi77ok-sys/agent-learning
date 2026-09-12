@@ -49,9 +49,10 @@ const selectedModel = ref('')
 
 const currentSession = ref<ChatSession>({
   id: '',
-  title: '新工程对话',
+  title: '新对话',
   model: '',
   tag: '',
+  workspace: '',
   created_at: Date.now(),
   updated_at: Date.now(),
   messages: []
@@ -125,20 +126,12 @@ async function selectSession(id: string) {
 }
 
 async function createNewSession() {
-  const newId = 'sess_' + Date.now()
-  const newSess: ChatSession = {
-    id: newId,
-    title: '新工程对话',
-    model: selectedModel.value,
-    tag: '',
-    created_at: Date.now(),
-    updated_at: Date.now(),
-    messages: []
+  if (isStreaming.value) {
+    await stopGenerationAction()
   }
-  await wailsBridge.saveSession(newSess)
-  await loadSessionsList()
-  await selectSession(newId)
-  showToast('✓ 已新建会话并持久化')
+  currentSessionId.value = ''
+  currentSession.value = emptyDraft()
+  showFullHistory.value = false
 }
 
 async function deleteSession(id: string) {
@@ -151,23 +144,27 @@ async function deleteSession(id: string) {
     if (sessions.value.length > 0) {
       await selectSession(sessions.value[0].id)
     } else {
-      currentSessionId.value = ''
-      currentSession.value = {
-        id: '',
-        title: '新工程对话',
-        model: selectedModel.value,
-        tag: '',
-        created_at: Date.now(),
-        updated_at: Date.now(),
-        messages: []
-      }
+      await createNewSession()
     }
   }
-  showToast('✓ 会话已从本地磁盘移除')
 }
 
 // 3. 真实工作区、文件树与 Git 状态
 const workspacePath = ref('')
+
+function emptyDraft(): ChatSession {
+  return {
+    id: '',
+    title: '新对话',
+    model: selectedModel.value,
+    tag: '',
+    workspace: workspacePath.value,
+    created_at: Date.now(),
+    updated_at: Date.now(),
+    messages: []
+  }
+}
+
 const workspaceName = computed(() => {
   if (!workspacePath.value) return '湉码'
   const normalized = workspacePath.value.replace(/\\/g, '/')
@@ -184,8 +181,14 @@ async function chooseWorkspace() {
       await Promise.all([
         loadFileTree(),
         loadGitStatus(),
-        scanASTGraph()
+        scanASTGraph(),
+        loadSessionsList()
       ])
+      if (sessions.value.length > 0) {
+        await selectSession(sessions.value[0].id)
+      } else {
+        await createNewSession()
+      }
       showToast(`✓ 已成功切换至工作区: ${workspaceName.value}`)
     }
   } catch (err: any) {
@@ -443,9 +446,10 @@ async function handleSend() {
     const newId = 'sess_' + Date.now()
     currentSessionId.value = newId
     currentSession.value.id = newId
-    currentSession.value.title = prompt.slice(0, 15)
-    await wailsBridge.saveSession(currentSession.value)
-    await loadSessionsList()
+    currentSession.value.workspace = workspacePath.value
+    currentSession.value.model = selectedModel.value
+    const line = fullPrompt.split('\n')[0].trim()
+    currentSession.value.title = line.length > 32 ? line.slice(0, 32) + '…' : (line || '新对话')
   }
 
   inputPrompt.value = ''
@@ -523,8 +527,9 @@ async function handleSend() {
         },
         onDone() {
           isStreaming.value = false
+          currentSession.value.workspace = workspacePath.value
           wailsBridge.saveSession(currentSession.value)
-          showToast('✓ 智能体推理与持久化完毕')
+          void loadSessionsList()
         }
       }
     )
@@ -940,7 +945,10 @@ function initWorkbench() {
   void wailsBridge.getWorkspace().then(async (ws) => {
     if (!ws) return
     workspacePath.value = ws
-    await Promise.all([loadFileTree(), loadGitStatus()])
+    await Promise.all([loadFileTree(), loadGitStatus(), loadSessionsList()])
+    if (sessions.value.length > 0) {
+      await selectSession(sessions.value[0].id)
+    }
   }).catch((err) => console.error(err))
   return () => window.removeEventListener('keydown', handleGlobalKeydown)
 }

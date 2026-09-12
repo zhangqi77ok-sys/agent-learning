@@ -250,7 +250,7 @@ func (a *App) RunSecurityAudit() (agent.AuditReport, error) {
 func (a *App) GetUsageMetrics() telemetry.UsageMetrics {
 	activeCount := 0
 	if a.sessionStore != nil {
-		sessions := a.sessionStore.List()
+		sessions := a.sessionStore.List(a.workspace)
 		activeCount = len(sessions)
 	}
 	return telemetry.GetTracker().GetMetrics(activeCount)

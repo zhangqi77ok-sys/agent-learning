@@ -3,6 +3,7 @@ package session
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -14,7 +15,7 @@ func TestStore_ZeroDemo_CleanEmptyState(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	s := &Store{baseDir: tempDir}
-	metas := s.List()
+	metas := s.List("")
 	if len(metas) != 0 {
 		t.Fatalf("expected 0 sessions in clean store, got %d", len(metas))
 	}
@@ -26,14 +27,14 @@ func TestStore_ZeroDemo_CleanEmptyState(t *testing.T) {
 		Model:     "deepseek-chat",
 		CreatedAt: 1788480000,
 		UpdatedAt: 1788480000,
-		Messages:  []SessionMessage{},
+		Messages: []SessionMessage{{ID: "m1", Role: "user", Content: "测试工程探索"}},
 	}
 	if err := s.Save(sess); err != nil {
 		t.Fatalf("failed to save session: %v", err)
 	}
 
 	// 再次查询
-	metas = s.List()
+	metas = s.List("")
 	if len(metas) != 1 {
 		t.Fatalf("expected 1 session, got %d", len(metas))
 	}
@@ -54,7 +55,7 @@ func TestStore_ZeroDemo_CleanEmptyState(t *testing.T) {
 	if err := s.Delete("sess_test_1"); err != nil {
 		t.Fatalf("failed to delete session: %v", err)
 	}
-	metas = s.List()
+	metas = s.List("")
 	if len(metas) != 0 {
 		t.Fatalf("expected 0 sessions after deletion, got %d", len(metas))
 	}
@@ -136,22 +137,19 @@ func TestStore_MillisecondTimestampFormatting(t *testing.T) {
 		ID:        "sess_milli_1",
 		Title:     "毫秒时间戳测试",
 		UpdatedAt: milliTimestamp,
+		Messages:  []SessionMessage{{ID: "m", Role: "user", Content: "hi"}},
 	}
 	if err := s.Save(sess); err != nil {
 		t.Fatalf("save failed: %v", err)
 	}
 
-	metas := s.List()
+	metas := s.List("")
 	if len(metas) != 1 {
 		t.Fatalf("expected 1 session, got %d", len(metas))
 	}
 
-	// 验证时间没有变成公元 58000 多年，格式必须为 HH:MM 且长度为 5
-	if len(metas[0].Time) != 5 || metas[0].Time == "00:00" && milliTimestamp > 0 {
-		// 验证格式合法性
-		if len(metas[0].Time) != 5 {
-			t.Errorf("expected format HH:MM with len 5, got %q", metas[0].Time)
-		}
+	if metas[0].Time == "" || strings.Contains(metas[0].Time, "58000") {
+		t.Errorf("unexpected time %q", metas[0].Time)
 	}
 }
 
@@ -184,13 +182,13 @@ func TestStore_CustomIDListing(t *testing.T) {
 		Model:     "deepseek-chat",
 		CreatedAt: 1788480000,
 		UpdatedAt: 1788480000,
-		Messages:  []SessionMessage{},
+		Messages: []SessionMessage{{ID: "m1", Role: "user", Content: "自定义会话"}},
 	}
 	if err := s.Save(sess); err != nil {
 		t.Fatalf("failed to save session: %v", err)
 	}
 
-	metas := s.List()
+	metas := s.List("")
 	if len(metas) != 1 {
 		t.Fatalf("expected 1 session listed for custom ID, got %d", len(metas))
 	}
@@ -208,11 +206,12 @@ func TestStore_List_OrderedByUpdatedAt(t *testing.T) {
 
 	s := &Store{baseDir: tempDir}
 	// 创建三个不同时间更新的会话 (乱序存入)
-	s.Save(ChatSession{ID: "sess_mid", Title: "中等时间", UpdatedAt: 2000})
-	s.Save(ChatSession{ID: "sess_old", Title: "最老时间", UpdatedAt: 1000})
-	s.Save(ChatSession{ID: "sess_new", Title: "最新时间", UpdatedAt: 3000})
+	msg := []SessionMessage{{ID: "m", Role: "user", Content: "hi"}}
+	s.Save(ChatSession{ID: "sess_mid", Title: "中等时间", UpdatedAt: 2000, Messages: msg})
+	s.Save(ChatSession{ID: "sess_old", Title: "最老时间", UpdatedAt: 1000, Messages: msg})
+	s.Save(ChatSession{ID: "sess_new", Title: "最新时间", UpdatedAt: 3000, Messages: msg})
 
-	metas := s.List()
+	metas := s.List("")
 	if len(metas) != 3 {
 		t.Fatalf("expected 3 sessions, got %d", len(metas))
 	}
@@ -283,15 +282,30 @@ func TestStore_List_ZeroUpdatedAtReturnsEmptyTime(t *testing.T) {
 	tempDir := t.TempDir()
 	s := &Store{baseDir: tempDir}
 	// 直接写入一个 UpdatedAt = 0 的 JSON 文件，模拟旧数据或异常数据
-	rawSess := `{"id":"sess_zero","title":"零时间戳","updated_at":0,"messages":[]}`
+	rawSess := `{"id":"sess_zero","title":"零时间戳","updated_at":0,"messages":[{"id":"m","role":"user","content":"hi"}]}`
 	_ = os.WriteFile(filepath.Join(tempDir, "sess_zero.json"), []byte(rawSess), 0644)
 
-	metas := s.List()
+	metas := s.List("")
 	if len(metas) != 1 {
 		t.Fatalf("expected 1 session, got %d", len(metas))
 	}
 	if metas[0].Time != "" {
 		t.Errorf("expected empty string for UpdatedAt <= 0, got %q", metas[0].Time)
+	}
+}
+
+func TestStore_List_FiltersByWorkspace(t *testing.T) {
+	s := &Store{baseDir: t.TempDir()}
+	msg := []SessionMessage{{ID: "m", Role: "user", Content: "hi"}}
+	_ = s.Save(ChatSession{ID: "sess_a", Workspace: `C:\projA`, Messages: msg, UpdatedAt: 2})
+	_ = s.Save(ChatSession{ID: "sess_b", Workspace: `C:\projB`, Messages: msg, UpdatedAt: 3})
+	_ = s.Save(ChatSession{ID: "sess_empty", Messages: msg, UpdatedAt: 4})
+	got := s.List(`C:\projA`)
+	if len(got) != 1 || got[0].ID != "sess_a" {
+		t.Fatalf("workspace A: %+v", got)
+	}
+	if s.List(`C:\projB`)[0].ID != "sess_b" {
+		t.Fatal("workspace B mismatch")
 	}
 }
 

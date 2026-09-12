@@ -116,18 +116,16 @@ func (a *App) SendMessage(req ChatRequest) error {
 		} else {
 			currentSession = session.ChatSession{
 				ID:        req.SessionID,
-				Title:     req.Prompt,
+				Title:     "",
 				Model:     model,
-				Tag:       "默认",
+				Workspace: a.workspace,
 				CreatedAt: time.Now().Unix(),
 				UpdatedAt: time.Now().Unix(),
 				Messages:  make([]session.SessionMessage, 0),
 			}
-			r := []rune(req.Prompt)
-			if len(r) > 16 {
-				currentSession.Title = string(r[:16]) + "..."
-			}
 		}
+		currentSession.Workspace = a.workspace
+		currentSession.Model = model
 
 		// 追加用户消息
 		userMsg := session.SessionMessage{
@@ -137,6 +135,8 @@ func (a *App) SendMessage(req ChatRequest) error {
 			Time:    time.Now().Format("15:04"),
 		}
 		currentSession.Messages = append(currentSession.Messages, userMsg)
+		currentSession.Title = session.TitleFromFirstMessage(currentSession)
+		currentSession.UpdatedAt = time.Now().Unix()
 		_ = a.sessionStore.Save(currentSession)
 
 		// 3. 发送开始事件

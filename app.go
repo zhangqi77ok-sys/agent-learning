@@ -366,7 +366,7 @@ func (a *App) ListSessions() []session.SessionMeta {
 	if a.sessionStore == nil {
 		return nil
 	}
-	return a.sessionStore.List()
+	return a.sessionStore.List(a.workspace)
 }
 
 func (a *App) GetSession(id string) (*session.ChatSession, error) {
@@ -379,6 +379,9 @@ func (a *App) GetSession(id string) (*session.ChatSession, error) {
 func (a *App) SaveSession(sess session.ChatSession) error {
 	if a.sessionStore == nil {
 		return fmt.Errorf("session store not initialized")
+	}
+	if sess.Workspace == "" {
+		sess.Workspace = a.workspace
 	}
 	return a.sessionStore.Save(sess)
 }

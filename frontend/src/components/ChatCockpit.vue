@@ -38,7 +38,7 @@
             </div>
             <h3 class="text-sm font-bold text-[#18181B] mb-1.5">湉码 / tiancode</h3>
             <p class="text-xs text-[#71717A] max-w-sm mb-5 leading-relaxed">
-              当前暂无活跃对话。请在下方输入框键入编程任务，或点击【＋新建会话】开始。
+              这是一条尚未保存的新对话。输入任务并发送后，会按当前项目记入左侧列表。
             </p>
             <div class="flex items-center gap-2">
               <button

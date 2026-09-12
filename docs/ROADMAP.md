@@ -32,5 +32,6 @@
 - F4 ListModels / 拉取上游：无 Key 报错，只返回网关真实 `/models`，去掉内置 gpt-4o 目录
 - F5 桌面聊天 Init 已注册 Provider 再 StreamChat，不再绕过插件走裸 `llm.StreamChat`
 - F6 对话默认只渲染最近 80 条，可一键展开全文（全量仍落盘）
+- 会话模型：按工作区隔离；空草稿不落盘；标题取首条用户消息；列表不出现空会话
 - 修复桌面白屏：Vite `base: './'`，避免 Wails 加载 `/assets` 404
 - 修复启动报错：workbench 误调用未导入的 `watch`/`store`，启动失败会整页替换成红字；Git 非仓库不再当致命错误

@@ -96,6 +96,7 @@ export interface SessionMeta {
   time: string
   desc: string
   updated_at: number
+  workspace?: string
 }
 
 export interface SessionMessage {
@@ -122,6 +123,7 @@ export interface ChatSession {
   title: string
   model: string
   tag: string
+  workspace?: string
   created_at: number
   updated_at: number
   messages: SessionMessage[]

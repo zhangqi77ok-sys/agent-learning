@@ -4,19 +4,20 @@
         <div v-if="s.activeActivity === 'chat'" class="flex flex-col h-full overflow-hidden">
           <div class="p-3 border-b border-black/[0.06] flex items-center justify-between">
             <div class="flex items-center gap-2 min-w-0">
-              <span class="text-xs">📦</span>
-              <span class="font-bold text-xs text-[#18181B] truncate">{{ s.workspaceName }}</span>
+              <span class="text-xs">💬</span>
+              <span class="font-bold text-xs text-[#18181B] truncate">对话</span>
+              <span class="text-[10px] text-[#A1A1AA] font-mono">{{ s.sessions.length }}</span>
             </div>
             <button
               @click="s.createNewSession"
-              class="text-[10px] text-[#D96B27] bg-[#D96B27]/10 hover:bg-[#D96B27] hover:text-white px-2 py-0.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-0.5"
+              class="text-[10px] text-[#D96B27] bg-[#D96B27]/10 hover:bg-[#D96B27] hover:text-white px-2 py-0.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1"
+              title="新开一条对话（发送第一条消息后才会保存）"
             >
-              <span>＋</span><span>新建会话</span>
+              <span>＋</span><span>新对话</span>
             </button>
           </div>
 
-          <!-- 场景标签筛选 -->
-          <div class="px-3 pt-2 pb-1 border-b border-black/[0.04]">
+          <div v-if="s.availableTags.length > 1" class="px-3 pt-2 pb-1 border-b border-black/[0.04]">
             <div class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 text-[10px]">
               <button
                 v-for="tag in s.availableTags"
@@ -27,7 +28,7 @@
                   s.activeTag === tag ? 'bg-[#D96B27] text-white' : 'bg-white text-[#71717A] hover:text-[#18181B] border border-black/[0.06]'
                 ]"
               >
-                {{ tag === '全部' ? '全部 (' + s.sessions.length + ')' : '#' + tag }}
+                {{ tag === '全部' ? '全部' : '#' + tag }}
               </button>
             </div>
           </div>
@@ -36,8 +37,8 @@
           <div class="flex-1 overflow-y-auto p-2 space-y-1.5">
             <div v-if="s.filteredSessions.length === 0" class="p-6 text-center text-[#A1A1AA] text-xs flex flex-col items-center justify-center gap-2 mt-8">
               <span class="text-2xl">📭</span>
-              <span>暂无会话记录</span>
-              <button @click="s.createNewSession" class="text-[11px] text-[#D96B27] font-semibold hover:underline cursor-pointer">＋ 新建会话</button>
+              <span>本项目还没有对话</span>
+              <span class="text-[10px] text-[#A1A1AA] max-w-[12rem]">在右侧输入第一条消息后会出现在这里</span>
             </div>
 
             <div
@@ -60,8 +61,7 @@
               </div>
               <div class="flex items-center justify-between text-[10px] text-[#71717A] mt-0.5">
                 <span v-if="sess.tag" class="bg-[#D96B27]/10 text-[#D96B27] px-1.5 py-0.2 rounded font-medium">#{{ sess.tag }}</span>
-                <span v-else class="text-[#A1A1AA]">未分类</span>
-                <span class="font-mono text-[#A1A1AA]">{{ sess.time }}</span>
+                <span class="font-mono text-[#A1A1AA] ml-auto">{{ sess.time }}</span>
               </div>
               <div v-if="sess.desc" class="text-[11px] text-[#71717A] truncate mt-0.5">{{ sess.desc }}</div>
             </div>

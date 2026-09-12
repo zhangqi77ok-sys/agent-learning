@@ -36,7 +36,8 @@ type ChatSession struct {
 	ID        string           `json:"id"`
 	Title     string           `json:"title"`
 	Model     string           `json:"model"`
-	Tag       string           `json:"tag"`
+	Tag       string           `json:"tag,omitempty"`
+	Workspace string           `json:"workspace,omitempty"`
 	CreatedAt int64            `json:"created_at"`
 	UpdatedAt int64            `json:"updated_at"`
 	Messages  []SessionMessage `json:"messages"`
@@ -51,6 +52,7 @@ type SessionMeta struct {
 	Time      string `json:"time"`
 	Desc      string `json:"desc"`
 	UpdatedAt int64  `json:"updated_at"`
+	Workspace string `json:"workspace,omitempty"`
 }
 
 // Store 会话本地磁盘管理器
@@ -70,8 +72,36 @@ func NewStore() (*Store, error) {
 	return s, nil
 }
 
-// List 列出所有已保存会话的轻量摘要
-func (s *Store) List() []SessionMeta {
+func sameWorkspace(a, b string) bool {
+	if a == "" || b == "" {
+		return a == b
+	}
+	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+}
+
+func TitleFromFirstMessage(sess ChatSession) string {
+	if t := strings.TrimSpace(sess.Title); t != "" && t != "新工程对话" && t != "新对话" {
+		return t
+	}
+	for _, m := range sess.Messages {
+		if m.Role != "user" {
+			continue
+		}
+		line := strings.TrimSpace(m.Content)
+		if line == "" {
+			continue
+		}
+		r := []rune(line)
+		if len(r) > 32 {
+			return string(r[:32]) + "…"
+		}
+		return line
+	}
+	return "新对话"
+}
+
+// List 列出已保存会话摘要。workspace 非空时只返回该工作区（无 workspace 字段的旧文件视为未归属，不混入）。
+func (s *Store) List(workspace string) []SessionMeta {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -98,33 +128,36 @@ func (s *Store) List() []SessionMeta {
 
 		var sess ChatSession
 		if err := json.Unmarshal(data, &sess); err == nil {
-			desc := "对话已就绪"
-			if len(sess.Messages) > 0 {
-				last := sess.Messages[len(sess.Messages)-1]
-				r := []rune(last.Content)
-				if len(r) > 20 {
-					desc = string(r[:20]) + "..."
-				} else if len(r) > 0 {
-					desc = string(r)
-				}
+			if workspace != "" && sess.Workspace != "" && !sameWorkspace(sess.Workspace, workspace) {
+				continue
 			}
-
+			if workspace != "" && sess.Workspace == "" {
+				continue
+			}
+			if len(sess.Messages) == 0 {
+				continue
+			}
+			desc := ""
+			last := sess.Messages[len(sess.Messages)-1]
+			r := []rune(strings.TrimSpace(last.Content))
+			if len(r) > 36 {
+				desc = string(r[:36]) + "…"
+			} else {
+				desc = string(r)
+			}
+			ts := sess.UpdatedAt
+			if ts > 1e11 {
+				ts = ts / 1000
+			}
 			metas = append(metas, SessionMeta{
 				ID:        sess.ID,
-				Title:     sess.Title,
+				Title:     TitleFromFirstMessage(sess),
 				Model:     sess.Model,
 				Tag:       sess.Tag,
-				Time: func() string {
-					if sess.UpdatedAt <= 0 {
-						return ""
-					}
-					if sess.UpdatedAt > 1e11 {
-						return time.UnixMilli(sess.UpdatedAt).Format("15:04")
-					}
-					return time.Unix(sess.UpdatedAt, 0).Format("15:04")
-				}(),
+				Time:      formatSessionTime(ts),
 				Desc:      desc,
 				UpdatedAt: sess.UpdatedAt,
+				Workspace: sess.Workspace,
 			})
 		}
 	}
@@ -135,6 +168,21 @@ func (s *Store) List() []SessionMeta {
 	})
 
 	return metas
+}
+
+func formatSessionTime(unixSec int64) string {
+	if unixSec <= 0 {
+		return ""
+	}
+	t := time.Unix(unixSec, 0)
+	now := time.Now()
+	if t.Year() == now.Year() && t.YearDay() == now.YearDay() {
+		return t.Format("15:04")
+	}
+	if t.Year() == now.Year() {
+		return t.Format("01-02 15:04")
+	}
+	return t.Format("2006-01-02")
 }
 
 // sanitizeID 防御会话 ID 路径穿越 (Path Traversal)，只允许合法基名
@@ -206,9 +254,7 @@ func (s *Store) Save(sess ChatSession) error {
 	if sess.CreatedAt == 0 {
 		sess.CreatedAt = sess.UpdatedAt
 	}
-	if sess.Tag == "" {
-		sess.Tag = "默认"
-	}
+	sess.Title = TitleFromFirstMessage(sess)
 
 	data, err := json.MarshalIndent(sess, "", "  ")
 	if err != nil {
