@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"tiancode/internal/host"
 	"tiancode/internal/llm"
@@ -22,7 +23,25 @@ const (
 	EventFilesChanged EventType = "files_changed"
 	EventHitCap       EventType = "hit_cap"
 	EventTDDResult    EventType = "tdd_result"
+	EventChoice       EventType = "choice"
 )
+
+// ChoiceOption 用户选择题选项
+type ChoiceOption struct {
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+	Recommended bool   `json:"recommended,omitempty"`
+}
+
+// ChoicePayload 选项选择载荷
+type ChoicePayload struct {
+	SessionID   string         `json:"session_id"`
+	RequestID   string         `json:"request_id"`
+	Question    string         `json:"question"`
+	Options     []ChoiceOption `json:"options"`
+	AllowCustom bool           `json:"allow_custom"`
+}
 
 // EngineEvent 引擎事件
 type EngineEvent struct {
@@ -36,6 +55,7 @@ type EngineEvent struct {
 	IsError      bool            `json:"is_error,omitempty"`
 	ErrorMessage string          `json:"error_message,omitempty"`
 	TDDPassed    *bool           `json:"tdd_passed,omitempty"`
+	Choice       *ChoicePayload  `json:"choice,omitempty"`
 }
 
 // EngineRequest 用户推理请求
@@ -60,19 +80,45 @@ type AssembledToolCall struct {
 	Arguments strings.Builder
 }
 
+// HumanReply 人类干预的反馈数据
+type HumanReply struct {
+	OptionID   string
+	CustomNote string
+	Allow      bool
+	Timeout    bool
+}
+
 // ExecutionEngine ReAct 双环自主执行引擎
 type ExecutionEngine struct {
 	registry   *host.Registry
 	MCPCall    func(ctx context.Context, name string, args map[string]any) (string, error)
-	// Verify 在 TDD 策略写盘成功后运行工作区测试，结果会拼进工具输出。
-	Verify func(writtenFile string) (output string, pass bool)
+	Verify     func(writtenFile string) (output string, pass bool)
+
+	mu           sync.Mutex
+	pendingHuman map[string]chan HumanReply
 }
 
 // NewExecutionEngine 构造执行引擎
 func NewExecutionEngine(reg *host.Registry) *ExecutionEngine {
 	return &ExecutionEngine{
-		registry:    reg,
+		registry:     reg,
+		pendingHuman: make(map[string]chan HumanReply),
 	}
+}
+
+// DeliverHumanReply 递交人类的选择/确认
+func (e *ExecutionEngine) DeliverHumanReply(sessionID string, reply HumanReply) bool {
+	e.mu.Lock()
+	ch, ok := e.pendingHuman[sessionID]
+	e.mu.Unlock()
+	if ok {
+		select {
+		case ch <- reply:
+			return true
+		default:
+		}
+	}
+	return false
 }
 
 // Execute 驱动完整的 ReAct 自主思考与工具调用闭环（统一单核）

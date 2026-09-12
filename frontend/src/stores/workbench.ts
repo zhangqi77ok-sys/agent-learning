@@ -112,6 +112,9 @@ const projectTree = computed(() => {
 })
 const currentSessionId = ref('')
 const selectedModel = ref('')
+const pendingChoice = ref<any>(null)
+const pendingChoiceSelected = ref('')
+const pendingChoiceCustomNote = ref('')
 
 const currentSession = ref<ChatSession>({
   id: '',
@@ -1392,9 +1395,28 @@ function confirmStrategyAndSend() {
   }
 }
 
+async function submitAgentChoice(optionId: string, customNote: string = '') {
+  if (!pendingChoice.value) return
+  const { session_id, request_id } = pendingChoice.value
+  pendingChoice.value = null
+  const app = (window as any).go?.main?.App
+  if (app?.ResumeAgentChoice) {
+    await app.ResumeAgentChoice(session_id, request_id, optionId, customNote)
+  } else {
+    showToast('microkernel not connected')
+  }
+}
+
 async function handleSend() {
   const prompt = inputPrompt.value.trim()
   if (!prompt || isStreaming.value) return
+  
+  if (pendingChoice.value) {
+    pendingChoice.value = null
+    await wailsBridge.cancelStreaming()
+    showToast('已取消当前等待的选择项并中断旧任务。')
+  }
+
   if (!strategyPickerArmed.value) {
     pendingSendPrompt.value = prompt
     isStrategyPickerOpen.value = true
@@ -1582,6 +1604,17 @@ async function handleSend() {
               const matched = tcId ? target.tools.find(t => t.id === tcId) : target.tools[target.tools.length - 1]
               if (matched) matched.output = output
             }
+          }
+          scrollChatToLatest()
+        },
+        onChoice(data) {
+          pendingChoice.value = data
+          pendingChoiceCustomNote.value = ''
+          pendingChoiceSelected.value = ''
+          if (data && data.options) {
+            const rec = data.options.find((o: any) => o.recommended)
+            if (rec) pendingChoiceSelected.value = rec.id
+            else if (data.options.length > 0) pendingChoiceSelected.value = data.options[0].id
           }
           scrollChatToLatest()
         },
@@ -2274,7 +2307,16 @@ function handleGlobalKeydown(e: KeyboardEvent) {
     if (isCommandPaletteOpen.value) { isCommandPaletteOpen.value = false; return }
     if (tabContextMenu.value) { tabContextMenu.value = null; return }
 
-    // 优先级 2: 二级弹窗 (渠道/MCP/技能/pending Diff/策略等)
+    // 优先级 2: 二级弹窗 (choice/confirm, 渠道/MCP/技能/pending Diff/策略等)
+    if (pendingChoice.value) {
+      const choiceCopy = pendingChoice.value
+      pendingChoice.value = null
+      const app = (window as any).go?.main?.App
+      if (app?.ResumeAgentChoice) {
+        app.ResumeAgentChoice(choiceCopy.session_id, choiceCopy.request_id, '', '')
+      }
+      return
+    }
     if (isChannelModalOpen.value) { isChannelModalOpen.value = false; return }
     if (isMcpModalOpen.value) { isMcpModalOpen.value = false; return }
     if (isSkillModalOpen.value) { isSkillModalOpen.value = false; return }
@@ -2537,6 +2579,10 @@ function initWorkbench() {
     workspaceName,
     workspacePath,
     pendingDiffFiles,
+    pendingChoice,
+    pendingChoiceSelected,
+    pendingChoiceCustomNote,
+    submitAgentChoice,
     activeConstitution,
     isConstitutionModalOpen,
     openEditorTabs,

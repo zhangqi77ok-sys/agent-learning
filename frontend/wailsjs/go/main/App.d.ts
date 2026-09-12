@@ -82,6 +82,8 @@ export function GitUnstage(arg1:string):Promise<void>;
 
 export function ListChannels():Promise<Array<config.ChannelConfig>>;
 
+export function ResumeAgentChoice(arg1:string,arg2:string,arg3:string,arg4:string):Promise<boolean>;
+
 export function ListMCPs():Promise<Array<config.MCPServerConfig>>;
 
 export function ListRules():Promise<Array<config.RuleConfig>>;

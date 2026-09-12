@@ -225,6 +225,35 @@
             </div>
           </template>
 
+          <!-- 选择题卡片 (WP-H1) -->
+          <div v-if="s.pendingChoice" class="flex flex-col items-start space-y-3.5 max-w-3xl w-full">
+            <div class="flex items-center gap-2 text-xs font-semibold text-[#18181B]">
+              <div class="w-4 h-4 rounded bg-[#D96B27] text-white flex items-center justify-center text-[9px] font-bold">?</div>
+              <span>需要您的选择</span>
+            </div>
+            <div class="w-full rounded-xl border border-[#D96B27]/40 bg-[#FFFaf5] shadow-2xs overflow-hidden p-4 space-y-3">
+              <h3 class="text-sm font-bold text-[#18181B]">{{ s.pendingChoice.question }}</h3>
+              <div class="space-y-2">
+                <label v-for="opt in s.pendingChoice.options" :key="opt.id" class="flex items-start gap-3 p-3 rounded-lg border bg-white cursor-pointer hover:border-[#D96B27]/60 transition-all" :class="s.pendingChoiceSelected === opt.id ? 'border-[#D96B27] bg-[#D96B27]/5' : 'border-black/[0.08]'">
+                  <input type="radio" :value="opt.id" v-model="s.pendingChoiceSelected" name="choice_opt" class="mt-0.5 accent-[#D96B27]">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium text-[#18181B] flex items-center gap-2">
+                      {{ opt.label }}
+                      <span v-if="opt.recommended" class="text-[10px] text-white bg-[#D96B27] px-1.5 rounded">推荐</span>
+                    </span>
+                    <span v-if="opt.description" class="text-xs text-[#71717A] mt-1">{{ opt.description }}</span>
+                  </div>
+                </label>
+              </div>
+              <div v-if="s.pendingChoice.allow_custom" class="mt-2">
+                <input v-model="s.pendingChoiceCustomNote" type="text" placeholder="补充说明（可选）..." class="w-full text-xs p-2 rounded-lg border border-black/[0.08] bg-white focus:outline-none focus:border-[#D96B27]" />
+              </div>
+              <div class="flex items-center justify-end gap-2 pt-2 border-t border-[#D96B27]/10 mt-2">
+                <button @click="s.submitAgentChoice(s.pendingChoiceSelected, s.pendingChoiceCustomNote)" :disabled="!s.pendingChoiceSelected" class="px-4 py-1.5 rounded-lg bg-[#D96B27] text-white text-xs font-semibold shadow-xs hover:bg-[#B8551B] disabled:opacity-50 disabled:cursor-not-allowed">确定提交</button>
+              </div>
+            </div>
+          </div>
+
         </div>
         <button
           v-if="!s.stickToBottom"

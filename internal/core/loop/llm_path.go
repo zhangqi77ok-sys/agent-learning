@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"tiancode/internal/llm"
 	v1 "tiancode/pkg/plugin/v1"
@@ -42,6 +43,16 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 		eventChan <- EngineEvent{Type: EventError, ErrorMessage: err.Error()}
 		return err
 	}
+
+	e.mu.Lock()
+	humanChan := make(chan HumanReply, 1)
+	e.pendingHuman[req.SessionID] = humanChan
+	e.mu.Unlock()
+	defer func() {
+		e.mu.Lock()
+		delete(e.pendingHuman, req.SessionID)
+		e.mu.Unlock()
+	}()
 
 	conversation := req.Messages
 	if len(conversation) == 0 {
@@ -215,7 +226,51 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 				ToolName:   tc.Function.Name,
 				ToolArgs:   rawArgs,
 			}
-			output, isErr, written, tddPass := e.runTool(ctx, req.SessionID, tc.Function.Name, rawArgs, req.Strategy, turn, req.LLMTools)
+			var output string
+			var isErr bool
+			var written string
+			var tddPass *bool
+
+			if tc.Function.Name == "ask_user" {
+				var askPayload ChoicePayload
+				if err := json.Unmarshal(rawArgs, &askPayload); err != nil {
+					output = fmt.Sprintf("ask_user 参数解析失败: %v", err)
+					isErr = true
+				} else if len(askPayload.Options) < 2 || len(askPayload.Options) > 5 || askPayload.Question == "" {
+					output = "ask_user 需要 question 以及 2~5 个 options"
+					isErr = true
+				} else {
+					askPayload.SessionID = req.SessionID
+					askPayload.RequestID = tc.ID // use ToolCallID as RequestID
+					eventChan <- EngineEvent{
+						Type:   EventChoice,
+						Choice: &askPayload,
+					}
+					
+					// Block until resume or timeout
+					select {
+					case <-ctx.Done():
+						output = "已跳过（会话中断），请采用推荐选项。"
+					case <-time.After(5 * time.Minute):
+						output = "已跳过（等待超时），请采用推荐选项，结果注明 skipped_default=true。"
+					case reply := <-humanChan:
+						if reply.Timeout || !reply.Allow {
+							output = "已跳过（用户跳过），请采用推荐选项，结果注明 skipped_default=true。"
+						} else {
+							var label string
+							for _, opt := range askPayload.Options {
+								if opt.ID == reply.OptionID {
+									label = opt.Label
+									break
+								}
+							}
+							output = fmt.Sprintf("用户选择了 option_id=%s label=%s。补充：%s", reply.OptionID, label, reply.CustomNote)
+						}
+					}
+				}
+			} else {
+				output, isErr, written, tddPass = e.runTool(ctx, req.SessionID, tc.Function.Name, rawArgs, req.Strategy, turn, req.LLMTools)
+			}
 			eventChan <- EngineEvent{
 				Type:       EventToolEnd,
 				ToolCallID: tc.ID,

@@ -114,6 +114,14 @@ func expandMentionedFiles(workspace string, sb *sandbox.Sandbox, prompt string) 
 	return prompt
 }
 
+func (a *App) ResumeAgentChoice(sessionID string, requestID string, optionID string, customNote string) bool {
+	return a.engine.DeliverHumanReply(sessionID, loop.HumanReply{
+		OptionID:   optionID,
+		CustomNote: customNote,
+		Allow:      true,
+	})
+}
+
 func (a *App) SendMessage(req ChatRequest) error {
 	if a.ctx == nil {
 		return fmt.Errorf("context not initialized")
@@ -277,6 +285,10 @@ func (a *App) SendMessage(req ChatRequest) error {
 						"session_id": req.SessionID,
 						"delta":      ev.DeltaContent,
 					})
+				}
+			case loop.EventChoice:
+				if ev.Choice != nil {
+					runtime.EventsEmit(a.ctx, "agent:choice", ev.Choice)
 				}
 			case loop.EventToolStart:
 				runtime.EventsEmit(a.ctx, "agent:tool_start", map[string]any{

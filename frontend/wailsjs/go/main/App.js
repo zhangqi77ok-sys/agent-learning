@@ -162,6 +162,10 @@ export function ListChannels() {
   return window['go']['main']['App']['ListChannels']();
 }
 
+export function ResumeAgentChoice(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ResumeAgentChoice'](arg1, arg2, arg3, arg4);
+}
+
 export function ListMCPs() {
   return window['go']['main']['App']['ListMCPs']();
 }
