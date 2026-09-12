@@ -36,3 +36,22 @@ func TestResolveChatCredentials_UsesPrimary(t *testing.T) {
 		t.Fatalf("override model: %s %v", model, err)
 	}
 }
+
+func TestAppendEnabledPolicies_SkipsDisabledAndEmpty(t *testing.T) {
+	out := appendEnabledPolicies("base", []config.SkillConfig{
+		{Name: "off", Prompt: "x", Enabled: false},
+		{Name: "go-style", Prompt: "prefer go test", Enabled: true},
+		{Name: "empty", Prompt: "  ", Enabled: true},
+	}, []config.RuleConfig{
+		{Title: "r1", Content: "no fake data", Enabled: true},
+	})
+	if !strings.Contains(out, "[技能 go-style] prefer go test") {
+		t.Fatalf("missing skill: %s", out)
+	}
+	if strings.Contains(out, "off") || strings.Contains(out, "[技能 empty]") {
+		t.Fatalf("disabled/empty skill leaked: %s", out)
+	}
+	if !strings.Contains(out, "[规则规约] no fake data") {
+		t.Fatalf("missing rule: %s", out)
+	}
+}

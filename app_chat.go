@@ -46,6 +46,20 @@ func resolveChatCredentials(primary *config.ChannelConfig, reqModel string) (end
 	return endpoint, apiKey, model, nil
 }
 
+func appendEnabledPolicies(base string, skills []config.SkillConfig, rules []config.RuleConfig) string {
+	for _, sk := range skills {
+		if sk.Enabled && strings.TrimSpace(sk.Prompt) != "" {
+			base += "\n[技能 " + sk.Name + "] " + sk.Prompt
+		}
+	}
+	for _, r := range rules {
+		if r.Enabled && strings.TrimSpace(r.Content) != "" {
+			base += "\n[规则规约] " + r.Content
+		}
+	}
+	return base
+}
+
 func (a *App) SendMessage(req ChatRequest) error {
 	if a.ctx == nil {
 		return fmt.Errorf("context not initialized")
@@ -133,11 +147,8 @@ func (a *App) SendMessage(req ChatRequest) error {
 
 		// 4. 构建提示词体系 (注入规则 + 工作区技术栈感知 + 最近多轮历史)
 		systemPrompt := "你是 湉码 / tiancode 纯原生桌面智能体。你有权调用工具来审查、读取、修改工程代码及运行测试命令。请优先利用工具解决问题，并在每次调用后解释原因。"
-		rules := a.extraStore.ListRules()
-		for _, r := range rules {
-			if r.Enabled {
-				systemPrompt += "\n[规则规约] " + r.Content
-			}
+		if a.extraStore != nil {
+			systemPrompt = appendEnabledPolicies(systemPrompt, a.extraStore.ListSkills(), a.extraStore.ListRules())
 		}
 		// 动态侦测工作区项目技术栈并注入环境上下文
 		stackInfo := sandbox.DetectProjectStack(a.workspace)

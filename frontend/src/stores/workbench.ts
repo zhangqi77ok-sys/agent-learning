@@ -669,7 +669,7 @@ async function saveSkillAction() {
     id: 'skill_' + Date.now(),
     name: skillForm.name.trim(),
     description: skillForm.description.trim(),
-    content: skillForm.content.trim(),
+    prompt: skillForm.content.trim(),
     enabled: true,
     updated_at: Date.now()
   })
