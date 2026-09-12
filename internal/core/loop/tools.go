@@ -20,7 +20,10 @@ func trimToolOutput(output string, maxChars int) string {
 	return head + fmt.Sprintf("\n\n...[输出过长，中间 %d 字符已截断]...\n\n", len(runes)-maxChars) + tail
 }
 
-func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName string, rawArgs json.RawMessage, toolMap map[string]v1.ToolPlugin) (output string, isErr bool, written string) {
+func (e *ExecutionEngine) runTool(ctx context.Context, sessionID, toolName string, rawArgs json.RawMessage, toolMap map[string]v1.ToolPlugin, strategy string) (output string, isErr bool, written string) {
+	if deny, reason := DenyByStrategy(strategy, toolName, rawArgs); deny {
+		return "[策略拦截] " + reason, true, ""
+	}
 	rails := e.registry.ListRails()
 	for _, rail := range rails {
 		decision, railErr := rail.OnBeforeAct(ctx, sessionID, toolName, rawArgs)

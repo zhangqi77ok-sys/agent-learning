@@ -816,9 +816,64 @@ async function triggerUpload() {
   }
 }
 
+const executionStrategies = [
+  {
+    id: 'analyze',
+    letter: 'A',
+    title: '只读分析（推荐先看清再改）',
+    badge: '只读',
+    desc: '内核会拿掉 exec_command，并拦截 fs_control 的 write。只能读文件、列目录、看 Git 状态。'
+  },
+  {
+    id: 'implement',
+    letter: 'B',
+    title: '直接改代码',
+    badge: '可写',
+    desc: '允许读写工作区并执行必要命令。适合已经想清楚、要落地补丁的任务。'
+  },
+  {
+    id: 'tdd',
+    letter: 'C',
+    title: 'TDD 闭环',
+    badge: '测试',
+    desc: '允许改代码，但系统提示强制先测后改，测试失败不得宣称完成。'
+  }
+] as const
+
+const executionStrategy = ref<'analyze' | 'implement' | 'tdd'>('implement')
+const strategyNote = ref('')
+const isStrategyPickerOpen = ref(false)
+const strategyPickerArmed = ref(false)
+const pendingSendPrompt = ref('')
+
+function openStrategyPicker() {
+  isStrategyPickerOpen.value = true
+}
+
+function skipStrategyChoice() {
+  executionStrategy.value = 'implement'
+  confirmStrategyAndSend()
+}
+
+function confirmStrategyAndSend() {
+  strategyPickerArmed.value = true
+  isStrategyPickerOpen.value = false
+  if (pendingSendPrompt.value) {
+    inputPrompt.value = pendingSendPrompt.value
+    pendingSendPrompt.value = ''
+  }
+  void handleSend()
+}
+
 async function handleSend() {
   const prompt = inputPrompt.value.trim()
   if (!prompt || isStreaming.value) return
+  if (!strategyPickerArmed.value) {
+    pendingSendPrompt.value = prompt
+    isStrategyPickerOpen.value = true
+    return
+  }
+  strategyPickerArmed.value = false
   const slash = prompt.split(/\s+/)[0]
   if (slash === '/test' || slash === '/tdd') {
     inputPrompt.value = ''
@@ -867,6 +922,8 @@ async function handleSend() {
   }
 
   let fullPrompt = prompt
+  const stratLabel = executionStrategies.find((x) => x.id === executionStrategy.value)?.title || executionStrategy.value
+  fullPrompt = `[执行策略 ${executionStrategy.value}: ${stratLabel}]${strategyNote.value.trim() ? '\n[附加约束] ' + strategyNote.value.trim() : ''}\n\n` + fullPrompt
   if (attachedFiles.value.length > 0) {
     fullPrompt = `[附加关联文件]\n${attachedFiles.value.map(f => `- ${f}`).join('\n')}\n\n${prompt}`
     attachedFiles.value = []
@@ -914,7 +971,9 @@ async function handleSend() {
         session_id: currentSessionId.value,
         prompt: fullPrompt,
         model: selectedModel.value,
-        is_full_auto: false
+        is_full_auto: false,
+        strategy: executionStrategy.value,
+        strategy_note: strategyNote.value.trim()
       },
       {
         onThinking(thinking) {
@@ -1486,6 +1545,7 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 
   if (e.key === 'Escape') {
+    if (isStrategyPickerOpen.value) { isStrategyPickerOpen.value = false; return }
     if (tabContextMenu.value) { tabContextMenu.value = null; return }
     if (mentionOpen.value) { mentionOpen.value = false; return }
     if (isCommandPaletteOpen.value) { isCommandPaletteOpen.value = false; return }
@@ -1540,6 +1600,7 @@ function initWorkbench() {
     commandPaletteItems,
     commandPaletteQuery,
     confirmCommandPalette,
+    confirmStrategyAndSend,
     applyHunkAction,
     applyMention,
     astGraph,
@@ -1575,6 +1636,8 @@ function initWorkbench() {
     discardHunkAction,
     editorContent,
     editorDirty,
+    executionStrategy,
+    executionStrategies,
     editorView,
     editChannel,
     executePing,
@@ -1609,6 +1672,7 @@ function initWorkbench() {
     isRuleModalOpen,
     isSettingsOpen,
     isSkillModalOpen,
+    isStrategyPickerOpen,
     isStreaming,
     isTerminalMaximized,
     isTerminalOpen,
@@ -1668,6 +1732,7 @@ function initWorkbench() {
     selectedAstNode,
     selectedModel,
     sessions,
+    skipStrategyChoice,
     setPrimaryChannel,
     showToast,
     skillForm,
@@ -1675,6 +1740,7 @@ function initWorkbench() {
     stageAllWorking,
     stageFileAction,
     stagePath,
+    strategyNote,
     stagedTreeFiles,
     stopGenerationAction,
     submitTerminalCommand,

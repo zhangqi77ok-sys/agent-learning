@@ -48,6 +48,8 @@ type EngineRequest struct {
 	SystemPrompt string
 	Messages     []llm.Message
 	LLMTools     []llm.ToolDef
+	Strategy     string
+	StrategyNote string
 }
 
 // AssembledToolCall 组装后的工具调用
@@ -237,7 +239,7 @@ func (e *ExecutionEngine) Execute(ctx context.Context, req *EngineRequest, event
 				ToolArgs:   rawArgs,
 			}
 
-			toolOutput, isErr, written := e.runTool(ctx, req.SessionID, atc.Name, rawArgs, toolMap)
+			toolOutput, isErr, written := e.runTool(ctx, req.SessionID, atc.Name, rawArgs, toolMap, req.Strategy)
 
 			// 通知前端工具完成
 			eventChan <- EngineEvent{

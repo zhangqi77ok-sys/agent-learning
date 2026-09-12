@@ -18,10 +18,12 @@ import (
 )
 
 type ChatRequest struct {
-	SessionID  string `json:"session_id"`
-	Prompt     string `json:"prompt"`
-	Model      string `json:"model"`
-	IsFullAuto bool   `json:"is_full_auto"`
+	SessionID    string `json:"session_id"`
+	Prompt       string `json:"prompt"`
+	Model        string `json:"model"`
+	IsFullAuto   bool   `json:"is_full_auto"`
+	Strategy     string `json:"strategy"`
+	StrategyNote string `json:"strategy_note"`
 }
 
 func resolveChatCredentials(primary *config.ChannelConfig, reqModel string) (endpoint, apiKey, model string, err error) {
@@ -165,6 +167,8 @@ func (a *App) SendMessage(req ChatRequest) error {
 		allToolExecs := make([]session.ToolExecution, 0)
 
 		workspaceTools := a.buildLLMToolsFromRegistry(agentCtx)
+		workspaceTools, systemPrompt = loop.ApplyStrategy(req.Strategy, req.StrategyNote, workspaceTools, systemPrompt)
+		conversation = buildConversationWindow(systemPrompt, currentSession.Messages, 32000)
 		roundStart := time.Now()
 		eventChan := make(chan loop.EngineEvent, 64)
 		go func() {
@@ -177,6 +181,8 @@ func (a *App) SendMessage(req ChatRequest) error {
 				SystemPrompt: systemPrompt,
 				Messages:     conversation,
 				LLMTools:     workspaceTools,
+				Strategy:     loop.NormalizeStrategy(req.Strategy),
+				StrategyNote: req.StrategyNote,
 			}, eventChan)
 		}()
 

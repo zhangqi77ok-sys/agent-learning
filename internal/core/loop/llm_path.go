@@ -146,7 +146,7 @@ func (e *ExecutionEngine) executeDirectLLM(ctx context.Context, req *EngineReque
 				ToolName:   tc.Function.Name,
 				ToolArgs:   rawArgs,
 			}
-			output, isErr, written := e.runTool(ctx, req.SessionID, tc.Function.Name, rawArgs, nil)
+			output, isErr, written := e.runTool(ctx, req.SessionID, tc.Function.Name, rawArgs, nil, req.Strategy)
 			eventChan <- EngineEvent{
 				Type:       EventToolEnd,
 				ToolCallID: tc.ID,

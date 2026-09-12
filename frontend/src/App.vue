@@ -581,6 +581,51 @@
     </div>
 
     <div
+      v-if="s.isStrategyPickerOpen"
+      class="fixed inset-0 z-[65] flex items-center justify-center bg-black/45"
+      @click.self="s.isStrategyPickerOpen = false"
+    >
+      <div class="w-[min(720px,92vw)] bg-white rounded-2xl border border-black/[0.1] shadow-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-sm font-bold text-[#18181B]">架构策略决策确认</h4>
+            <p class="text-[11px] text-[#71717A]">选择会改内核工具权限，不是装饰。只读分析会拦截写文件和执行命令。</p>
+          </div>
+          <span class="text-[9px] text-[#D96B27] bg-[#D96B27]/10 px-1.5 py-0.5 rounded font-mono font-bold">待用户决策</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+          <button
+            v-for="opt in s.executionStrategies"
+            :key="opt.id"
+            type="button"
+            class="text-left p-3 rounded-xl cursor-pointer transition-all"
+            :class="s.executionStrategy === opt.id ? 'border-2 border-[#D96B27] bg-white shadow-xs' : 'border border-black/[0.08] opacity-85 hover:opacity-100'"
+            @click="s.executionStrategy = opt.id"
+          >
+            <div class="flex items-center justify-between gap-1">
+              <div class="flex items-center gap-1.5 font-bold text-xs text-[#18181B]">
+                <span class="w-3.5 h-3.5 rounded-full bg-[#D96B27] text-white flex items-center justify-center text-[9px]">{{ opt.letter }}</span>
+                <span>{{ opt.title }}</span>
+              </div>
+              <span class="text-[9px] font-mono font-bold text-[#10A37F] bg-emerald-50 px-1.5 py-0.2 rounded">{{ opt.badge }}</span>
+            </div>
+            <p class="text-[11px] text-[#71717A] mt-1.5 leading-relaxed">{{ opt.desc }}</p>
+          </button>
+        </div>
+        <input
+          v-model="s.strategyNote"
+          type="text"
+          placeholder="补充约束（可选，会写入系统提示并随策略一起生效）"
+          class="w-full h-8 px-2.5 rounded-lg border border-black/[0.08] text-xs"
+        />
+        <div class="flex justify-end gap-2 pt-1 border-t border-black/[0.06]">
+          <button class="px-3 py-1 rounded-lg text-xs text-[#71717A] cursor-pointer" @click="s.skipStrategyChoice">跳过并采用直接改代码</button>
+          <button class="px-4 py-1 rounded-lg bg-[#D96B27] text-white text-xs font-semibold cursor-pointer" @click="s.confirmStrategyAndSend">确定提交选择</button>
+        </div>
+      </div>
+    </div>
+
+    <div
       v-if="s.tabContextMenu"
       class="fixed z-[70] bg-white border border-black/[0.1] rounded-lg shadow-lg text-xs py-1 min-w-[140px]"
       :style="{ left: s.tabContextMenu.x + 'px', top: s.tabContextMenu.y + 'px' }"

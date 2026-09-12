@@ -190,8 +190,8 @@
                 </button>
                 <div class="h-3.5 w-px bg-black/[0.1] mx-1"></div>
 
-                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D96B27]/10 text-[#D96B27] text-xs font-semibold select-none" title="Inner/Outer Loop 由 Go ExecutionEngine 执行">
-                  <span>⚡</span><span>双环执行</span>
+                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D96B27]/10 text-[#D96B27] text-xs font-semibold select-none" :title="'当前策略: ' + s.executionStrategy">
+                  <span>⚡</span><span>{{ s.executionStrategy === 'analyze' ? '只读分析' : s.executionStrategy === 'tdd' ? 'TDD 闭环' : '直接改代码' }}</span>
                 </div>
               </div>
 

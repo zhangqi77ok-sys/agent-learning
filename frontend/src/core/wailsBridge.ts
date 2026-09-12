@@ -651,7 +651,7 @@ export const wailsBridge = {
 
   // 5. 真实流式对话调用与事件订阅
   async sendMessage(
-    req: { session_id: string; prompt: string; model: string; is_full_auto: boolean },
+    req: { session_id: string; prompt: string; model: string; is_full_auto: boolean; strategy?: string; strategy_note?: string },
     callbacks: {
       onThinking?: (text: string) => void
       onChunk?: (delta: string) => void
